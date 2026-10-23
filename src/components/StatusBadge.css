@@ -1,0 +1,29 @@
+.fase-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.fase-badge-md {
+  padding: 4px 11px;
+  font-size: 12px;
+}
+.fase-badge-sm {
+  padding: 2px 8px;
+  font-size: 11px;
+}
+
+.riesgo-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}

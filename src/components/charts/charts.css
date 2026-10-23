@@ -1,0 +1,131 @@
+.chart-card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  padding: 24px 26px;
+  box-shadow: var(--shadow-sm);
+}
+.chart-card-title {
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 20px;
+  letter-spacing: -0.01em;
+}
+.chart-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.barchart {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.barchart-row {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  align-items: center;
+  gap: 12px;
+}
+.barchart-row-otros {
+  opacity: 0.7;
+}
+.barchart-label {
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.barchart-track {
+  background: var(--color-surface-alt);
+  border-radius: 7px;
+  height: 28px;
+  overflow: hidden;
+}
+.barchart-fill {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 10px;
+  border-radius: 7px;
+  min-width: 30px;
+  transition: width 0.4s ease;
+}
+.barchart-value {
+  font-size: 11.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.stat-tile {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  box-shadow: var(--shadow-sm);
+}
+.stat-tile-value {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: var(--color-text);
+}
+.stat-tile-sufijo {
+  font-size: 15px;
+  font-weight: 600;
+  margin-left: 2px;
+  color: var(--color-text-muted);
+}
+.stat-tile-label {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+.stat-tile-success .stat-tile-value {
+  color: var(--color-success);
+}
+.stat-tile-danger .stat-tile-value {
+  color: var(--color-danger);
+}
+
+.table-twin-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: none;
+  background: transparent;
+  color: var(--color-primary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 0;
+  margin-top: 14px;
+}
+
+.period-filter {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+.period-filter button {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  border-radius: 999px;
+  padding: 7px 16px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.period-filter button.is-active {
+  background: var(--color-primary);
+  color: var(--color-primary-contrast);
+  border-color: var(--color-primary);
+}

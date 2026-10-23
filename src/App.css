@@ -1,0 +1,18 @@
+.app-status {
+  min-height: 100svh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 24px;
+}
+
+.app-status p {
+  font-size: 14px;
+  color: var(--color-text-muted);
+  max-width: 420px;
+}
+
+.app-status-error {
+  color: var(--color-danger);
+}

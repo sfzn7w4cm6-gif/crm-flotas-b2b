@@ -1,0 +1,122 @@
+.table-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin: -10px 0 14px;
+}
+
+.drag-handle {
+  flex-shrink: 0;
+  width: 10px;
+  height: 14px;
+  cursor: grab;
+  display: inline-block;
+  position: relative;
+  color: var(--color-text-muted);
+}
+.drag-handle::before {
+  content: '';
+  position: absolute;
+  top: 4px;
+  left: 1px;
+  width: 2.5px;
+  height: 2.5px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow:
+    0 -4px 0 currentColor,
+    0 4px 0 currentColor,
+    5px -4px 0 currentColor,
+    5px 0 0 currentColor,
+    5px 4px 0 currentColor;
+}
+
+.th-draggable {
+  position: relative;
+  display: table-cell;
+}
+.th-draggable > .drag-handle {
+  margin-right: 7px;
+  vertical-align: middle;
+  opacity: 0.45;
+}
+.th-draggable:hover > .drag-handle {
+  opacity: 0.85;
+}
+.th-draggable.is-dragging {
+  opacity: 0.4;
+}
+.th-draggable.is-drop-target {
+  box-shadow: inset 2px 0 0 var(--color-primary);
+  background: var(--color-surface);
+}
+.th-label {
+  vertical-align: middle;
+}
+
+.view-editor {
+  position: relative;
+  margin-left: auto;
+}
+.view-editor .btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.view-editor-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 44;
+  background: transparent;
+  border: none;
+  cursor: default;
+}
+.view-editor-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 45;
+  width: 230px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 360px;
+  overflow-y: auto;
+}
+.view-editor-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  margin-bottom: 8px;
+}
+.view-editor-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 6px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--color-text);
+  cursor: pointer;
+}
+.view-editor-item:hover {
+  background: var(--color-surface-alt);
+}
+.view-editor-item input[type='checkbox'] {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+}
+.view-editor-item input[type='checkbox']:disabled {
+  cursor: not-allowed;
+}

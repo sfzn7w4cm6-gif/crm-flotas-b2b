@@ -1,0 +1,110 @@
+:root {
+  /* Paleta EBRO moderna: blanco dominante, negro pizarra como color
+     principal, marron tierra como acento puntual (no como color base). */
+  --color-bg: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-alt: #f7f6f4;
+  --color-border: #e9e7e2;
+  --color-text: #1d1d1b;
+  --color-text-muted: #76746e;
+  --color-primary: #1d1d1b;
+  --color-primary-hover: #3a3a37;
+  --color-primary-contrast: #ffffff;
+  --color-accent: #8a7a68;
+  --color-accent-bg: #f1ece4;
+  --color-success: #1b7f3a;
+  --color-success-bg: #e7f6ec;
+  --color-danger: #9c3b30;
+  --color-danger-bg: #fbe9e7;
+  --color-warning: #8a6100;
+  --color-warning-bg: #fff4d9;
+  --color-focus: #1d1d1b;
+  --shadow-sm: 0 1px 2px rgba(29, 29, 27, 0.05);
+  --shadow-md: 0 8px 24px rgba(29, 29, 27, 0.08);
+  --shadow-lg: 0 16px 40px rgba(29, 29, 27, 0.12);
+  --radius-sm: 7px;
+  --radius-md: 14px;
+  --sans: 'Segoe UI', system-ui, Roboto, sans-serif;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg: #1d1d1b;
+    --color-surface: #262622;
+    --color-surface-alt: #2d2d28;
+    --color-border: #3c3b35;
+    --color-text: #f5f3eb;
+    --color-text-muted: #b9b2a6;
+    --color-primary: #f5f3eb;
+    --color-primary-hover: #ffffff;
+    --color-primary-contrast: #1d1d1b;
+    --color-accent: #c1b6a3;
+    --color-accent-bg: #332e27;
+    --color-success: #4ac174;
+    --color-success-bg: #113322;
+    --color-danger: #e0786b;
+    --color-danger-bg: #3a1f1a;
+    --color-warning: #f2c14e;
+    --color-warning-bg: #3a2f0d;
+    --color-focus: #f5f3eb;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font: 14px/1.5 var(--sans);
+  color: var(--color-text);
+  background: var(--color-bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  min-height: 100svh;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  margin: 0;
+  font-weight: 600;
+  color: var(--color-text);
+  letter-spacing: -0.01em;
+}
+
+p {
+  margin: 0;
+}
+
+a {
+  color: var(--color-primary);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}

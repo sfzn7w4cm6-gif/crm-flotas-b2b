@@ -4,6 +4,7 @@ import { Icon } from '../Icon'
 import { NAV_ITEMS } from './navConfig'
 import { useAuth } from '../../context/AuthContext'
 import { RolApp, RolAppLabel } from '../../lib/types'
+import ebroLogo from '../../assets/ebro-logo.png'
 import './AppShell.css'
 
 const SIDEBAR_HIDDEN_KEY = 'crmflotas.sidebarHidden'
@@ -61,7 +62,7 @@ export function AppShell() {
 
       <nav className={`shell-sidebar ${mobileOpen ? 'is-open' : ''} ${sidebarHidden ? 'is-hidden' : ''}`} aria-label="Navegación principal">
         <div className="shell-brand">
-          <img src="/ebro-logo-white.png" alt="EBRO" className="shell-brand-logo" />
+          <img src={ebroLogo} alt="EBRO" className="shell-brand-logo" />
           <span className="shell-brand-divider" />
           <span className="shell-brand-label">CRM Flotas</span>
         </div>

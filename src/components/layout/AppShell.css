@@ -85,10 +85,14 @@
   gap: 12px;
   padding: 26px 22px 22px;
 }
+/* El PNG es negro con mucho margen transparente arriba y abajo: se invierte a
+   blanco para la sidebar negra y el margen negativo compensa ese hueco. */
 .shell-brand-logo {
-  height: 18px;
+  height: 48px;
   width: auto;
   display: block;
+  margin: -15px 0;
+  filter: brightness(0) invert(1);
 }
 .shell-brand-divider {
   width: 1px;

@@ -2,10 +2,10 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { Icon } from '../../components/Icon'
-import { FaseBadge, FASE_COLORS } from '../../components/StatusBadge'
+import { FaseBadge, FaseSelect } from '../../components/StatusBadge'
 import { getRecord, Tables } from '../../lib/dataverseClient'
 import { actualizarLead, cambiarFaseLead, fetchHistoricoDeFase, fetchLead, type ActualizarLeadInput } from '../../lib/leadsService'
-import { FASES_ACTIVAS, Fase, FaseLabel, ModoFinanciacionLabel, PlazoDecisionLabel } from '../../lib/types'
+import { Fase, ModoFinanciacionLabel, PlazoDecisionLabel } from '../../lib/types'
 import type { Concesionario, FaseHistorico, Lead, Ubicacion } from '../../lib/types'
 import { RolApp } from '../../lib/types'
 import './DetalleLead.css'
@@ -135,17 +135,7 @@ export function DetalleLead() {
         <div className="wizard-card" style={{ marginBottom: 16 }}>
           <div className="field">
             <label>Nueva fase</label>
-            <select value={nuevaFase} onChange={(e) => setNuevaFase(e.target.value === '' ? '' : (Number(e.target.value) as Fase))}>
-              <option value="">Selecciona una fase</option>
-              {FASES_ACTIVAS.map((f) => (
-                <option key={f} value={f} style={{ background: FASE_COLORS[f].bg, color: FASE_COLORS[f].fg }}>
-                  {FaseLabel[f]}
-                </option>
-              ))}
-              <option value={Fase.Perdido} style={{ background: FASE_COLORS[Fase.Perdido].bg, color: FASE_COLORS[Fase.Perdido].fg }}>
-                Perdido
-              </option>
-            </select>
+            <FaseSelect value={nuevaFase} onChange={setNuevaFase} placeholder="Selecciona una fase" />
           </div>
           {nuevaFase === Fase.Perdido && (
             <div className="field" style={{ marginTop: 12 }}>

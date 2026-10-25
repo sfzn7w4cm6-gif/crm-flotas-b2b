@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Icon } from '../../components/Icon'
-import { FaseBadge, FASE_COLORS } from '../../components/StatusBadge'
+import { FaseBadge, FaseSelect } from '../../components/StatusBadge'
 import { fetchTodosLosLeads } from '../../lib/leadsService'
 import { fetchConcesionarios, fetchUbicaciones } from '../../lib/usuariosService'
-import { FASES_ACTIVAS, Fase, FaseLabel, ModoFinanciacionLabel } from '../../lib/types'
+import { Fase, ModoFinanciacionLabel } from '../../lib/types'
 import type { Concesionario, Lead, Ubicacion } from '../../lib/types'
 import './SeguimientoLeads.css'
 
@@ -191,17 +191,7 @@ export function SeguimientoLeads() {
             </option>
           ))}
         </select>
-        <select className="filter-select" value={fase} onChange={(e) => setFase(e.target.value === '' ? '' : (Number(e.target.value) as Fase))}>
-          <option value="">Todas las fases</option>
-          {FASES_ACTIVAS.map((f) => (
-            <option key={f} value={f} style={{ background: FASE_COLORS[f].bg, color: FASE_COLORS[f].fg }}>
-              {FaseLabel[f]}
-            </option>
-          ))}
-          <option value={Fase.Perdido} style={{ background: FASE_COLORS[Fase.Perdido].bg, color: FASE_COLORS[Fase.Perdido].fg }}>
-            Perdido
-          </option>
-        </select>
+        <FaseSelect value={fase} onChange={setFase} />
 
         <div className="view-editor">
           <button type="button" className="btn-secondary" onClick={() => setEditandoVista((v) => !v)}>

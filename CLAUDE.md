@@ -67,10 +67,22 @@ B2B. **Nunca editar sus tablas (`hr_*`) ni su código desde este proyecto.**
 ## Modelo de datos (Dataverse, prefijo de publisher `fl`, solución `CRMFlotasB2B`)
 
 Auditado directamente contra el entorno real (no son solo los scripts de
-creación): la solución contiene exactamente **5 tablas + 3 roles de
-seguridad**. Las relaciones (lookups) no aparecen como componentes aparte de
-la solución porque en Dataverse viajan automáticamente con la tabla que las
-contiene — **no hay que añadirlas a mano** al exportar/migrar.
+creación): la solución contiene **5 tablas + 3 roles de seguridad + la propia
+app** (10 componentes en total). Las relaciones (lookups) no aparecen como
+componentes aparte porque en Dataverse viajan automáticamente con la tabla
+que las contiene — no hay que añadirlas a mano.
+
+**Corrección hecha durante esta auditoría**: la app (registro `canvasapp`,
+nombre interno `crda2_crmflotasb2b_19a41`, id
+`033039d0-63b6-4df9-91a1-14fec80dffba`, el mismo que el "App id" de
+`power.config.json`) ya existía en Dataverse, pero **no estaba incluida en la
+solución `CRMFlotasB2B`** — vivía solo en la solución por defecto y en una
+solución de pruebas antigua y sin relación con este proyecto (`crmprueba`,
+ignorar). Se añadió explícitamente a `CRMFlotasB2B` con
+`AddSolutionComponent` (`ComponentType=300`) para que ahora viaje junto con
+las tablas al exportar. Si en el futuro se publica una nueva versión con
+`pac code push`, comprobar tras el siguiente export que la app sigue
+apareciendo como componente (debería, pero conviene verificarlo una vez).
 
 ### `fl_concesionario` — el grupo/marca del dealer (padre)
 
@@ -189,18 +201,21 @@ coloreado se renderiza mal en el navegador, por eso no se usa.
 
 Dos cosas viajan por caminos **distintos** — no asumir que una trae la otra:
 
-1. **Esquema (tablas, columnas, relaciones, roles de seguridad)**: exportar la
-   solución `CRMFlotasB2B` como solución no administrada e importarla en el
-   entorno nuevo. Ya está completa (5 tablas + 3 roles; las relaciones viajan
-   solas). Tras importar, hay que volver a asignar los roles a los usuarios
-   reales del entorno nuevo (los scripts `04-assign-admin.ps1`/`05-seed-data.ps1`
-   sirven de referencia, pero los IDs de usuario son distintos en cada
-   entorno).
-2. **La app en sí (código) y su conexión a Dataverse**: NO viaja con la
-   solución. Hay que volver a hacer `pac code init`/`pac code push` apuntando
-   al `environmentId` nuevo (actualizar `power.config.json`), y crear una
-   conexión Dataverse nueva en ese entorno (`pac code add-data-source` con el
-   `--connection-id` de la conexión del entorno nuevo).
+1. **Esquema (tablas, columnas, relaciones, roles de seguridad, y el registro
+   de la app)**: exportar la solución `CRMFlotasB2B` como solución no
+   administrada e importarla en el entorno nuevo. Ya está completa (5 tablas +
+   3 roles + la app; las relaciones viajan solas). Tras importar, hay que
+   volver a asignar los roles a los usuarios reales del entorno nuevo (los
+   scripts `04-assign-admin.ps1`/`05-seed-data.ps1` sirven de referencia, pero
+   los IDs de usuario son distintos en cada entorno).
+2. **La conexión a Dataverse de la app**: aunque el registro de la app ahora
+   viaja con la solución, su conexión a Dataverse (`commondataserviceforapps`)
+   es específica del entorno de origen y no se reconecta sola. Tras importar,
+   hay que volver a hacer `pac code push` apuntando al `environmentId` nuevo
+   (actualizar `power.config.json`) y crear/asociar una conexión Dataverse
+   nueva en ese entorno (`pac code add-data-source` con el `--connection-id`
+   de la conexión del entorno nuevo) para que la app importada quede
+   funcional.
 3. **Los datos de demo** (concesionarios/ubicaciones de ejemplo, los ~42 leads
    de prueba de `07-seed-leads-demo.ps1`): tampoco viajan con la solución — una
    solución lleva esquema, no filas. Si se quieren en el entorno nuevo, hay

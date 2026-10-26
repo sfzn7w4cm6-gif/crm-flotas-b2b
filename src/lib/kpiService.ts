@@ -158,6 +158,25 @@ export function statsResumen(leads: Lead[], historico: FaseHistorico[]): StatsRe
 
 export type Periodo = 30 | 90 | 0 // 0 = todo
 
+/** Objetivos mensual/trimestral/anual de la hoja "1. Resumen Pipeline" →
+ *  "Metricas clave del departamento" del Excel original. El filtro de
+ *  periodo del Panel KPI (30/90/Todo) se corresponde con mensual/trimestral/
+ *  anual — "Todo" se usa como aproximacion de "anual" al no tener un
+ *  periodo de 365 dias explicito. */
+export const OBJETIVOS_KPI = {
+  leadsNuevos: { 30: 20, 90: 60, 0: 240 },
+  reunionesDiagnostico: { 30: 10, 90: 30, 0: 48 },
+  propuestasEnviadas: { 30: 10, 90: 30, 0: 96 },
+  cierres: { 30: 2, 90: 6, 0: 48 },
+  tasaCierre: { 30: 20, 90: 20, 0: 20 },
+} as const satisfies Record<string, Record<Periodo, number>>
+
+export const PERIODO_OBJETIVO_LABEL: Record<Periodo, string> = {
+  30: 'mensual',
+  90: 'trimestral',
+  0: 'anual (orientativo)',
+}
+
 /** Filtra por fl_fechaprimercontacto (fecha de negocio), no por "createdon"
  *  (fecha tecnica de alta del registro en Dataverse) — con datos de
  *  demostracion creados todos el mismo dia, "createdon" no distingue nada

@@ -12,6 +12,8 @@ import {
   filtrarPorPeriodo,
   leadsEnRiesgo,
   leadsPorConcesionario,
+  OBJETIVOS_KPI,
+  PERIODO_OBJETIVO_LABEL,
   statsResumen,
   tasasConversion,
   tiempoMedioPorFase,
@@ -48,6 +50,7 @@ export function PanelKPI() {
   const tiempos = useMemo(() => tiempoMedioPorFase(historicoPeriodo), [historicoPeriodo])
   const porConcesionario = useMemo(() => leadsPorConcesionario(leadsPeriodo, concesionarios), [leadsPeriodo, concesionarios])
   const enRiesgo = useMemo(() => leadsEnRiesgo(leads, historico), [leads, historico])
+  const periodoLabel = PERIODO_OBJETIVO_LABEL[periodo]
 
   if (cargando) return <p className="wizard-loading">Cargando…</p>
 
@@ -66,15 +69,37 @@ export function PanelKPI() {
       </div>
 
       <div className="kpi-row">
-        <StatTile label="Leads captados" value={resumen.leadsNuevos} />
-        <StatTile label="Reuniones de diagnóstico" value={resumen.reunionesDiagnostico} />
-        <StatTile label="Propuestas enviadas" value={resumen.propuestasEnviadas} />
-        <StatTile label="Pedidos cerrados" value={resumen.cierres} tono="success" />
+        <StatTile
+          label="Leads captados"
+          value={resumen.leadsNuevos}
+          objetivo={{ meta: OBJETIVOS_KPI.leadsNuevos[periodo], periodoLabel }}
+        />
+        <StatTile
+          label="Reuniones de diagnóstico"
+          value={resumen.reunionesDiagnostico}
+          objetivo={{ meta: OBJETIVOS_KPI.reunionesDiagnostico[periodo], periodoLabel }}
+        />
+        <StatTile
+          label="Propuestas enviadas"
+          value={resumen.propuestasEnviadas}
+          objetivo={{ meta: OBJETIVOS_KPI.propuestasEnviadas[periodo], periodoLabel }}
+        />
+        <StatTile
+          label="Pedidos cerrados"
+          value={resumen.cierres}
+          tono="success"
+          objetivo={{ meta: OBJETIVOS_KPI.cierres[periodo], periodoLabel }}
+        />
         <StatTile label="Seguimientos completados" value={resumen.seguimientosCompletados} />
         <StatTile label="Unidades entregadas" value={resumen.unidadesEntregadas} tono="success" />
         <StatTile label="Nuevos clientes empresa" value={resumen.nuevosClientesEmpresa} />
         <StatTile label="Renovaciones gestionadas" value={resumen.renovacionesGestionadas} />
-        <StatTile label="Tasa de cierre" value={resumen.tasaCierre} sufijo="%" />
+        <StatTile
+          label="Tasa de cierre"
+          value={resumen.tasaCierre}
+          sufijo="%"
+          objetivo={{ meta: OBJETIVOS_KPI.tasaCierre[periodo], periodoLabel }}
+        />
         <StatTile label="Tasa de pérdida" value={resumen.tasaPerdida} sufijo="%" tono={resumen.tasaPerdida > 0 ? 'danger' : 'default'} />
       </div>
 

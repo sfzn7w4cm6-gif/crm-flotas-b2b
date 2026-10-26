@@ -20,6 +20,7 @@ type ColKey =
   | 'fechaLimite'
   | 'comercial'
   | 'concesionario'
+  | 'notas'
 
 type SortDir = 'asc' | 'desc'
 
@@ -51,8 +52,12 @@ const COLUMNAS: ColumnDef[] = [
     render: (l, ctx) => `${ctx.nombreConcesionario.get(l._fl_concesionario_value) ?? ''} · ${ctx.nombreUbicacion.get(l._fl_ubicacion_value) ?? ''}`,
     valor: (l, ctx) => `${ctx.nombreConcesionario.get(l._fl_concesionario_value) ?? ''} ${ctx.nombreUbicacion.get(l._fl_ubicacion_value) ?? ''}`.toLowerCase(),
   },
+  { key: 'notas', label: 'Notas', sortable: false, render: (l) => l.fl_observaciones, valor: (l) => l.fl_observaciones },
 ]
 const ORDEN_INICIAL: ColKey[] = COLUMNAS.map((c) => c.key)
+// "Notas" es texto libre y suele ser largo: se deja disponible en el editor
+// de vista pero oculta por defecto para no ensanchar la tabla de inicio.
+const COLUMNAS_VISIBLES_POR_DEFECTO: ColKey[] = ORDEN_INICIAL.filter((k) => k !== 'notas')
 
 export function SeguimientoLeads() {
   const [leads, setLeads] = useState<Lead[]>([])
@@ -69,7 +74,7 @@ export function SeguimientoLeads() {
   const [columnOrder, setColumnOrder] = useState<ColKey[]>(ORDEN_INICIAL)
   const [draggedKey, setDraggedKey] = useState<ColKey | null>(null)
   const [dragOverKey, setDragOverKey] = useState<ColKey | null>(null)
-  const [visibleColumns, setVisibleColumns] = useState<Set<ColKey>>(new Set(ORDEN_INICIAL))
+  const [visibleColumns, setVisibleColumns] = useState<Set<ColKey>>(new Set(COLUMNAS_VISIBLES_POR_DEFECTO))
   const [editandoVista, setEditandoVista] = useState(false)
 
   useEffect(() => {

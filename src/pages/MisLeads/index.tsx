@@ -18,6 +18,7 @@ type ColKey =
   | 'fechaAlta'
   | 'proximaAccion'
   | 'fechaLimite'
+  | 'notas'
 
 type SortDir = 'asc' | 'desc'
 
@@ -41,6 +42,7 @@ const COLUMNAS: ColumnDef[] = [
   { key: 'fechaAlta', label: 'Fecha alta', sortable: true, render: (l) => l.fl_fechaprimercontacto, valor: (l) => l.fl_fechaprimercontacto },
   { key: 'proximaAccion', label: 'Próxima acción', sortable: false, render: (l) => l.fl_proximaaccion, valor: (l) => l.fl_proximaaccion },
   { key: 'fechaLimite', label: 'Fecha límite', sortable: true, render: (l) => l.fl_fechaproximaaccion, valor: (l) => l.fl_fechaproximaaccion },
+  { key: 'notas', label: 'Notas', sortable: false, render: (l) => l.fl_observaciones, valor: (l) => l.fl_observaciones },
 ]
 const ORDEN_INICIAL: ColKey[] = COLUMNAS.map((c) => c.key)
 const COLUMNAS_POR_DEFECTO: ColKey[] = ['numero', 'empresa', 'fase', 'vehiculos', 'proximaAccion', 'fechaLimite']

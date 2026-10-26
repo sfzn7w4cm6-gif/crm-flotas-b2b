@@ -5,7 +5,6 @@ import { fetchTodosLosLeads } from '../../lib/leadsService'
 import { fetchConcesionarios, fetchUbicaciones } from '../../lib/usuariosService'
 import { Fase, ModoFinanciacionLabel } from '../../lib/types'
 import type { Concesionario, Lead, Ubicacion } from '../../lib/types'
-import './SeguimientoLeads.css'
 
 type ColKey =
   | 'numero'

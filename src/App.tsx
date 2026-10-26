@@ -23,7 +23,7 @@ function App() {
   if (loading) {
     return (
       <div className="app-status">
-        <p>Cargando CRM Flotas B2B…</p>
+        <p className="wizard-loading">Cargando CRM Flotas B2B…</p>
       </div>
     )
   }

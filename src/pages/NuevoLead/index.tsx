@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext'
 import { Icon } from '../../components/Icon'
 import { crearLeadBase, type NuevoLeadInput } from '../../lib/leadsService'
 import { ModoFinanciacionLabel, PlazoDecisionLabel } from '../../lib/types'
+import { cifNifValido, emailValido, telefonoValido } from '../../lib/validators'
 import './NuevoLead.css'
 
 const PASOS = ['Datos de la empresa', 'Contactos clave', 'Situación de flota', 'Necesidad', 'Histórico y seguimiento']
@@ -25,9 +26,9 @@ export function NuevoLead() {
   const faltanPaso = useMemo(() => {
     switch (paso) {
       case 0:
-        return !form.razonSocial || !form.cif
+        return !form.razonSocial || !cifNifValido(form.cif ?? '')
       case 1:
-        return !form.nombreResponsable || !form.telefonoCorporativo || !form.emailCorporativo
+        return !form.nombreResponsable || !telefonoValido(form.telefonoCorporativo ?? '') || !emailValido(form.emailCorporativo ?? '')
       case 2:
         return (
           form.numVehiculosActuales === undefined ||
@@ -109,7 +110,8 @@ export function NuevoLead() {
               <input value={form.razonSocial ?? ''} onChange={(e) => set('razonSocial', e.target.value)} />
             </Field>
             <Field label="CIF / NIF">
-              <input value={form.cif ?? ''} onChange={(e) => set('cif', e.target.value)} />
+              <input value={form.cif ?? ''} onChange={(e) => set('cif', e.target.value)} placeholder="B12345678" />
+              {form.cif && !cifNifValido(form.cif) && <span className="field-error">Formato de CIF/NIF/NIE no válido.</span>}
             </Field>
           </div>
         )}
@@ -120,10 +122,14 @@ export function NuevoLead() {
               <input value={form.nombreResponsable ?? ''} onChange={(e) => set('nombreResponsable', e.target.value)} />
             </Field>
             <Field label="Teléfono corporativo">
-              <input value={form.telefonoCorporativo ?? ''} onChange={(e) => set('telefonoCorporativo', e.target.value)} />
+              <input value={form.telefonoCorporativo ?? ''} onChange={(e) => set('telefonoCorporativo', e.target.value)} placeholder="600 000 000" />
+              {form.telefonoCorporativo && !telefonoValido(form.telefonoCorporativo) && (
+                <span className="field-error">Debe ser un teléfono español válido (9 dígitos).</span>
+              )}
             </Field>
             <Field label="E-mail corporativo">
-              <input type="email" value={form.emailCorporativo ?? ''} onChange={(e) => set('emailCorporativo', e.target.value)} />
+              <input type="email" value={form.emailCorporativo ?? ''} onChange={(e) => set('emailCorporativo', e.target.value)} placeholder="nombre@empresa.com" />
+              {form.emailCorporativo && !emailValido(form.emailCorporativo) && <span className="field-error">Formato de e-mail no válido.</span>}
             </Field>
           </div>
         )}

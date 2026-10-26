@@ -3,8 +3,9 @@ import { Icon } from '../../components/Icon'
 import { FaseBadge, FaseSelect } from '../../components/StatusBadge'
 import { fetchTodosLosLeads } from '../../lib/leadsService'
 import { fetchConcesionarios, fetchUbicaciones } from '../../lib/usuariosService'
-import { Fase, ModoFinanciacionLabel } from '../../lib/types'
+import { Fase, FaseLabel, ModoFinanciacionLabel } from '../../lib/types'
 import type { Concesionario, Lead, Ubicacion } from '../../lib/types'
+import { descargarExcel } from '../../lib/excelExport'
 
 type ColKey =
   | 'numero'
@@ -30,29 +31,33 @@ interface ColumnDef {
   sortable: boolean
   render: (l: Lead, ctx: { nombreConcesionario: Map<string, string>; nombreUbicacion: Map<string, string> }) => ReactNode
   valor: (l: Lead, ctx: { nombreConcesionario: Map<string, string>; nombreUbicacion: Map<string, string> }) => string | number
+  /** Texto para exportar a Excel: a diferencia de 'valor' (clave de orden,
+   *  a veces en minusculas), conserva mayusculas/formato de visualizacion. */
+  exportar: (l: Lead, ctx: { nombreConcesionario: Map<string, string>; nombreUbicacion: Map<string, string> }) => string | number
 }
 
 const COLUMNAS: ColumnDef[] = [
-  { key: 'numero', label: 'Nº', sortable: true, render: (l) => l.fl_numero, valor: (l) => l.fl_numero },
-  { key: 'empresa', label: 'Empresa', sortable: true, render: (l) => l.fl_razonsocial, valor: (l) => l.fl_razonsocial.toLowerCase() },
-  { key: 'sector', label: 'Sector', sortable: true, render: (l) => l.fl_actividadeconomica, valor: (l) => l.fl_actividadeconomica.toLowerCase() },
-  { key: 'decisor', label: 'Decisor', sortable: false, render: (l) => l.fl_nombreresponsable, valor: (l) => l.fl_nombreresponsable },
-  { key: 'telefono', label: 'Teléfono', sortable: false, render: (l) => l.fl_telefonocorporativo, valor: (l) => l.fl_telefonocorporativo },
-  { key: 'fase', label: 'Fase', sortable: true, render: (l) => <FaseBadge fase={l.fl_faseactual} size="sm" />, valor: (l) => l.fl_faseactual },
-  { key: 'vehiculos', label: 'Nº veh.', sortable: true, render: (l) => l.fl_numvehiculosrenovarampliar, valor: (l) => l.fl_numvehiculosrenovarampliar },
-  { key: 'financiacion', label: 'Financiación', sortable: false, render: (l) => ModoFinanciacionLabel[l.fl_modofinanciacionactual], valor: (l) => ModoFinanciacionLabel[l.fl_modofinanciacionactual] },
-  { key: 'fechaAlta', label: 'Fecha alta', sortable: true, render: (l) => l.fl_fechaprimercontacto, valor: (l) => l.fl_fechaprimercontacto },
-  { key: 'proximaAccion', label: 'Próxima acción', sortable: false, render: (l) => l.fl_proximaaccion, valor: (l) => l.fl_proximaaccion },
-  { key: 'fechaLimite', label: 'Fecha límite', sortable: true, render: (l) => l.fl_fechaproximaaccion, valor: (l) => l.fl_fechaproximaaccion },
-  { key: 'comercial', label: 'Comercial', sortable: false, render: (l) => l.fl_comercialresponsable, valor: (l) => l.fl_comercialresponsable },
+  { key: 'numero', label: 'Nº', sortable: true, render: (l) => l.fl_numero, valor: (l) => l.fl_numero, exportar: (l) => l.fl_numero },
+  { key: 'empresa', label: 'Empresa', sortable: true, render: (l) => l.fl_razonsocial, valor: (l) => l.fl_razonsocial.toLowerCase(), exportar: (l) => l.fl_razonsocial },
+  { key: 'sector', label: 'Sector', sortable: true, render: (l) => l.fl_actividadeconomica, valor: (l) => l.fl_actividadeconomica.toLowerCase(), exportar: (l) => l.fl_actividadeconomica },
+  { key: 'decisor', label: 'Decisor', sortable: false, render: (l) => l.fl_nombreresponsable, valor: (l) => l.fl_nombreresponsable, exportar: (l) => l.fl_nombreresponsable },
+  { key: 'telefono', label: 'Teléfono', sortable: false, render: (l) => l.fl_telefonocorporativo, valor: (l) => l.fl_telefonocorporativo, exportar: (l) => l.fl_telefonocorporativo },
+  { key: 'fase', label: 'Fase', sortable: true, render: (l) => <FaseBadge fase={l.fl_faseactual} size="sm" />, valor: (l) => l.fl_faseactual, exportar: (l) => FaseLabel[l.fl_faseactual] },
+  { key: 'vehiculos', label: 'Nº veh.', sortable: true, render: (l) => l.fl_numvehiculosrenovarampliar, valor: (l) => l.fl_numvehiculosrenovarampliar, exportar: (l) => l.fl_numvehiculosrenovarampliar },
+  { key: 'financiacion', label: 'Financiación', sortable: false, render: (l) => ModoFinanciacionLabel[l.fl_modofinanciacionactual], valor: (l) => ModoFinanciacionLabel[l.fl_modofinanciacionactual], exportar: (l) => ModoFinanciacionLabel[l.fl_modofinanciacionactual] },
+  { key: 'fechaAlta', label: 'Fecha alta', sortable: true, render: (l) => l.fl_fechaprimercontacto, valor: (l) => l.fl_fechaprimercontacto, exportar: (l) => l.fl_fechaprimercontacto },
+  { key: 'proximaAccion', label: 'Próxima acción', sortable: false, render: (l) => l.fl_proximaaccion, valor: (l) => l.fl_proximaaccion, exportar: (l) => l.fl_proximaaccion },
+  { key: 'fechaLimite', label: 'Fecha límite', sortable: true, render: (l) => l.fl_fechaproximaaccion, valor: (l) => l.fl_fechaproximaaccion, exportar: (l) => l.fl_fechaproximaaccion },
+  { key: 'comercial', label: 'Comercial', sortable: false, render: (l) => l.fl_comercialresponsable, valor: (l) => l.fl_comercialresponsable, exportar: (l) => l.fl_comercialresponsable },
   {
     key: 'concesionario',
     label: 'Concesionario',
     sortable: true,
     render: (l, ctx) => `${ctx.nombreConcesionario.get(l._fl_concesionario_value) ?? ''} · ${ctx.nombreUbicacion.get(l._fl_ubicacion_value) ?? ''}`,
     valor: (l, ctx) => `${ctx.nombreConcesionario.get(l._fl_concesionario_value) ?? ''} ${ctx.nombreUbicacion.get(l._fl_ubicacion_value) ?? ''}`.toLowerCase(),
+    exportar: (l, ctx) => `${ctx.nombreConcesionario.get(l._fl_concesionario_value) ?? ''} · ${ctx.nombreUbicacion.get(l._fl_ubicacion_value) ?? ''}`,
   },
-  { key: 'notas', label: 'Notas', sortable: false, render: (l) => l.fl_observaciones, valor: (l) => l.fl_observaciones },
+  { key: 'notas', label: 'Notas', sortable: false, render: (l) => l.fl_observaciones, valor: (l) => l.fl_observaciones, exportar: (l) => l.fl_observaciones },
 ]
 const ORDEN_INICIAL: ColKey[] = COLUMNAS.map((c) => c.key)
 // "Notas" es texto libre y suele ser largo: se deja disponible en el editor
@@ -196,6 +201,21 @@ export function SeguimientoLeads() {
           ))}
         </select>
         <FaseSelect value={fase} onChange={setFase} />
+
+        <button
+          type="button"
+          className="btn-secondary"
+          onClick={() =>
+            descargarExcel(
+              'Seguimiento de leads',
+              columnasOrdenadas.map((c) => c.label),
+              ordenados.map((l) => columnasOrdenadas.map((c) => c.exportar(l, ctx))),
+            )
+          }
+        >
+          <Icon name="download" size={15} />
+          Descargar Excel
+        </button>
 
         <div className="view-editor">
           <button type="button" className="btn-secondary" onClick={() => setEditandoVista((v) => !v)}>

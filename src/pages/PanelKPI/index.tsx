@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { Icon } from '../../components/Icon'
 import { StatTile } from '../../components/charts/StatTile'
 import { BarChart } from '../../components/charts/BarChart'
 import { TableTwin } from '../../components/charts/TableTwin'
@@ -7,6 +8,7 @@ import { RiesgoBadge, FASE_COLORS } from '../../components/StatusBadge'
 import { fetchTodosLosLeads } from '../../lib/leadsService'
 import { listRecords, Tables } from '../../lib/dataverseClient'
 import { fetchConcesionarios } from '../../lib/usuariosService'
+import { descargarExcel } from '../../lib/excelExport'
 import {
   embudoPorFase,
   filtrarPorPeriodo,
@@ -107,7 +109,7 @@ export function PanelKPI() {
         <div className="chart-card">
           <div className="chart-card-title">Embudo de pipeline por fase (actual)</div>
           <BarChart data={embudo.map((e) => ({ label: e.label, value: e.cantidad, color: FASE_COLORS[e.fase].bg, textColor: FASE_COLORS[e.fase].fg }))} />
-          <TableTwin headers={['Fase', 'Leads']} rows={embudo.map((e) => [e.label, e.cantidad])} />
+          <TableTwin titulo="Embudo de pipeline por fase" headers={['Fase', 'Leads']} rows={embudo.map((e) => [e.label, e.cantidad])} />
         </div>
 
         <div className="chart-card">
@@ -116,24 +118,42 @@ export function PanelKPI() {
             data={tiempos.map((t) => ({ label: t.label, value: t.diasMedio, color: FASE_COLORS[t.fase].bg, textColor: FASE_COLORS[t.fase].fg }))}
             unidad=" d"
           />
-          <TableTwin headers={['Fase', 'Días medio']} rows={tiempos.map((t) => [t.label, t.diasMedio])} />
+          <TableTwin titulo="Tiempo medio en cada fase" headers={['Fase', 'Días medio']} rows={tiempos.map((t) => [t.label, t.diasMedio])} />
         </div>
 
         <div className="chart-card">
           <div className="chart-card-title">Tasa de conversión entre fases</div>
           <BarChart data={conversion.map((c) => ({ label: c.label, value: c.porcentaje }))} flatColor="#1d1d1b" unidad="%" />
-          <TableTwin headers={['Transición', '%']} rows={conversion.map((c) => [c.label, c.porcentaje])} />
+          <TableTwin titulo="Tasa de conversión entre fases" headers={['Transición', '%']} rows={conversion.map((c) => [c.label, c.porcentaje])} />
         </div>
 
         <div className="chart-card">
           <div className="chart-card-title">Leads por concesionario</div>
           <BarChart data={porConcesionario.map((c) => ({ label: c.nombre, value: c.cantidad }))} flatColor="#1d1d1b" maxBars={8} />
-          <TableTwin headers={['Concesionario', 'Leads']} rows={porConcesionario.map((c) => [c.nombre, c.cantidad])} />
+          <TableTwin titulo="Leads por concesionario" headers={['Concesionario', 'Leads']} rows={porConcesionario.map((c) => [c.nombre, c.cantidad])} />
         </div>
       </div>
 
       <div className="chart-card">
-        <div className="chart-card-title">Leads en riesgo / estancados</div>
+        <div className="chart-card-title-row">
+          <div className="chart-card-title">Leads en riesgo / estancados</div>
+          {enRiesgo.length > 0 && (
+            <button
+              type="button"
+              className="table-twin-toggle"
+              onClick={() =>
+                descargarExcel(
+                  'Leads en riesgo',
+                  ['Nº', 'Empresa', 'Días en fase actual'],
+                  enRiesgo.map(({ lead, diasEnFaseActual }) => [lead.fl_numero, lead.fl_razonsocial, diasEnFaseActual]),
+                )
+              }
+            >
+              <Icon name="download" size={14} />
+              Descargar Excel
+            </button>
+          )}
+        </div>
         {enRiesgo.length === 0 ? (
           <p className="flow-meta">No hay leads estancados por ahora.</p>
         ) : (

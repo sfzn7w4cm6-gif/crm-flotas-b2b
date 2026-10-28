@@ -8,6 +8,10 @@ import { actualizarLead, cambiarFaseLead, fetchHistoricoDeFase, fetchLead, type 
 import { Fase, ModoFinanciacionLabel, PlazoDecisionLabel } from '../../lib/types'
 import type { Concesionario, FaseHistorico, Lead, Ubicacion } from '../../lib/types'
 import { RolApp } from '../../lib/types'
+import type { EstadoTarea, Tarea } from '../../lib/types'
+import { FilaTarea, NuevaTareaForm } from '../../components/tareas/Tareas'
+import { cambiarEstadoTarea, crearTarea, fetchImportesVenta, fetchTareasDeLead, guardarImporteVenta } from '../../lib/tareasService'
+import { formatoEuros } from '../../lib/actividadService'
 import './DetalleLead.css'
 
 export function DetalleLead() {
@@ -28,14 +32,22 @@ export function DetalleLead() {
   const [nuevaFase, setNuevaFase] = useState<Fase | ''>('')
   const [motivoPerdida, setMotivoPerdida] = useState('')
   const [error, setError] = useState<string | null>(null)
+  // null = la tabla de tareas aun no existe en el entorno
+  const [tareas, setTareas] = useState<Tarea[] | null>(null)
+  const [creandoTarea, setCreandoTarea] = useState(false)
+  // undefined = la columna de importe aun no existe; null = sin rellenar
+  const [importe, setImporte] = useState<number | null | undefined>(undefined)
+  const [importeCierre, setImporteCierre] = useState('')
 
   const cargar = () => {
     if (!id) return
     setCargando(true)
-    Promise.all([fetchLead(id), fetchHistoricoDeFase(id)])
-      .then(([l, h]) => {
+    Promise.all([fetchLead(id), fetchHistoricoDeFase(id), fetchTareasDeLead(id).catch(() => null), fetchImportesVenta(id)])
+      .then(([l, h, t, imp]) => {
         setLead(l)
         setHistorico(h)
+        setTareas(t)
+        setImporte(imp ? (imp.get(id) ?? null) : undefined)
         if (l) {
           getRecord<Concesionario>(Tables.Concesionario, l._fl_concesionario_value, 'fl_concesionarioid,fl_nombre').then(setConcesionario)
           getRecord<Ubicacion>(Tables.Ubicacion, l._fl_ubicacion_value, 'fl_ubicacionid,fl_nombre,fl_areamanager').then(setUbicacion)
@@ -71,6 +83,7 @@ export function DetalleLead() {
       fechaProximaAccion: lead.fl_fechaproximaaccion?.slice(0, 10),
       observaciones: lead.fl_observaciones,
       ofertaCondiciones: lead.fl_ofertacondiciones,
+      importeVenta: importe ?? undefined,
     })
     setEditando(true)
   }
@@ -99,9 +112,13 @@ export function DetalleLead() {
     setError(null)
     try {
       await cambiarFaseLead(lead.fl_leadid, lead.fl_numero, nuevaFase, nuevaFase === Fase.Perdido ? motivoPerdida : undefined)
+      if (nuevaFase === Fase.Cierre && importeCierre.trim() && importe !== undefined) {
+        await guardarImporteVenta(lead.fl_leadid, Number(importeCierre))
+      }
       setCambiandoFase(false)
       setNuevaFase('')
       setMotivoPerdida('')
+      setImporteCierre('')
       cargar()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo cambiar la fase.')
@@ -141,6 +158,18 @@ export function DetalleLead() {
             <div className="field" style={{ marginTop: 12 }}>
               <label>Motivo de la pérdida *</label>
               <textarea rows={3} value={motivoPerdida} onChange={(e) => setMotivoPerdida(e.target.value)} />
+            </div>
+          )}
+          {nuevaFase === Fase.Cierre && importe !== undefined && (
+            <div className="field" style={{ marginTop: 12 }}>
+              <label>Importe de la venta (€)</label>
+              <input
+                type="number"
+                min={0}
+                value={importeCierre}
+                onChange={(e) => setImporteCierre(e.target.value)}
+                placeholder="Precio final de la venta"
+              />
             </div>
           )}
           {error && <p className="wizard-error">{error}</p>}
@@ -185,7 +214,7 @@ export function DetalleLead() {
                 <Fila label="Vencimiento contratos" valor={lead.fl_vencimientocontratosactuales} />
               </>
             ) : (
-              <EdicionCompleta form={form} setForm={setForm} />
+              <EdicionCompleta form={form} setForm={setForm} conImporte={importe !== undefined} />
             )}
           </Seccion>
 
@@ -208,6 +237,7 @@ export function DetalleLead() {
                 <Fila label="Fecha próxima acción" valor={lead.fl_fechaproximaaccion} />
                 <Fila label="Observaciones" valor={lead.fl_observaciones} />
                 <Fila label="Oferta (Descuento/Condiciones)" valor={lead.fl_ofertacondiciones || '—'} />
+                {importe !== undefined && <Fila label="Importe de venta" valor={importe != null ? formatoEuros(importe) : '—'} />}
                 {lead.fl_motivoperdida && <Fila label="Motivo de pérdida" valor={lead.fl_motivoperdida} />}
               </Seccion>
             </>
@@ -244,6 +274,48 @@ export function DetalleLead() {
               </li>
             ))}
           </ul>
+
+          <div className="tareas-lead">
+            <div className="tareas-lead-cabecera">
+              <h2 className="timeline-title">
+                <Icon name="calendar" size={16} /> Tareas
+              </h2>
+              {!soloLectura && tareas !== null && !creandoTarea && (
+                <button type="button" className="btn-link" onClick={() => setCreandoTarea(true)}>
+                  + Nueva tarea
+                </button>
+              )}
+            </div>
+            {creandoTarea && (
+              <NuevaTareaForm
+                onCancelar={() => setCreandoTarea(false)}
+                onGuardar={async (input) => {
+                  await crearTarea(lead.fl_leadid, input)
+                  setCreandoTarea(false)
+                  setTareas(await fetchTareasDeLead(lead.fl_leadid))
+                }}
+              />
+            )}
+            {tareas === null ? (
+              <p className="flow-meta">Las tareas aún no están activadas en la base de datos.</p>
+            ) : tareas.length === 0 ? (
+              !creandoTarea && <p className="flow-meta">Sin tareas. Crea una para recordar llamadas, correos o visitas.</p>
+            ) : (
+              <ul className="tarea-lista">
+                {tareas.map((t) => (
+                  <FilaTarea
+                    key={t.fl_tareaid}
+                    tarea={t}
+                    soloLectura={soloLectura}
+                    onCambiarEstado={async (estado: EstadoTarea) => {
+                      await cambiarEstadoTarea(t.fl_tareaid, estado)
+                      setTareas((ts) => (ts ?? []).map((x) => (x.fl_tareaid === t.fl_tareaid ? { ...x, fl_estado: estado } : x)))
+                    }}
+                  />
+                ))}
+              </ul>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -274,9 +346,11 @@ function Fila({ label, valor }: { label: string; valor: string | number }) {
 function EdicionCompleta({
   form,
   setForm,
+  conImporte,
 }: {
   form: ActualizarLeadInput
   setForm: (updater: (f: ActualizarLeadInput) => ActualizarLeadInput) => void
+  conImporte: boolean
 }) {
   const set = <K extends keyof ActualizarLeadInput>(key: K, value: ActualizarLeadInput[K]) =>
     setForm((f) => ({ ...f, [key]: value }))
@@ -367,6 +441,17 @@ function EdicionCompleta({
         <label>Oferta (Descuento/Condiciones)</label>
         <textarea rows={3} value={form.ofertaCondiciones ?? ''} onChange={(e) => set('ofertaCondiciones', e.target.value)} />
       </div>
+      {conImporte && (
+        <div className="field">
+          <label>Importe de venta (€)</label>
+          <input
+            type="number"
+            min={0}
+            value={form.importeVenta ?? ''}
+            onChange={(e) => set('importeVenta', e.target.value === '' ? undefined : Number(e.target.value))}
+          />
+        </div>
+      )}
     </div>
   )
 }

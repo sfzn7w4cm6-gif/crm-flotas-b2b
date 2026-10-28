@@ -171,3 +171,55 @@ export interface FaseHistorico {
   fl_diasenfase?: number
   _fl_lead_value: string
 }
+
+// ---------------------------------------------------------------- tareas y objetivos
+// Creados en scripts/dataverse/15-tareas-objetivos.ps1.
+
+export const TipoTarea = {
+  Llamada: 101000000,
+  Correo: 101000001,
+  Reunion: 101000002,
+  Visita: 101000003,
+  Otro: 101000004,
+} as const
+export type TipoTarea = (typeof TipoTarea)[keyof typeof TipoTarea]
+
+export const TipoTareaLabel: Record<TipoTarea, string> = {
+  [TipoTarea.Llamada]: 'Llamada',
+  [TipoTarea.Correo]: 'Correo',
+  [TipoTarea.Reunion]: 'Reunión',
+  [TipoTarea.Visita]: 'Visita',
+  [TipoTarea.Otro]: 'Otro',
+}
+
+export const EstadoTarea = {
+  Pendiente: 101000000,
+  EnCurso: 101000001,
+  Completada: 101000002,
+  Cancelada: 101000003,
+} as const
+export type EstadoTarea = (typeof EstadoTarea)[keyof typeof EstadoTarea]
+
+export const EstadoTareaLabel: Record<EstadoTarea, string> = {
+  [EstadoTarea.Pendiente]: 'Pendiente',
+  [EstadoTarea.EnCurso]: 'En curso',
+  [EstadoTarea.Completada]: 'Completada',
+  [EstadoTarea.Cancelada]: 'Cancelada',
+}
+
+export interface Tarea {
+  fl_tareaid: string
+  fl_titulo: string
+  fl_tipo: TipoTarea
+  fl_fecha: string
+  fl_estado: EstadoTarea
+  fl_notas?: string
+  _fl_lead_value: string
+}
+
+export interface Objetivo {
+  fl_objetivoid: string
+  fl_nombre: string
+  fl_leadsmes: number
+  _fl_concesionario_value?: string
+}

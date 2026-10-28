@@ -155,6 +155,30 @@ destino → actualiza `fl_lead.fl_faseactual` (y `fl_motivoperdida` si aplica).
 Al crear un lead (`crearLeadBase`) pasa lo mismo: crea el lead en fase
 Prospección y su primera fila de histórico.
 
+### `fl_tarea` — tareas de seguimiento de un lead (UserOwned)
+
+Creada con `scripts/dataverse/15-tareas-objetivos.ps1`. Se crean desde la ficha
+del lead y se ven en la pantalla de inicio del concesionario (lista + calendario).
+
+| Campo | Tipo | Notas |
+|---|---|---|
+| `fl_titulo` | Texto | Qué hay que hacer |
+| `fl_tipo` | Choice | Llamada / Correo / Reunión / Visita / Otro |
+| `fl_fecha` | Fecha y hora | |
+| `fl_estado` | Choice | Pendiente / En curso / Completada / Cancelada |
+| `fl_notas` | Texto largo | |
+| `fl_lead` | Lookup → `fl_lead` | Requerido |
+
+### `fl_objetivo` — objetivo de leads al mes
+
+Una fila sin `fl_concesionario` = objetivo general; una fila con concesionario
+lo sustituye solo para ese. `fl_leadsmes` (entero). Falta la pantalla de
+administración para editarlo (de momento existe la fila "General" = 10).
+
+`fl_lead.fl_importeventa` (moneda): precio final de la venta; se pide al pasar
+a Cierre y suma en "Facturado". Se lee aparte de `LEAD_SELECT`
+(`fetchImportesVenta`) para que nada falle en un entorno sin esa columna.
+
 ## Seguridad (roles reales, auditados en el entorno — no solo lo que dicen los scripts)
 
 Todo en la Business Unit raíz (no hay BU por dealer; el aislamiento entre
@@ -165,6 +189,10 @@ concesionarios es por `Basic`/ownership, no por BU).
 | **CRM Flotas B2B - Concesionario** | Create/Read/Write, **Basic** (solo lo suyo) | Read, Global |
 | **CRM Flotas B2B - Equipo de Ventas** | **Read-only**, Global (ve todo, no edita) | Read, Global |
 | **CRM Flotas B2B - Administrador** | CRUD completo, Global, en las 5 tablas | — |
+
+`fl_tarea`: Concesionario CRUD Basic, Equipo de Ventas Read Global, Administrador
+todo Global. `fl_objetivo`: Read Global para Concesionario y Equipo de Ventas,
+Administrador todo Global.
 
 `Append`/`AppendTo` concedido Global en las 5 tablas a los roles no-admin
 (imprescindible para los `@odata.bind` al crear/vincular registros). Sin
@@ -182,7 +210,7 @@ probar la vista de Concesionario/Equipo de Ventas sin otra cuenta.
 | `/nuevo-lead` | Concesionario | Wizard de 5 pasos calcado de las 5 secciones del Excel. Fase inicial fija en "1. Prospección". |
 | `/mis-leads` | Concesionario | Lista filtrada por `ownerid` vía seguridad Basic (no hace falta filtrar en la query). |
 | `/mis-leads/:id` (`DetalleLead`) | Concesionario (edición) / Equipo de Ventas (solo lectura) | Edición de secciones 3-5, cambio de fase (con color por fase), timeline de `fl_fasehistorico`. |
-| `/mi-actividad` | Concesionario | Estadísticas propias: leads por fase, vehículos en pipeline, acciones pendientes esta semana. |
+| `/mi-actividad` ("Inicio") | Concesionario | Pantalla de entrada del dealer. Tarjetas con filtro mes/año: leads activados (llegaron a Primer Contacto o más), ventas cerradas (llegaron a Cierre y no están Perdido), objetivo de leads (creados vs `fl_objetivo`), facturado (`fl_importeventa`). Últimas ventas, Mis tareas (plegable, cambio de estado, calendario) y leads por fase. Fechas de hito sacadas de `fl_fasehistorico` (`actividadService.ts`). |
 | `/seguimiento` (`SeguimientoLeads`) | Equipo de Ventas | Tabla de todos los leads, filtros Concesionario/Ubicación/Fase, columnas reordenables (drag & drop) y configurables ("Editar vista"), ordenable. |
 | `/panel-kpi` | Equipo de Ventas | Las métricas del Excel "KPI Dashboard" (ver `kpiService.ts`), gráficos SVG propios (sin librería), filtro de periodo 30/90/todo sobre `fl_fechaprimercontacto` (no `createdon`). |
 | `/info` | Equipo de Ventas | Árbol Concesionario → Ubicaciones → usuario asignado (directorio de solo lectura). |

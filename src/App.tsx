@@ -14,7 +14,7 @@ import './App.css'
 function Home() {
   const { effectiveRol } = useAuth()
   if (effectiveRol === RolApp.EquipoVentas) return <Navigate to="/seguimiento" replace />
-  return <Navigate to="/mis-leads" replace />
+  return <Navigate to="/mi-actividad" replace />
 }
 
 function App() {

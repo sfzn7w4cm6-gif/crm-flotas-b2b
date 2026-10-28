@@ -195,6 +195,7 @@ export interface ActualizarLeadInput {
   fechaProximaAccion?: string
   observaciones?: string
   ofertaCondiciones?: string
+  importeVenta?: number
 }
 
 const CAMPO_MAP: Record<keyof ActualizarLeadInput, string> = {
@@ -218,6 +219,7 @@ const CAMPO_MAP: Record<keyof ActualizarLeadInput, string> = {
   fechaProximaAccion: 'fl_fechaproximaaccion',
   observaciones: 'fl_observaciones',
   ofertaCondiciones: 'fl_ofertacondiciones',
+  importeVenta: 'fl_importeventa',
 }
 
 export async function actualizarLead(leadId: string, input: ActualizarLeadInput): Promise<void> {

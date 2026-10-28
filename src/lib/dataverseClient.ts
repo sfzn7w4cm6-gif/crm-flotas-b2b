@@ -9,13 +9,15 @@ export const dv = getClient(dataSourcesInfo)
 const DATASOURCE = 'commondataserviceforapps'
 const ORGANIZATION = 'https://org642a1b00.crm4.dynamics.com'
 
-// Nombres de coleccion OData (logicalname + "s") de las 5 tablas de CRM Flotas B2B.
+// Nombres de coleccion OData (logicalname + "s") de las tablas de CRM Flotas B2B.
 export const Tables = {
   Concesionario: 'fl_concesionarios',
   Ubicacion: 'fl_ubicacions',
   UsuarioApp: 'fl_usuarioapps',
   Lead: 'fl_leads',
   FaseHistorico: 'fl_fasehistoricos',
+  Tarea: 'fl_tareas',
+  Objetivo: 'fl_objetivos',
 } as const
 
 interface EntityItem {

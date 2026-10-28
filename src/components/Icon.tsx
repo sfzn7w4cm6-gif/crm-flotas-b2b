@@ -27,6 +27,11 @@ const PATHS: Record<string, string> = {
   trophy:
     'M8 4h8v4a4 4 0 0 1-8 0V4ZM5 6h3v2a3 3 0 0 1-3-3V6ZM16 6h3v-1a3 3 0 0 1-3 3V6ZM10 12v3M14 12v3M8 19h8M12 15v4',
   download: 'M12 4v11m0 0 4-4m-4 4-4-4M5 19h14',
+  calendar: 'M7 3v3M17 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z',
+  phone:
+    'M5 4h3l2 5-2.5 1.5a11 11 0 0 0 6 6L15 14l5 2v3a1 1 0 0 1-1 1A16 16 0 0 1 4 5a1 1 0 0 1 1-1Z',
+  mail: 'M4 6h16v12H4zM4 7l8 6 8-6',
+  euro: 'M17 6.5A6 6 0 0 0 7.5 9M17 17.5A6 6 0 0 1 7.5 15M5 10.5h8M5 13.5h8',
   expand: 'M9 4H5a1 1 0 0 0-1 1v4M15 4h4a1 1 0 0 1 1 1v4M9 20H5a1 1 0 0 1-1-1v-4M15 20h4a1 1 0 0 0 1-1v-4',
 }
 

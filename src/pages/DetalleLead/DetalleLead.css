@@ -81,3 +81,19 @@
   color: var(--color-success);
   font-weight: 600;
 }
+
+.tareas-lead {
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid var(--color-border);
+}
+.tareas-lead-cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.tareas-lead-cabecera .timeline-title {
+  margin-bottom: 0;
+}

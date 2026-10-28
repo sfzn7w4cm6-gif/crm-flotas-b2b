@@ -1,0 +1,769 @@
+{
+ "zonas": [
+  {
+   "numero": 1,
+   "nombre": "Zona 1",
+   "areaManager": "Beatriz Soria de Vaya"
+  },
+  {
+   "numero": 2,
+   "nombre": "Zona 2",
+   "areaManager": "Hugo Villaescusa"
+  },
+  {
+   "numero": 3,
+   "nombre": "Zona 3",
+   "areaManager": "Gonzalo de la Cruz"
+  },
+  {
+   "numero": 4,
+   "nombre": "Zona 4",
+   "areaManager": "Eduardo Tejero"
+  },
+  {
+   "numero": 5,
+   "nombre": "Zona 5",
+   "areaManager": "Ignasi Calvo"
+  },
+  {
+   "numero": 6,
+   "nombre": "Zona 6",
+   "areaManager": "Alvaro Zaragoza"
+  },
+  {
+   "numero": 7,
+   "nombre": "Zona 7",
+   "areaManager": "Marc Herrador"
+  }
+ ],
+ "sedes": [
+  {
+   "zona": 1,
+   "concesionario": "SYRSA",
+   "sede": "Syrsa-Huelva",
+   "ciudad": "Huelva"
+  },
+  {
+   "zona": 1,
+   "concesionario": "SYRSA",
+   "sede": "Syrsa-Almería",
+   "ciudad": "Almería"
+  },
+  {
+   "zona": 1,
+   "concesionario": "SYRSA",
+   "sede": "Syrsa-Jaén",
+   "ciudad": "Jaén"
+  },
+  {
+   "zona": 1,
+   "concesionario": "TERRY",
+   "sede": "Terry-Sevilla",
+   "ciudad": "Sevilla"
+  },
+  {
+   "zona": 1,
+   "concesionario": "TERRY",
+   "sede": "Terry-Aljarafe",
+   "ciudad": "Aljarafe"
+  },
+  {
+   "zona": 1,
+   "concesionario": "NIETO",
+   "sede": "Nieto-Málaga",
+   "ciudad": "Málaga"
+  },
+  {
+   "zona": 1,
+   "concesionario": "NIETO",
+   "sede": "Nieto-Marbella",
+   "ciudad": "Marbella"
+  },
+  {
+   "zona": 1,
+   "concesionario": "TECSA",
+   "sede": "Tecsa-Jerez De La Frontera",
+   "ciudad": "Jerez De La Frontera"
+  },
+  {
+   "zona": 1,
+   "concesionario": "TECSA",
+   "sede": "Tecsa-Córdoba",
+   "ciudad": "Córdoba"
+  },
+  {
+   "zona": 1,
+   "concesionario": "TECSA",
+   "sede": "Tecsa-Algeciras",
+   "ciudad": "Algeciras"
+  },
+  {
+   "zona": 1,
+   "concesionario": "TECSA",
+   "sede": "Tecsa-Cádiz",
+   "ciudad": "Cádiz"
+  },
+  {
+   "zona": 1,
+   "concesionario": "TECSA",
+   "sede": "Tecsa-Dos Hermanas",
+   "ciudad": "Dos Hermanas"
+  },
+  {
+   "zona": 1,
+   "concesionario": "ANTILIA",
+   "sede": "Grupo Antilia-Toledo",
+   "ciudad": "Toledo"
+  },
+  {
+   "zona": 1,
+   "concesionario": "ANTILIA",
+   "sede": "Grupo Antilia-Badajoz",
+   "ciudad": "Badajoz"
+  },
+  {
+   "zona": 1,
+   "concesionario": "ANTILIA",
+   "sede": "Grupo Antilia-Cáceres",
+   "ciudad": "Cáceres"
+  },
+  {
+   "zona": 1,
+   "concesionario": "ANTILIA",
+   "sede": "Grupo Antilia-Ciudad Real",
+   "ciudad": "Ciudad Real"
+  },
+  {
+   "zona": 1,
+   "concesionario": "ANTILIA",
+   "sede": "Grupo Antilia-Talavera",
+   "ciudad": "Talavera"
+  },
+  {
+   "zona": 1,
+   "concesionario": "ANTILIA",
+   "sede": "Grupo Antilia-Plasencia",
+   "ciudad": "Plasencia"
+  },
+  {
+   "zona": 1,
+   "concesionario": "ANTILIA",
+   "sede": "Grupo Antilia-Alcazar de San Juan",
+   "ciudad": "Alcazar de San Juan"
+  },
+  {
+   "zona": 1,
+   "concesionario": "AUTOGEX",
+   "sede": "Autogex Japemasa-Granada",
+   "ciudad": "Granada"
+  },
+  {
+   "zona": 2,
+   "concesionario": "M AUTOMOCION",
+   "sede": "M Automoción-Barcelona",
+   "ciudad": "Barcelona"
+  },
+  {
+   "zona": 2,
+   "concesionario": "M AUTOMOCION",
+   "sede": "M Automoción-Gran Vía",
+   "ciudad": "Gran Vía"
+  },
+  {
+   "zona": 2,
+   "concesionario": "MAAS",
+   "sede": "Maas-Granollers",
+   "ciudad": "Granollers"
+  },
+  {
+   "zona": 2,
+   "concesionario": "MAAS",
+   "sede": "Maas-Terrassa",
+   "ciudad": "Terrassa"
+  },
+  {
+   "zona": 2,
+   "concesionario": "MAAS",
+   "sede": "Maas-Manresa",
+   "ciudad": "Manresa"
+  },
+  {
+   "zona": 2,
+   "concesionario": "MAAS",
+   "sede": "Maas-Sabadell",
+   "ciudad": "Sabadell"
+  },
+  {
+   "zona": 2,
+   "concesionario": "MAAS",
+   "sede": "Maas-Vic",
+   "ciudad": "Vic"
+  },
+  {
+   "zona": 2,
+   "concesionario": "MOVENTO",
+   "sede": "Movento-Barcelona",
+   "ciudad": "Barcelona"
+  },
+  {
+   "zona": 2,
+   "concesionario": "MOVENTO",
+   "sede": "Movento-Sant Boi",
+   "ciudad": "Sant Boi"
+  },
+  {
+   "zona": 2,
+   "concesionario": "MOVENTO",
+   "sede": "Movento-Sant Cugat",
+   "ciudad": "Sant Cugat"
+  },
+  {
+   "zona": 2,
+   "concesionario": "MOVENTO",
+   "sede": "Movento-Palma de Mallorca",
+   "ciudad": "Palma de Mallorca"
+  },
+  {
+   "zona": 2,
+   "concesionario": "NIMA",
+   "sede": "Nima Group-Tarragona",
+   "ciudad": "Tarragona"
+  },
+  {
+   "zona": 2,
+   "concesionario": "NIMA",
+   "sede": "Nima Group-Tortosa",
+   "ciudad": "Tortosa"
+  },
+  {
+   "zona": 2,
+   "concesionario": "NIMA",
+   "sede": "Nima Group-Amposta",
+   "ciudad": "Amposta"
+  },
+  {
+   "zona": 2,
+   "concesionario": "AUTO 3000",
+   "sede": "Grup Auto3000-Lleida",
+   "ciudad": "Lleida"
+  },
+  {
+   "zona": 2,
+   "concesionario": "AUTOCAM",
+   "sede": "Autocam-Vilanova",
+   "ciudad": "Vilanova"
+  },
+  {
+   "zona": 2,
+   "concesionario": "AUTOCAM",
+   "sede": "Autocam-Vilafranca",
+   "ciudad": "Vilafranca"
+  },
+  {
+   "zona": 3,
+   "concesionario": "BLENDIO",
+   "sede": "Blendio-Santander",
+   "ciudad": "Santander"
+  },
+  {
+   "zona": 3,
+   "concesionario": "BLENDIO",
+   "sede": "Blendio-Gijón",
+   "ciudad": "Gijón"
+  },
+  {
+   "zona": 3,
+   "concesionario": "BLENDIO",
+   "sede": "Blendio-Ourense",
+   "ciudad": "Ourense"
+  },
+  {
+   "zona": 3,
+   "concesionario": "BLENDIO",
+   "sede": "Blendio-Oviedo",
+   "ciudad": "Oviedo"
+  },
+  {
+   "zona": 3,
+   "concesionario": "BLENDIO",
+   "sede": "Blendio-Vitoria",
+   "ciudad": "Vitoria"
+  },
+  {
+   "zona": 3,
+   "concesionario": "BLENDIO",
+   "sede": "Blendio-Avilés",
+   "ciudad": "Avilés"
+  },
+  {
+   "zona": 3,
+   "concesionario": "PÉREZ RUMBAO",
+   "sede": "Pérez Rumbao-A Coruña",
+   "ciudad": "A Coruña"
+  },
+  {
+   "zona": 3,
+   "concesionario": "PÉREZ RUMBAO",
+   "sede": "Pérez Rumbao-Vigo",
+   "ciudad": "Vigo"
+  },
+  {
+   "zona": 3,
+   "concesionario": "PÉREZ RUMBAO",
+   "sede": "Pérez Rumbao-Lugo",
+   "ciudad": "Lugo"
+  },
+  {
+   "zona": 3,
+   "concesionario": "PÉREZ RUMBAO",
+   "sede": "Pérez Rumbao-Santiago",
+   "ciudad": "Santiago"
+  },
+  {
+   "zona": 3,
+   "concesionario": "CARZA",
+   "sede": "Carza-Eibar",
+   "ciudad": "Eibar"
+  },
+  {
+   "zona": 3,
+   "concesionario": "CARZA",
+   "sede": "Carza-Oyarzun",
+   "ciudad": "Oyarzun"
+  },
+  {
+   "zona": 3,
+   "concesionario": "CERVERA",
+   "sede": "Cervera-Villares de la Reina",
+   "ciudad": "Villares de la Reina"
+  },
+  {
+   "zona": 3,
+   "concesionario": "CERVERA",
+   "sede": "Cervera-Ávila",
+   "ciudad": "Ávila"
+  },
+  {
+   "zona": 3,
+   "concesionario": "JULIAN",
+   "sede": "Julián-Burgos",
+   "ciudad": "Burgos"
+  },
+  {
+   "zona": 3,
+   "concesionario": "AUTOCYL",
+   "sede": "AutoCYL-Palencia",
+   "ciudad": "Palencia"
+  },
+  {
+   "zona": 3,
+   "concesionario": "AUTOCYL",
+   "sede": "AutoCYL-Valladolid",
+   "ciudad": "Valladolid"
+  },
+  {
+   "zona": 3,
+   "concesionario": "ANFERPA",
+   "sede": "Anferpa-Segovia",
+   "ciudad": "Segovia"
+  },
+  {
+   "zona": 3,
+   "concesionario": "AUTOMASA",
+   "sede": "Automasa-Soria",
+   "ciudad": "Soria"
+  },
+  {
+   "zona": 4,
+   "concesionario": "SELIGRAT",
+   "sede": "Seligrat-Leganés",
+   "ciudad": "Leganés"
+  },
+  {
+   "zona": 4,
+   "concesionario": "SELIGRAT",
+   "sede": "Seligrat-Madrid",
+   "ciudad": "Madrid"
+  },
+  {
+   "zona": 4,
+   "concesionario": "SELIGRAT",
+   "sede": "Seligrat-Alcorcón",
+   "ciudad": "Alcorcón"
+  },
+  {
+   "zona": 4,
+   "concesionario": "M AUTOMOCION",
+   "sede": "M Automoción-Alcalá de Henares",
+   "ciudad": "Alcalá de Henares"
+  },
+  {
+   "zona": 4,
+   "concesionario": "M AUTOMOCION",
+   "sede": "M Automoción-Alcobendas",
+   "ciudad": "Alcobendas"
+  },
+  {
+   "zona": 4,
+   "concesionario": "M AUTOMOCION",
+   "sede": "M Automoción-Madrid",
+   "ciudad": "Madrid"
+  },
+  {
+   "zona": 4,
+   "concesionario": "M AUTOMOCION",
+   "sede": "M Automoción-Coslada",
+   "ciudad": "Coslada"
+  },
+  {
+   "zona": 4,
+   "concesionario": "MCONDE",
+   "sede": "Mconde-Madrid",
+   "ciudad": "Madrid"
+  },
+  {
+   "zona": 4,
+   "concesionario": "MCONDE",
+   "sede": "Mconde-Majadahonda",
+   "ciudad": "Majadahonda"
+  },
+  {
+   "zona": 4,
+   "concesionario": "MCONDE",
+   "sede": "Mconde-Rivas",
+   "ciudad": "Rivas"
+  },
+  {
+   "zona": 4,
+   "concesionario": "MOSANCAR",
+   "sede": "Mosancar-Villalba",
+   "ciudad": "Villalba"
+  },
+  {
+   "zona": 4,
+   "concesionario": "LUYSI",
+   "sede": "Luysi-Pinto",
+   "ciudad": "Pinto"
+  },
+  {
+   "zona": 4,
+   "concesionario": "LUYSI",
+   "sede": "Luysi-Aranjuez",
+   "ciudad": "Aranjuez"
+  },
+  {
+   "zona": 4,
+   "concesionario": "MOTOR DYE",
+   "sede": "Motor Dye-Fuenlabrada Centro",
+   "ciudad": "Fuenlabrada Centro"
+  },
+  {
+   "zona": 4,
+   "concesionario": "MOTOR DYE",
+   "sede": "Motor Dye-Fuenlabrada Norte",
+   "ciudad": "Fuenlabrada Norte"
+  },
+  {
+   "zona": 4,
+   "concesionario": "AMARCOCAR",
+   "sede": "Amarcocar-Guadalajara",
+   "ciudad": "Guadalajara"
+  },
+  {
+   "zona": 5,
+   "concesionario": "MEURI",
+   "sede": "Meuri-Barakaldo",
+   "ciudad": "Barakaldo"
+  },
+  {
+   "zona": 5,
+   "concesionario": "LEOMOTOR",
+   "sede": "Leomotor-León",
+   "ciudad": "León"
+  },
+  {
+   "zona": 5,
+   "concesionario": "LEOMOTOR",
+   "sede": "Leomotor-Zamora",
+   "ciudad": "Zamora"
+  },
+  {
+   "zona": 5,
+   "concesionario": "LEOMOTOR",
+   "sede": "Leomotor-Ponferrada",
+   "ciudad": "Ponferrada"
+  },
+  {
+   "zona": 5,
+   "concesionario": "QUADIS",
+   "sede": "Quadis-Mataró",
+   "ciudad": "Mataró"
+  },
+  {
+   "zona": 5,
+   "concesionario": "QUADIS",
+   "sede": "Quadis-Fornells de la Selva",
+   "ciudad": "Fornells de la Selva"
+  },
+  {
+   "zona": 5,
+   "concesionario": "QUADIS",
+   "sede": "Quadis-Castellón",
+   "ciudad": "Castellón"
+  },
+  {
+   "zona": 5,
+   "concesionario": "QUADIS",
+   "sede": "Quadis-Figueres",
+   "ciudad": "Figueres"
+  },
+  {
+   "zona": 5,
+   "concesionario": "QUADIS",
+   "sede": "Quadis-Blanes",
+   "ciudad": "Blanes"
+  },
+  {
+   "zona": 5,
+   "concesionario": "VIAN",
+   "sede": "Vian-Zaragoza",
+   "ciudad": "Zaragoza"
+  },
+  {
+   "zona": 5,
+   "concesionario": "VIAN",
+   "sede": "Vian-Pamplona",
+   "ciudad": "Pamplona"
+  },
+  {
+   "zona": 5,
+   "concesionario": "VIAN",
+   "sede": "Vian-Móstoles",
+   "ciudad": "Móstoles"
+  },
+  {
+   "zona": 5,
+   "concesionario": "TERAUTO",
+   "sede": "Tereauto-Teruel",
+   "ciudad": "Teruel"
+  },
+  {
+   "zona": 5,
+   "concesionario": "TUMASA",
+   "sede": "Tumasa-Huesca",
+   "ciudad": "Huesca"
+  },
+  {
+   "zona": 5,
+   "concesionario": "GARTE",
+   "sede": "Garte Turismos-La Rioja",
+   "ciudad": "La Rioja"
+  },
+  {
+   "zona": 5,
+   "concesionario": "LESSEPS",
+   "sede": "Lesseps-Martorell",
+   "ciudad": "Martorell"
+  },
+  {
+   "zona": 6,
+   "concesionario": "HUERTAS",
+   "sede": "Huertas-Murcia",
+   "ciudad": "Murcia"
+  },
+  {
+   "zona": 6,
+   "concesionario": "HUERTAS",
+   "sede": "Huertas-Cartagena",
+   "ciudad": "Cartagena"
+  },
+  {
+   "zona": 6,
+   "concesionario": "GLOBALMAOR",
+   "sede": "Globalmaor-Albacete",
+   "ciudad": "Albacete"
+  },
+  {
+   "zona": 6,
+   "concesionario": "GLOBALMAOR",
+   "sede": "Globalmaor-Cuenca",
+   "ciudad": "Cuenca"
+  },
+  {
+   "zona": 6,
+   "concesionario": "CIAMSA",
+   "sede": "Ciamsa-Melilla",
+   "ciudad": "Melilla"
+  },
+  {
+   "zona": 6,
+   "concesionario": "AUBENSA",
+   "sede": "Aubensa-Ceuta",
+   "ciudad": "Ceuta"
+  },
+  {
+   "zona": 6,
+   "concesionario": "MOLL",
+   "sede": "Moll-Gandía",
+   "ciudad": "Gandía"
+  },
+  {
+   "zona": 6,
+   "concesionario": "MOLL",
+   "sede": "Moll-Denia",
+   "ciudad": "Denia"
+  },
+  {
+   "zona": 6,
+   "concesionario": "MOLL",
+   "sede": "Moll-Xátiva",
+   "ciudad": "Xátiva"
+  },
+  {
+   "zona": 6,
+   "concesionario": "MOLL",
+   "sede": "Moll-Paterna",
+   "ciudad": "Paterna"
+  },
+  {
+   "zona": 6,
+   "concesionario": "MOLL",
+   "sede": "Moll-Valencia Norte",
+   "ciudad": "Valencia Norte"
+  },
+  {
+   "zona": 6,
+   "concesionario": "MARCOS",
+   "sede": "Marcos-Alicante",
+   "ciudad": "Alicante"
+  },
+  {
+   "zona": 6,
+   "concesionario": "MARCOS",
+   "sede": "Marcos-Valencia",
+   "ciudad": "Valencia"
+  },
+  {
+   "zona": 6,
+   "concesionario": "MARCOS",
+   "sede": "Marcos-Tres Cruces",
+   "ciudad": "Tres Cruces"
+  },
+  {
+   "zona": 6,
+   "concesionario": "MARCOS",
+   "sede": "Marcos-Orihuela",
+   "ciudad": "Orihuela"
+  },
+  {
+   "zona": 6,
+   "concesionario": "MARCOS",
+   "sede": "Marcos-Elche",
+   "ciudad": "Elche"
+  },
+  {
+   "zona": 6,
+   "concesionario": "MARCOS",
+   "sede": "Marcos-Sagunto",
+   "ciudad": "Sagunto"
+  },
+  {
+   "zona": 7,
+   "concesionario": "RAFAEL AFONSO",
+   "sede": "Rafael Afonso-Las Palmas",
+   "ciudad": "Las Palmas"
+  },
+  {
+   "zona": 7,
+   "concesionario": "RAFAEL AFONSO",
+   "sede": "Rafael Afonso-Lanzarote",
+   "ciudad": "Lanzarote"
+  },
+  {
+   "zona": 7,
+   "concesionario": "CABRERA MEDINA",
+   "sede": "Cabrera Medina-Tenerife",
+   "ciudad": "Tenerife"
+  }
+ ],
+ "modelos": [
+  {
+   "nombre": "S400 HEV PREMIUM",
+   "familia": "S400",
+   "motorizacion": "HEV",
+   "acabado": "Premium"
+  },
+  {
+   "nombre": "S400 HEV EXCELLENCE",
+   "familia": "S400",
+   "motorizacion": "HEV",
+   "acabado": "Excellence"
+  },
+  {
+   "nombre": "S700 ICE COMFORT",
+   "familia": "S700",
+   "motorizacion": "ICE",
+   "acabado": "Comfort"
+  },
+  {
+   "nombre": "S700 ICE LUXURY",
+   "familia": "S700",
+   "motorizacion": "ICE",
+   "acabado": "Luxury"
+  },
+  {
+   "nombre": "S700 HEV COMFORT",
+   "familia": "S700",
+   "motorizacion": "HEV",
+   "acabado": "Comfort"
+  },
+  {
+   "nombre": "S700 HEV LUXURY",
+   "familia": "S700",
+   "motorizacion": "HEV",
+   "acabado": "Luxury"
+  },
+  {
+   "nombre": "S700 PHEV PREMIUM",
+   "familia": "S700",
+   "motorizacion": "PHEV",
+   "acabado": "Premium"
+  },
+  {
+   "nombre": "S700 PHEV LUXURY",
+   "familia": "S700",
+   "motorizacion": "PHEV",
+   "acabado": "Luxury"
+  },
+  {
+   "nombre": "S800 ICE PREMIUM",
+   "familia": "S800",
+   "motorizacion": "ICE",
+   "acabado": "Premium"
+  },
+  {
+   "nombre": "S800 ICE LUXURY",
+   "familia": "S800",
+   "motorizacion": "ICE",
+   "acabado": "Luxury"
+  },
+  {
+   "nombre": "S800 PHEV PREMIUM",
+   "familia": "S800",
+   "motorizacion": "PHEV",
+   "acabado": "Premium"
+  },
+  {
+   "nombre": "S800 PHEV LUXURY",
+   "familia": "S800",
+   "motorizacion": "PHEV",
+   "acabado": "Luxury"
+  },
+  {
+   "nombre": "S900 PHEV LUXURY",
+   "familia": "S900",
+   "motorizacion": "PHEV",
+   "acabado": "Luxury"
+  }
+ ]
+}

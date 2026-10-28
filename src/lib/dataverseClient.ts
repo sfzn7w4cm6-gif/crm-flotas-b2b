@@ -18,6 +18,8 @@ export const Tables = {
   FaseHistorico: 'fl_fasehistoricos',
   Tarea: 'fl_tareas',
   Objetivo: 'fl_objetivos',
+  Zona: 'fl_zonas',
+  Modelo: 'fl_modelos',
 } as const
 
 interface EntityItem {

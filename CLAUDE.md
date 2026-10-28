@@ -179,6 +179,47 @@ administración para editarlo (de momento existe la fila "General" = 10).
 a Cierre y suma en "Facturado". Se lee aparte de `LEAD_SELECT`
 (`fetchImportesVenta`) para que nada falle en un entorno sin esa columna.
 
+### `fl_zona` y `fl_modelo` — red comercial real y catálogo
+
+Cargados con `scripts/dataverse/16-red-ebro-y-modelos.ps1` desde
+`scripts/dataverse/datos/red-ebro.json` (exportado del Excel "BBDD FLOTAS",
+pestañas RESPONSABLE EBRO BUSINESS y MODELOS DE INTERES). Lectura vía
+`src/lib/catalogosService.ts` (`fetchZonas`, `fetchModelos`).
+
+- **7 zonas** (`fl_nombre` "Zona N", `fl_numero`, `fl_areamanager` texto), 42
+  concesionarios, 108 sedes.
+- **La zona va en la sede** (`fl_ubicacion.fl_zona`), no en el concesionario:
+  M AUTOMOCION tiene sedes en la Zona 2 (Barcelona) y en la Zona 4 (Madrid).
+  `fl_ubicacion.fl_areamanager` se rellena también como "Nombre (Zona N)".
+- Las sedes de demo "M Automocion Barcelona/Madrid" se reutilizaron (renombradas
+  a las del Excel), así que sus leads y usuarios de demo siguen enlazados. Los
+  concesionarios de demo **Norte Motor** y **Auto Zaragoza** no están en el
+  Excel: siguen ahí, sin zona.
+- `fl_modelo`: 13 modelos (`fl_nombre` "S700 HEV LUXURY", `fl_familia` S700,
+  `fl_motorizacion`, `fl_acabado`, `fl_orden`, `fl_activo`). Son los que deben
+  salir en los desplegables; `fl_lead.fl_modelosinteres` sigue siendo texto
+  libre hasta la reestructuración de abajo.
+
+## Reestructuración acordada (pendiente)
+
+Decidido el 28/10/2026 con el responsable del proyecto:
+
+- **Empresa** (cliente, una por CIF) separada de **Oportunidad** (cada intento
+  de venta; el `fl_lead` actual). Si una empresa vuelve a comprar, se crea una
+  oportunidad nueva en la misma empresa, nunca otra empresa ni más ventas en la
+  misma oportunidad.
+- Datos de empresa: razón social, CIF, sector, contactos, flota actual.
+  Datos de oportunidad: fase, necesidad, modelos, próxima acción, importe,
+  motivo de pérdida, sede y comercial.
+- Comercial responsable como lookup a `fl_usuarioapp` (hoy es texto libre).
+- Líneas de oportunidad (modelo de `fl_modelo` + cantidad + precio) para el
+  importe facturado y el ranking de modelos.
+- Alta: el primer paso pide el CIF; si la empresa existe se crea solo la
+  oportunidad. Ficha de empresa nueva con todas sus oportunidades.
+- "Fidelización" como estado de la empresa, no como fase de la oportunidad.
+- Pendiente de decidir con ventas: empresa global de la red o por concesionario,
+  y si el importe va por líneas de modelo o como total.
+
 ## Seguridad (roles reales, auditados en el entorno — no solo lo que dicen los scripts)
 
 Todo en la Business Unit raíz (no hay BU por dealer; el aislamiento entre

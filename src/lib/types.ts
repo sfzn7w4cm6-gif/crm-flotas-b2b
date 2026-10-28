@@ -106,6 +106,7 @@ export interface Ubicacion {
   fl_areamanager?: string
   fl_activo: boolean
   _fl_concesionario_value: string
+  _fl_zona_value?: string
 }
 
 export interface UsuarioApp {
@@ -222,4 +223,26 @@ export interface Objetivo {
   fl_nombre: string
   fl_leadsmes: number
   _fl_concesionario_value?: string
+}
+
+// ---------------------------------------------------------------- red comercial y catalogo
+// Creados en scripts/dataverse/16-red-ebro-y-modelos.ps1. La zona va en la sede
+// (fl_ubicacion.fl_zona), no en el concesionario: un concesionario puede tener
+// sedes en zonas distintas.
+
+export interface Zona {
+  fl_zonaid: string
+  fl_nombre: string
+  fl_numero: number
+  fl_areamanager?: string
+}
+
+export interface Modelo {
+  fl_modeloid: string
+  fl_nombre: string
+  fl_familia: string
+  fl_motorizacion: string
+  fl_acabado: string
+  fl_orden: number
+  fl_activo: boolean
 }

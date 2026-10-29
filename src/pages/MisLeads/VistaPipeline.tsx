@@ -101,7 +101,7 @@ export function VistaPipeline({
                   if (ver.has('plazo') && l.fl_plazoestimadodecision != null) fila('plazo', `Decide en ${PlazoDecisionLabel[l.fl_plazoestimadodecision]?.toLowerCase()}`)
                   if (ver.has('comercial') && l.fl_comercialresponsable) fila('comercial', l.fl_comercialresponsable)
                   if (ver.has('concesionario') && nombreConcesionario) fila('concesionario', nombreConcesionario(l))
-                  if (ver.has('fechaAlta') && l.fl_fechaprimercontacto) fila('alta', `Alta ${fechaCorta(l.fl_fechaprimercontacto)}`)
+                  if (ver.has('fechaAlta') && l.fl_fechaprimercontacto) fila('alta', `Primer contacto ${fechaCorta(l.fl_fechaprimercontacto)}`)
                   const conAccion = ver.has('proximaAccion') && accion !== null && abierta
                   const conTiempo = ver.has('tiempoEnFase')
 

@@ -1,21 +1,18 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Icon } from '../../components/Icon'
-import { FaseBadge } from '../../components/StatusBadge'
 import { Buscador, FiltroMulti } from '../../components/filtros/Filtros'
 import { fetchTodosLosLeads } from '../../lib/leadsService'
 import { fetchMiHistorico } from '../../lib/actividadService'
 import { fetchModelos } from '../../lib/catalogosService'
 import { coincideBusqueda, coincideModelo, fetchTextosExtra, textoBusqueda } from '../../lib/filtrosLeads'
-import { fechaCorta } from '../../lib/formato'
 import { fetchConcesionarios, fetchUbicaciones } from '../../lib/usuariosService'
-import { FaseLabel, ModoFinanciacionLabel } from '../../lib/types'
 import type { Concesionario, Fase, Lead, Modelo, Ubicacion } from '../../lib/types'
 import { descargarExcel } from '../../lib/excelExport'
-import { EnlaceEmpresa } from '../../components/EnlaceEmpresa'
 import { ConfigTarjetas, VistaPipeline } from '../MisLeads/VistaPipeline'
 import { guardarCamposTarjeta, leerCamposTarjeta, type CampoTarjeta } from '../MisLeads/camposTarjeta'
 import { fasesDeUrl, OPCIONES_FASE } from '../MisLeads/opcionesFase'
+import { COLUMNAS, type ColKey } from '../MisLeads/columnasLeads'
 import '../MisLeads/MisLeads.css'
 
 type Vista = 'tabla' | 'pipeline'
@@ -29,64 +26,10 @@ function leerVista(): Vista {
   }
 }
 
-type ColKey =
-  | 'numero'
-  | 'empresa'
-  | 'sector'
-  | 'decisor'
-  | 'telefono'
-  | 'fase'
-  | 'modelos'
-  | 'vehiculos'
-  | 'financiacion'
-  | 'fechaAlta'
-  | 'proximaAccion'
-  | 'fechaLimite'
-  | 'comercial'
-  | 'concesionario'
-  | 'notas'
-
 type SortDir = 'asc' | 'desc'
 
-interface ColumnDef {
-  key: ColKey
-  label: string
-  sortable: boolean
-  render: (l: Lead, ctx: { nombreConcesionario: Map<string, string>; nombreUbicacion: Map<string, string> }) => ReactNode
-  valor: (l: Lead, ctx: { nombreConcesionario: Map<string, string>; nombreUbicacion: Map<string, string> }) => string | number
-  /** Texto para exportar a Excel: a diferencia de 'valor' (clave de orden,
-   *  a veces en minusculas), conserva mayusculas/formato de visualizacion. */
-  exportar: (l: Lead, ctx: { nombreConcesionario: Map<string, string>; nombreUbicacion: Map<string, string> }) => string | number
-}
-
-const COLUMNAS: ColumnDef[] = [
-  { key: 'numero', label: 'Nº', sortable: true, render: (l) => l.fl_numero, valor: (l) => l.fl_numero, exportar: (l) => l.fl_numero },
-  { key: 'empresa', label: 'Empresa', sortable: true, render: (l) => <EnlaceEmpresa lead={l} />, valor: (l) => l.fl_razonsocial.toLowerCase(), exportar: (l) => l.fl_razonsocial },
-  { key: 'sector', label: 'Sector', sortable: true, render: (l) => l.fl_actividadeconomica, valor: (l) => l.fl_actividadeconomica.toLowerCase(), exportar: (l) => l.fl_actividadeconomica },
-  { key: 'decisor', label: 'Decisor', sortable: false, render: (l) => l.fl_nombreresponsable, valor: (l) => l.fl_nombreresponsable, exportar: (l) => l.fl_nombreresponsable },
-  { key: 'telefono', label: 'Teléfono', sortable: false, render: (l) => l.fl_telefonocorporativo, valor: (l) => l.fl_telefonocorporativo, exportar: (l) => l.fl_telefonocorporativo },
-  { key: 'fase', label: 'Fase', sortable: true, render: (l) => <FaseBadge fase={l.fl_faseactual} size="sm" />, valor: (l) => l.fl_faseactual, exportar: (l) => FaseLabel[l.fl_faseactual] },
-  { key: 'modelos', label: 'Modelos', sortable: false, render: (l) => l.fl_modelosinteres, valor: (l) => l.fl_modelosinteres, exportar: (l) => l.fl_modelosinteres },
-  { key: 'vehiculos', label: 'Nº veh.', sortable: true, render: (l) => l.fl_numvehiculosrenovarampliar, valor: (l) => l.fl_numvehiculosrenovarampliar, exportar: (l) => l.fl_numvehiculosrenovarampliar },
-  { key: 'financiacion', label: 'Financiación', sortable: false, render: (l) => ModoFinanciacionLabel[l.fl_modofinanciacionactual], valor: (l) => ModoFinanciacionLabel[l.fl_modofinanciacionactual], exportar: (l) => ModoFinanciacionLabel[l.fl_modofinanciacionactual] },
-  { key: 'fechaAlta', label: 'Fecha alta', sortable: true, render: (l) => fechaCorta(l.fl_fechaprimercontacto), valor: (l) => l.fl_fechaprimercontacto ?? '', exportar: (l) => fechaCorta(l.fl_fechaprimercontacto) },
-  { key: 'proximaAccion', label: 'Próxima acción', sortable: false, render: (l) => l.fl_proximaaccion, valor: (l) => l.fl_proximaaccion, exportar: (l) => l.fl_proximaaccion },
-  { key: 'fechaLimite', label: 'Fecha límite', sortable: true, render: (l) => fechaCorta(l.fl_fechaproximaaccion), valor: (l) => l.fl_fechaproximaaccion ?? '', exportar: (l) => fechaCorta(l.fl_fechaproximaaccion) },
-  { key: 'comercial', label: 'Comercial', sortable: false, render: (l) => l.fl_comercialresponsable, valor: (l) => l.fl_comercialresponsable, exportar: (l) => l.fl_comercialresponsable },
-  {
-    key: 'concesionario',
-    label: 'Concesionario',
-    sortable: true,
-    render: (l, ctx) => `${ctx.nombreConcesionario.get(l._fl_concesionario_value) ?? ''} · ${ctx.nombreUbicacion.get(l._fl_ubicacion_value) ?? ''}`,
-    valor: (l, ctx) => `${ctx.nombreConcesionario.get(l._fl_concesionario_value) ?? ''} ${ctx.nombreUbicacion.get(l._fl_ubicacion_value) ?? ''}`.toLowerCase(),
-    exportar: (l, ctx) => `${ctx.nombreConcesionario.get(l._fl_concesionario_value) ?? ''} · ${ctx.nombreUbicacion.get(l._fl_ubicacion_value) ?? ''}`,
-  },
-  { key: 'notas', label: 'Notas', sortable: false, render: (l) => l.fl_observaciones, valor: (l) => l.fl_observaciones, exportar: (l) => l.fl_observaciones },
-]
 const ORDEN_INICIAL: ColKey[] = COLUMNAS.map((c) => c.key)
-// "Notas" es texto libre y suele ser largo: se deja disponible en el editor
-// de vista pero oculta por defecto para no ensanchar la tabla de inicio.
-const COLUMNAS_VISIBLES_POR_DEFECTO: ColKey[] = ORDEN_INICIAL.filter((k) => k !== 'notas' && k !== 'modelos')
+const COLUMNAS_VISIBLES_POR_DEFECTO: ColKey[] = ['numero', 'empresa', 'concesionario', 'comercial', 'fase', 'vehiculos', 'proximaAccion', 'fechaProximaAccion']
 
 export function SeguimientoLeads() {
   const [params] = useSearchParams()

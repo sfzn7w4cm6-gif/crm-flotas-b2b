@@ -20,6 +20,8 @@ export interface DefDato {
   tipo: TipoDato
   /** Ocupa las dos columnas (textos largos). */
   ancho?: boolean
+  /** Aclaración bajo el campo al editarlo. */
+  ayuda?: string
 }
 
 type Valores = Partial<Record<ClaveDato, string>>
@@ -169,6 +171,7 @@ export function BloqueDatos({
               <div key={d.clave} className={`field${d.ancho ? ' is-ancho' : ''}`}>
                 <label>{d.label}</label>
                 <Entrada def={d} valor={valores[d.clave] ?? ''} onChange={(v) => setValores((x) => ({ ...x, [d.clave]: v }))} />
+                {d.ayuda && <span className="field-ayuda">{d.ayuda}</span>}
               </div>
             ))}
           </div>

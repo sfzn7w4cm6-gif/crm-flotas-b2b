@@ -23,7 +23,7 @@ import { AvisoFase } from './AvisoFase'
 import './DetalleLead.css'
 
 const EMPRESA: DefDato[] = [
-  { clave: 'razonSocial', label: 'Razón social', tipo: 'texto', ancho: true },
+  { clave: 'razonSocial', label: 'Empresa', tipo: 'texto', ancho: true, ayuda: 'Nombre fiscal (razón social), como aparece en el CIF' },
   { clave: 'cif', label: 'CIF / NIF', tipo: 'cif' },
   { clave: 'nombreResponsable', label: 'Responsable', tipo: 'texto' },
   { clave: 'telefonoCorporativo', label: 'Teléfono', tipo: 'telefono' },
@@ -228,6 +228,7 @@ export function DetalleLead() {
             antes={
               <dl className="datos-grid datos-grid-fijo">
                 <Dato label="Fecha de primer contacto" valor={fechaLarga(lead.fl_fechaprimercontacto)} />
+                <Dato label="Fase actual" valor={<FaseBadge fase={lead.fl_faseactual} size="sm" conPunto />} />
               </dl>
             }
           />

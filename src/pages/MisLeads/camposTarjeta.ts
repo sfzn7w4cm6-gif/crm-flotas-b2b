@@ -3,16 +3,16 @@
 
 export const CAMPOS_TARJETA = {
   numero: 'Nº de oportunidad',
-  contacto: 'Contacto',
+  contacto: 'Responsable',
   modelos: 'Modelos de interés',
-  vehiculos: 'Nº de vehículos',
+  vehiculos: 'Vehículos de interés',
   proximaAccion: 'Próxima acción',
-  tiempoEnFase: 'Tiempo en la fase',
+  tiempoEnFase: 'Tiempo en la fase actual',
   plazo: 'Plazo de decisión',
-  sector: 'Sector',
+  sector: 'Actividad económica',
   comercial: 'Comercial',
   concesionario: 'Concesionario',
-  fechaAlta: 'Fecha de alta',
+  fechaAlta: 'Fecha de primer contacto',
 } as const
 export type CampoTarjeta = keyof typeof CAMPOS_TARJETA
 

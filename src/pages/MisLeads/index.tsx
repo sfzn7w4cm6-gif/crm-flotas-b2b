@@ -1,22 +1,21 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Icon } from '../../components/Icon'
-import { FaseBadge } from '../../components/StatusBadge'
 import { Buscador, FiltroMulti, FiltroSimple } from '../../components/filtros/Filtros'
-import { EnlaceEmpresa } from '../../components/EnlaceEmpresa'
 import { fetchMisLeads } from '../../lib/leadsService'
 import { fetchMiHistorico } from '../../lib/actividadService'
 import { fetchModelos } from '../../lib/catalogosService'
 import { coincideBusqueda, coincideModelo, fetchTextosExtra, textoBusqueda } from '../../lib/filtrosLeads'
-import { fechaCorta, parseFecha } from '../../lib/formato'
+import { parseFecha } from '../../lib/formato'
 import { fetchImportesVenta } from '../../lib/tareasService'
-import { Fase, FaseLabel, ModoFinanciacionLabel } from '../../lib/types'
+import { Fase } from '../../lib/types'
 import type { Lead, Modelo } from '../../lib/types'
 import { descargarExcel } from '../../lib/excelExport'
 import { CambioFaseDialog } from '../DetalleLead/CambioFaseDialog'
 import { ConfigTarjetas, VistaPipeline } from './VistaPipeline'
 import { guardarCamposTarjeta, leerCamposTarjeta, type CampoTarjeta } from './camposTarjeta'
 import { fasesDeUrl, OPCIONES_FASE } from './opcionesFase'
+import { COLUMNAS as TODAS, type ColKey, type CtxColumnas } from './columnasLeads'
 import './MisLeads.css'
 
 type Vista = 'tabla' | 'pipeline'
@@ -45,135 +44,14 @@ function leerVista(): Vista {
   }
 }
 
-type ColKey =
-  | 'numero'
-  | 'empresa'
-  | 'sector'
-  | 'decisor'
-  | 'telefono'
-  | 'fase'
-  | 'modelos'
-  | 'vehiculos'
-  | 'financiacion'
-  | 'fechaAlta'
-  | 'proximaAccion'
-  | 'fechaLimite'
-  | 'notas'
-
 type SortDir = 'asc' | 'desc'
 
-interface ColumnDef {
-  key: ColKey
-  label: string
-  sortable: boolean
-  render: (l: Lead) => ReactNode
-  valor: (l: Lead) => string | number
-  /** Texto para exportar a Excel: a diferencia de 'valor' (clave de orden,
-   *  a veces en minusculas), conserva mayusculas/formato de visualizacion. */
-  exportar: (l: Lead) => string | number
-}
-
-const COLUMNAS: ColumnDef[] = [
-  { key: 'numero', label: 'Nº', sortable: true, render: (l) => l.fl_numero, valor: (l) => l.fl_numero, exportar: (l) => l.fl_numero },
-  {
-    key: 'empresa',
-    label: 'Empresa',
-    sortable: true,
-    render: (l) => <EnlaceEmpresa lead={l} />,
-    valor: (l) => l.fl_razonsocial.toLowerCase(),
-    exportar: (l) => l.fl_razonsocial,
-  },
-  {
-    key: 'sector',
-    label: 'Sector',
-    sortable: true,
-    render: (l) => l.fl_actividadeconomica,
-    valor: (l) => (l.fl_actividadeconomica ?? '').toLowerCase(),
-    exportar: (l) => l.fl_actividadeconomica,
-  },
-  {
-    key: 'decisor',
-    label: 'Decisor',
-    sortable: false,
-    render: (l) => l.fl_nombreresponsable,
-    valor: (l) => l.fl_nombreresponsable,
-    exportar: (l) => l.fl_nombreresponsable,
-  },
-  {
-    key: 'telefono',
-    label: 'Teléfono',
-    sortable: false,
-    render: (l) => l.fl_telefonocorporativo,
-    valor: (l) => l.fl_telefonocorporativo,
-    exportar: (l) => l.fl_telefonocorporativo,
-  },
-  {
-    key: 'fase',
-    label: 'Fase',
-    sortable: true,
-    render: (l) => <FaseBadge fase={l.fl_faseactual} size="sm" />,
-    valor: (l) => l.fl_faseactual,
-    exportar: (l) => FaseLabel[l.fl_faseactual],
-  },
-  {
-    key: 'modelos',
-    label: 'Modelos',
-    sortable: false,
-    render: (l) => l.fl_modelosinteres,
-    valor: (l) => l.fl_modelosinteres,
-    exportar: (l) => l.fl_modelosinteres,
-  },
-  {
-    key: 'vehiculos',
-    label: 'Nº veh.',
-    sortable: true,
-    render: (l) => l.fl_numvehiculosrenovarampliar,
-    valor: (l) => l.fl_numvehiculosrenovarampliar,
-    exportar: (l) => l.fl_numvehiculosrenovarampliar,
-  },
-  {
-    key: 'financiacion',
-    label: 'Financiación',
-    sortable: false,
-    render: (l) => ModoFinanciacionLabel[l.fl_modofinanciacionactual],
-    valor: (l) => ModoFinanciacionLabel[l.fl_modofinanciacionactual],
-    exportar: (l) => ModoFinanciacionLabel[l.fl_modofinanciacionactual],
-  },
-  {
-    key: 'fechaAlta',
-    label: 'Fecha alta',
-    sortable: true,
-    render: (l) => fechaCorta(l.fl_fechaprimercontacto),
-    valor: (l) => l.fl_fechaprimercontacto ?? '',
-    exportar: (l) => fechaCorta(l.fl_fechaprimercontacto),
-  },
-  {
-    key: 'proximaAccion',
-    label: 'Próxima acción',
-    sortable: false,
-    render: (l) => l.fl_proximaaccion,
-    valor: (l) => l.fl_proximaaccion,
-    exportar: (l) => l.fl_proximaaccion,
-  },
-  {
-    key: 'fechaLimite',
-    label: 'Fecha límite',
-    sortable: true,
-    render: (l) => fechaCorta(l.fl_fechaproximaaccion),
-    valor: (l) => l.fl_fechaproximaaccion ?? '',
-    exportar: (l) => fechaCorta(l.fl_fechaproximaaccion),
-  },
-  {
-    key: 'notas',
-    label: 'Notas',
-    sortable: false,
-    render: (l) => l.fl_observaciones,
-    valor: (l) => l.fl_observaciones,
-    exportar: (l) => l.fl_observaciones,
-  },
-]
+// El concesionario es siempre el propio: esa columna solo está en Seguimiento.
+const COLUMNAS = TODAS.filter((c) => c.key !== 'concesionario')
+// Sin concesionarios ni sedes que nombrar: la columna que los usa no está en esta pantalla.
+const CTX: CtxColumnas = { nombreConcesionario: new Map(), nombreUbicacion: new Map() }
 const ORDEN_INICIAL: ColKey[] = COLUMNAS.map((c) => c.key)
-const COLUMNAS_POR_DEFECTO: ColKey[] = ['numero', 'empresa', 'fase', 'vehiculos', 'proximaAccion', 'fechaLimite']
+const COLUMNAS_POR_DEFECTO: ColKey[] = ['numero', 'empresa', 'fase', 'vehiculos', 'proximaAccion', 'fechaProximaAccion']
 
 export function MisLeads() {
   const [params] = useSearchParams()
@@ -298,8 +176,8 @@ export function MisLeads() {
     const col = COLUMNAS.find((c) => c.key === sortBy)!
     const copia = [...filtrados]
     copia.sort((a, b) => {
-      const va = col.valor(a)
-      const vb = col.valor(b)
+      const va = col.valor(a, CTX)
+      const vb = col.valor(b, CTX)
       const cmp = typeof va === 'number' && typeof vb === 'number' ? va - vb : String(va).localeCompare(String(vb))
       return sortDir === 'asc' ? cmp : -cmp
     })
@@ -442,7 +320,7 @@ export function MisLeads() {
               descargarExcel(
                 'Mis leads',
                 columnasOrdenadas.map((c) => c.label),
-                ordenados.map((l) => columnasOrdenadas.map((c) => c.exportar(l))),
+                ordenados.map((l) => columnasOrdenadas.map((c) => c.exportar(l, CTX))),
               )
             }
           >
@@ -520,7 +398,7 @@ export function MisLeads() {
                 <tr key={l.fl_leadid} className="row-clickable" onClick={() => (window.location.hash = `#/lead/${l.fl_leadid}`)}>
                   {columnasOrdenadas.map((col, i) => (
                     <td key={col.key} className={i === 0 ? 'cell-strong' : undefined}>
-                      {col.render(l)}
+                      {col.render(l, CTX)}
                     </td>
                   ))}
                 </tr>

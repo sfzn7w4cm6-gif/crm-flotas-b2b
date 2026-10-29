@@ -228,7 +228,7 @@ export function NuevoLead() {
 
             {(busqueda?.estado === 'nueva' || busqueda?.estado === 'existe') && (
               <>
-                <Field label="Razón Social / Nombre comercial">
+                <Field label="Empresa" ayuda="Nombre fiscal (razón social), como aparece en el CIF">
                   <input value={form.razonSocial ?? ''} onChange={(e) => set('razonSocial', e.target.value)} />
                 </Field>
                 <Field label="Concesionario" auto>
@@ -302,11 +302,25 @@ export function NuevoLead() {
   )
 }
 
-function Field({ label, children, opcional, auto }: { label: string; children: ReactNode; opcional?: boolean; auto?: boolean }) {
+function Field({
+  label,
+  children,
+  opcional,
+  auto,
+  ayuda,
+}: {
+  label: string
+  children: ReactNode
+  opcional?: boolean
+  auto?: boolean
+  /** Aclaración bajo el campo. */
+  ayuda?: string
+}) {
   return (
     <div className={auto ? 'field field-auto' : 'field'}>
       <label>{label} {opcional || auto ? '' : '*'}</label>
       {children}
+      {ayuda && <span className="field-ayuda">{ayuda}</span>}
     </div>
   )
 }

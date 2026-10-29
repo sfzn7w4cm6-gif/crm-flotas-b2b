@@ -7,7 +7,8 @@ import { fetchMiHistorico } from '../../lib/actividadService'
 import { fetchModelos } from '../../lib/catalogosService'
 import { coincideBusqueda, coincideModelo, fetchTextosExtra, textoBusqueda } from '../../lib/filtrosLeads'
 import { fetchConcesionarios, fetchUbicaciones } from '../../lib/usuariosService'
-import type { Concesionario, Fase, Lead, Modelo, Ubicacion } from '../../lib/types'
+import { fetchZonas } from '../../lib/catalogosService'
+import type { Concesionario, Fase, Lead, Modelo, Ubicacion, Zona } from '../../lib/types'
 import { descargarExcel } from '../../lib/excelExport'
 import { ConfigTarjetas, VistaPipeline } from '../MisLeads/VistaPipeline'
 import { guardarCamposTarjeta, leerCamposTarjeta, type CampoTarjeta } from '../MisLeads/camposTarjeta'
@@ -36,12 +37,14 @@ export function SeguimientoLeads() {
   const [leads, setLeads] = useState<Lead[]>([])
   const [concesionarios, setConcesionarios] = useState<Concesionario[]>([])
   const [ubicaciones, setUbicaciones] = useState<Ubicacion[]>([])
+  const [zonas, setZonas] = useState<Zona[]>([])
   const [modelos, setModelos] = useState<Modelo[]>([])
   const [extras, setExtras] = useState<Map<string, string>>(new Map())
   const [enFaseDesde, setEnFaseDesde] = useState<Map<string, Date>>(new Map())
   const [cargando, setCargando] = useState(true)
   const [ahora] = useState(() => Date.now())
 
+  const [zonasSel, setZonasSel] = useState<string[]>([])
   const [concesionariosSel, setConcesionariosSel] = useState<string[]>([])
   const [ubicacionesSel, setUbicacionesSel] = useState<string[]>([])
   const [fases, setFases] = useState<Fase[]>(() => fasesDeUrl(params))
@@ -59,10 +62,11 @@ export function SeguimientoLeads() {
   const [campos, setCamposState] = useState<CampoTarjeta[]>(leerCamposTarjeta)
 
   useEffect(() => {
-    Promise.all([fetchTodosLosLeads(), fetchConcesionarios(), fetchUbicaciones()]).then(([l, c, u]) => {
+    Promise.all([fetchTodosLosLeads(), fetchConcesionarios(), fetchUbicaciones(), fetchZonas()]).then(([l, c, u, z]) => {
       setLeads(l)
       setConcesionarios(c)
       setUbicaciones(u)
+      setZonas(z)
       setCargando(false)
     })
     fetchModelos()
@@ -97,9 +101,19 @@ export function SeguimientoLeads() {
     guardarCamposTarjeta(c)
   }
 
+  const ubicacionesDeZona = useMemo(
+    () => (zonasSel.length ? ubicaciones.filter((u) => u._fl_zona_value && zonasSel.includes(u._fl_zona_value)) : ubicaciones),
+    [ubicaciones, zonasSel],
+  )
+  const ubicacionIdsDeZona = useMemo(() => new Set(ubicacionesDeZona.map((u) => u.fl_ubicacionid)), [ubicacionesDeZona])
+  const concesionarioIdsDeZona = useMemo(() => new Set(ubicacionesDeZona.map((u) => u._fl_concesionario_value)), [ubicacionesDeZona])
+  const concesionariosDeZona = useMemo(
+    () => (zonasSel.length ? concesionarios.filter((c) => concesionarioIdsDeZona.has(c.fl_concesionarioid)) : concesionarios),
+    [concesionarios, zonasSel, concesionarioIdsDeZona],
+  )
   const ubicacionesDelConcesionario = useMemo(
-    () => (concesionariosSel.length ? ubicaciones.filter((u) => concesionariosSel.includes(u._fl_concesionario_value)) : ubicaciones),
-    [ubicaciones, concesionariosSel],
+    () => (concesionariosSel.length ? ubicacionesDeZona.filter((u) => concesionariosSel.includes(u._fl_concesionario_value)) : ubicacionesDeZona),
+    [ubicacionesDeZona, concesionariosSel],
   )
 
   const nombreConcesionario = useMemo(() => new Map(concesionarios.map((c) => [c.fl_concesionarioid, c.fl_nombre])), [concesionarios])
@@ -128,6 +142,7 @@ export function SeguimientoLeads() {
   const filtrados = useMemo(() => {
     const mods = modelos.filter((m) => modelosSel.includes(m.fl_modeloid))
     return leads.filter((l) => {
+      if (zonasSel.length && !ubicacionIdsDeZona.has(l._fl_ubicacion_value)) return false
       if (concesionariosSel.length && !concesionariosSel.includes(l._fl_concesionario_value)) return false
       if (ubicacionesSel.length && !ubicacionesSel.includes(l._fl_ubicacion_value)) return false
       if (fases.length && !fases.includes(l.fl_faseactual)) return false
@@ -136,12 +151,14 @@ export function SeguimientoLeads() {
       if (busqueda.trim() && !coincideBusqueda(indice.get(l.fl_leadid) ?? '', busqueda)) return false
       return true
     })
-  }, [leads, indice, modelos, concesionariosSel, ubicacionesSel, fases, empresasSel, modelosSel, busqueda])
+  }, [leads, indice, modelos, zonasSel, ubicacionIdsDeZona, concesionariosSel, ubicacionesSel, fases, empresasSel, modelosSel, busqueda])
 
   const hayFiltros =
-    busqueda.trim() !== '' || concesionariosSel.length + ubicacionesSel.length + fases.length + modelosSel.length + empresasSel.length > 0
+    busqueda.trim() !== '' ||
+    zonasSel.length + concesionariosSel.length + ubicacionesSel.length + fases.length + modelosSel.length + empresasSel.length > 0
   const limpiarFiltros = () => {
     setBusqueda('')
+    setZonasSel([])
     setConcesionariosSel([])
     setUbicacionesSel([])
     setFases([])
@@ -214,8 +231,19 @@ export function SeguimientoLeads() {
         <div className="lista-filtros">
           <Buscador value={busqueda} onChange={setBusqueda} />
           <FiltroMulti
+            etiqueta="Zona"
+            opciones={zonas.map((z) => ({ value: z.fl_zonaid, label: z.fl_nombre }))}
+            value={zonasSel}
+            onChange={(v) => {
+              setZonasSel(v)
+              setConcesionariosSel([])
+              setUbicacionesSel([])
+              setEmpresasSel([])
+            }}
+          />
+          <FiltroMulti
             etiqueta="Concesionario"
-            opciones={concesionarios.map((c) => ({ value: c.fl_concesionarioid, label: c.fl_nombre }))}
+            opciones={concesionariosDeZona.map((c) => ({ value: c.fl_concesionarioid, label: c.fl_nombre }))}
             value={concesionariosSel}
             onChange={(v) => {
               setConcesionariosSel(v)

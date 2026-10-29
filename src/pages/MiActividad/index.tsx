@@ -21,9 +21,10 @@ import {
   tareaAbierta,
   tareaVencida,
 } from '../../lib/tareasService'
-import { fetchConcesionarios } from '../../lib/usuariosService'
+import { fetchConcesionarios, fetchUbicaciones } from '../../lib/usuariosService'
+import { fetchZonas } from '../../lib/catalogosService'
 import { Fase } from '../../lib/types'
-import type { Concesionario, EstadoTarea, FaseHistorico, Lead, Modelo, Objetivo, Tarea } from '../../lib/types'
+import type { Concesionario, EstadoTarea, FaseHistorico, Lead, Modelo, Objetivo, Tarea, Ubicacion, Zona } from '../../lib/types'
 import { PeriodoFiltro } from './PeriodoFiltro'
 import './MiActividad.css'
 
@@ -59,6 +60,8 @@ export function InicioPanel({ modo, debajo }: { modo: 'concesionario' | 'red'; d
   const [objetivo, setObjetivo] = useState<number | null | undefined>(undefined)
   const [objetivos, setObjetivos] = useState<Objetivo[] | null>(null)
   const [concesionarios, setConcesionarios] = useState<Concesionario[]>([])
+  const [ubicaciones, setUbicaciones] = useState<Ubicacion[]>([])
+  const [zonas, setZonas] = useState<Zona[]>([])
   const [modelos, setModelos] = useState<Modelo[]>([])
   const [cargando, setCargando] = useState(true)
   // Un solo periodo para todas las cifras de la pantalla.
@@ -67,7 +70,9 @@ export function InicioPanel({ modo, debajo }: { modo: 'concesionario' | 'red'; d
   const [calendario, setCalendario] = useState(false)
   // Tareas cerradas desde esta pantalla: se siguen mostrando (tachadas) hasta recargar.
   const [cambiadas, setCambiadas] = useState<Set<string>>(new Set())
+  const [filtroZona, setFiltroZona] = useState<string[]>([])
   const [filtroConc, setFiltroConc] = useState<string[]>([])
+  const [filtroUbicacion, setFiltroUbicacion] = useState<string[]>([])
   const [filtroEmpresa, setFiltroEmpresa] = useState<string[]>([])
   const [filtroModelo, setFiltroModelo] = useState<string[]>([])
 
@@ -79,14 +84,18 @@ export function InicioPanel({ modo, debajo }: { modo: 'concesionario' | 'red'; d
         fetchImportesVenta(),
         fetchObjetivos().catch(() => null),
         fetchConcesionarios(),
+        fetchUbicaciones(),
+        fetchZonas(),
         fetchModelos().catch(() => []),
       ])
-        .then(([l, h, imp, obj, c, m]) => {
+        .then(([l, h, imp, obj, c, u, z, m]) => {
           setLeads(l)
           setHistorico(h)
           setImportes(imp)
           setObjetivos(obj)
           setConcesionarios(c)
+          setUbicaciones(u)
+          setZonas(z)
           setModelos(m)
         })
         .finally(() => setCargando(false))
@@ -112,6 +121,20 @@ export function InicioPanel({ modo, debajo }: { modo: 'concesionario' | 'red'; d
   // ---------------------------------------------------------------- filtros (solo red)
 
   const nombreConc = useMemo(() => new Map(concesionarios.map((c) => [c.fl_concesionarioid, c.fl_nombre])), [concesionarios])
+  const ubicacionesDeZona = useMemo(
+    () => (filtroZona.length ? ubicaciones.filter((u) => u._fl_zona_value && filtroZona.includes(u._fl_zona_value)) : ubicaciones),
+    [ubicaciones, filtroZona],
+  )
+  const ubicacionIdsDeZona = useMemo(() => new Set(ubicacionesDeZona.map((u) => u.fl_ubicacionid)), [ubicacionesDeZona])
+  const concesionarioIdsDeZona = useMemo(() => new Set(ubicacionesDeZona.map((u) => u._fl_concesionario_value)), [ubicacionesDeZona])
+  const concesionariosDeZona = useMemo(
+    () => (filtroZona.length ? concesionarios.filter((c) => concesionarioIdsDeZona.has(c.fl_concesionarioid)) : concesionarios),
+    [concesionarios, filtroZona, concesionarioIdsDeZona],
+  )
+  const ubicacionesDelConcesionario = useMemo(
+    () => (filtroConc.length ? ubicacionesDeZona.filter((u) => filtroConc.includes(u._fl_concesionario_value)) : ubicacionesDeZona),
+    [ubicacionesDeZona, filtroConc],
+  )
   const opcionesEmpresa = useMemo(() => {
     const m = new Map<string, string>()
     for (const l of leads) if (l._fl_empresa_value && (filtroConc.length === 0 || filtroConc.includes(l._fl_concesionario_value))) m.set(l._fl_empresa_value, l.fl_razonsocial)
@@ -123,14 +146,16 @@ export function InicioPanel({ modo, debajo }: { modo: 'concesionario' | 'red'; d
     const mods = modelos.filter((m) => filtroModelo.includes(m.fl_modeloid))
     return leads.filter(
       (l) =>
+        (filtroZona.length === 0 || ubicacionIdsDeZona.has(l._fl_ubicacion_value)) &&
         (filtroConc.length === 0 || filtroConc.includes(l._fl_concesionario_value)) &&
+        (filtroUbicacion.length === 0 || filtroUbicacion.includes(l._fl_ubicacion_value)) &&
         (filtroEmpresa.length === 0 || (!!l._fl_empresa_value && filtroEmpresa.includes(l._fl_empresa_value))) &&
         (mods.length === 0 || coincideModelo(l, mods)),
     )
-  }, [red, leads, modelos, filtroConc, filtroEmpresa, filtroModelo])
+  }, [red, leads, modelos, filtroZona, ubicacionIdsDeZona, filtroConc, filtroUbicacion, filtroEmpresa, filtroModelo])
   const idsFiltrados = useMemo(() => new Set(leadsFiltrados.map((l) => l.fl_leadid)), [leadsFiltrados])
   const historicoFiltrado = useMemo(() => historico.filter((h) => idsFiltrados.has(h._fl_lead_value)), [historico, idsFiltrados])
-  const hayFiltros = filtroConc.length + filtroEmpresa.length + filtroModelo.length > 0
+  const hayFiltros = filtroZona.length + filtroConc.length + filtroUbicacion.length + filtroEmpresa.length + filtroModelo.length > 0
 
   // ---------------------------------------------------------------- cifras
 
@@ -174,11 +199,12 @@ export function InicioPanel({ modo, debajo }: { modo: 'concesionario' | 'red'; d
     return Math.min(new Date().getFullYear() - 1, ...anios)
   }, [leads])
 
-  // En la red, el objetivo es la suma del de cada concesionario elegido (o de todos).
+  // En la red, el objetivo es la suma del de cada concesionario elegido (o de
+  // todos los que caen dentro de la zona filtrada, si no hay concesionario elegido).
   const objetivoMes = red
     ? objetivos === null
       ? undefined
-      : objetivoDeRed(objetivos, filtroConc.length ? filtroConc : concesionarios.map((c) => c.fl_concesionarioid))
+      : objetivoDeRed(objetivos, filtroConc.length ? filtroConc : concesionariosDeZona.map((c) => c.fl_concesionarioid))
     : objetivo
 
   // Ventas y facturado por concesionario en el periodo (solo red).
@@ -245,13 +271,31 @@ export function InicioPanel({ modo, debajo }: { modo: 'concesionario' | 'red'; d
       {red && (
         <div className="lista-filtros inicio-filtros">
           <FiltroMulti
+            etiqueta="Zona"
+            opciones={zonas.map((z) => ({ value: z.fl_zonaid, label: z.fl_nombre }))}
+            value={filtroZona}
+            onChange={(v) => {
+              setFiltroZona(v)
+              setFiltroConc([])
+              setFiltroUbicacion([])
+              setFiltroEmpresa([])
+            }}
+          />
+          <FiltroMulti
             etiqueta="Concesionario"
-            opciones={concesionarios.map((c) => ({ value: c.fl_concesionarioid, label: c.fl_nombre }))}
+            opciones={concesionariosDeZona.map((c) => ({ value: c.fl_concesionarioid, label: c.fl_nombre }))}
             value={filtroConc}
             onChange={(v) => {
               setFiltroConc(v)
+              setFiltroUbicacion([])
               setFiltroEmpresa([])
             }}
+          />
+          <FiltroMulti
+            etiqueta="Sede"
+            opciones={ubicacionesDelConcesionario.map((u) => ({ value: u.fl_ubicacionid, label: u.fl_nombre }))}
+            value={filtroUbicacion}
+            onChange={setFiltroUbicacion}
           />
           <FiltroMulti etiqueta="Empresa" opciones={opcionesEmpresa} value={filtroEmpresa} onChange={setFiltroEmpresa} />
           <FiltroMulti
@@ -265,7 +309,9 @@ export function InicioPanel({ modo, debajo }: { modo: 'concesionario' | 'red'; d
               type="button"
               className="lista-limpiar"
               onClick={() => {
+                setFiltroZona([])
                 setFiltroConc([])
+                setFiltroUbicacion([])
                 setFiltroEmpresa([])
                 setFiltroModelo([])
               }}

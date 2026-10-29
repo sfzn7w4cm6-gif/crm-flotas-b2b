@@ -11,7 +11,7 @@ export async function fetchConcesionarios(): Promise<Concesionario[]> {
 
 export async function fetchUbicaciones(): Promise<Ubicacion[]> {
   return listRecords<Ubicacion>(Tables.Ubicacion, {
-    select: 'fl_ubicacionid,fl_nombre,fl_ciudad,fl_direccion,fl_areamanager,fl_activo,_fl_concesionario_value',
+    select: 'fl_ubicacionid,fl_nombre,fl_ciudad,fl_direccion,fl_areamanager,fl_activo,_fl_concesionario_value,_fl_zona_value',
     filter: 'fl_activo eq true',
     orderby: 'fl_nombre asc',
   })

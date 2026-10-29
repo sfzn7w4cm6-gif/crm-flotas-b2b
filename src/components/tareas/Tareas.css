@@ -9,15 +9,16 @@
 }
 .tarea-fila {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 12px;
-  padding: 12px 0;
+  padding: 11px 0;
   border-bottom: 1px solid var(--color-border);
 }
 .tarea-fila:last-child {
   border-bottom: none;
 }
-.tarea-fila.is-cerrada .tarea-titulo {
+.tarea-fila.is-cerrada .tarea-titulo,
+.tarea-ficha.is-cerrada .tarea-titulo {
   color: var(--color-text-muted);
   text-decoration: line-through;
 }
@@ -41,65 +42,208 @@
 }
 .tarea-titulo {
   font-size: 13.5px;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1.35;
 }
 .tarea-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px 6px;
   font-size: 12px;
+  color: var(--color-text-muted);
+  min-width: 0;
+}
+.tarea-sep {
+  opacity: 0.6;
+}
+.tarea-empresa {
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 220px;
+}
+.tarea-numero {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
   color: var(--color-text-muted);
 }
 .tarea-vencida {
   color: var(--color-danger);
-  font-weight: 600;
-}
-.tarea-lead {
-  color: var(--color-text);
-  font-weight: 600;
-  text-decoration: none;
-}
-.tarea-lead:hover {
-  text-decoration: underline;
-}
-.tarea-notas {
-  font-size: 12px;
-  color: var(--color-text-muted);
-  white-space: pre-wrap;
+  font-weight: 500;
 }
 
+/* Estado: un desplegable neutro, igual en todos los estados. */
 .tarea-estado {
   flex-shrink: 0;
-  font: inherit;
-  font-size: 11.5px;
-  font-weight: 600;
+  appearance: none;
+  -webkit-appearance: none;
+  height: 28px;
+  padding: 0 26px 0 10px;
   border: 1px solid var(--color-border);
-  border-radius: 999px;
-  padding: 4px 10px;
-  background: var(--color-surface);
+  border-radius: 7px;
+  background: var(--color-surface)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2376746e' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")
+    no-repeat right 8px center;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
   color: var(--color-text);
   cursor: pointer;
 }
+.tarea-estado:hover:not(:disabled) {
+  border-color: var(--color-text-muted);
+}
+.tarea-estado:focus-visible {
+  outline: none;
+  border-color: var(--color-text);
+}
 .tarea-estado-fijo {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 10px;
+  background: var(--color-surface);
+  color: var(--color-text-muted);
   cursor: default;
 }
-.tarea-estado.is-pendiente {
-  background: var(--color-warning-bg);
-  border-color: transparent;
-  color: var(--color-warning);
+
+/* Ir a la oportunidad: un ">" discreto al final de la fila. */
+.tarea-ir {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  margin-left: -4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7px;
+  color: var(--color-text-muted);
+  text-decoration: none;
+  transition: background 0.12s ease, color 0.12s ease;
 }
-.tarea-estado.is-encurso {
-  background: var(--color-accent-bg);
-  border-color: transparent;
+.tarea-ir:hover {
+  background: var(--color-surface-alt);
   color: var(--color-text);
 }
-.tarea-estado.is-completada {
-  background: var(--color-success-bg);
-  border-color: transparent;
-  color: var(--color-success);
+
+.tarea-cierre {
+  margin-top: 8px;
 }
-.tarea-estado.is-cancelada {
+.tarea-nota-guardada {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-success);
+  animation: tarea-aparece 0.2s ease;
+}
+@keyframes tarea-aparece {
+  from {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+}
+
+/* ---------------------------------------------------------------- tarea en la ficha */
+
+.tarea-ficha {
+  border-radius: 10px;
+  transition: background 0.12s ease;
+}
+.tarea-ficha.is-abierta {
   background: var(--color-surface-alt);
-  border-color: transparent;
+}
+.tarea-ficha-linea {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px 6px 0;
+}
+.tarea-ficha.is-abierta .tarea-ficha-linea {
+  padding-left: 8px;
+}
+.tarea-ficha-toggle {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.tarea-ficha .tarea-icono {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+}
+.tarea-ficha .tarea-titulo {
+  font-size: 13px;
+}
+.tarea-ficha-chevron {
+  flex-shrink: 0;
   color: var(--color-text-muted);
+  opacity: 0;
+  transition: transform 0.15s ease, opacity 0.12s ease;
+}
+.tarea-ficha-toggle:hover .tarea-ficha-chevron,
+.tarea-ficha.is-abierta .tarea-ficha-chevron {
+  opacity: 1;
+}
+.tarea-ficha.is-abierta .tarea-ficha-chevron {
+  transform: rotate(180deg);
+}
+.tarea-contador {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-variant-numeric: tabular-nums;
+}
+.tarea-ficha-detalle {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 2px 12px 12px 44px;
+}
+.tarea-descripcion {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-text);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.tarea-enlace {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--color-text);
+  text-decoration: underline;
+  text-decoration-color: var(--color-border);
+  text-underline-offset: 3px;
+}
+.tarea-enlace:hover {
+  text-decoration-color: currentColor;
+}
+.tarea-ficha-composer .nota-composer {
+  background: var(--color-surface);
+}
+.tarea-resultado-antiguo {
+  padding: 8px 0 0;
+  border-top: 1px solid var(--color-border);
 }
 
 /* ---------------------------------------------------------------- formulario */
@@ -137,6 +281,15 @@
   background: var(--color-primary);
   border-color: var(--color-primary);
   color: var(--color-primary-contrast);
+}
+.tarea-form-adjuntos {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+}
+.tarea-form-adjuntos .flow-meta {
+  margin: 0;
 }
 .tarea-form-acciones {
   display: flex;
@@ -252,15 +405,7 @@
   background: var(--color-surface-alt);
   color: var(--color-text);
 }
-.calendario-chip.is-pendiente {
-  background: var(--color-warning-bg);
-  color: var(--color-warning);
-}
-.calendario-chip.is-encurso {
-  background: var(--color-accent-bg);
-}
-.calendario-chip.is-completada,
-.calendario-chip.is-cancelada {
+.calendario-chip.is-cerrada {
   color: var(--color-text-muted);
   text-decoration: line-through;
 }

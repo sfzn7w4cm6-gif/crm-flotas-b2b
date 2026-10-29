@@ -50,7 +50,9 @@ export const PlazoDecisionLabel: Record<PlazoDecision, string> = {
   [PlazoDecision.MasDeSeisMeses]: 'Más de 6 meses',
 }
 
-// Las 8 fases activas del pipeline, en orden, mas el estado terminal "Perdido".
+// Las 7 fases activas del pipeline, en orden, mas el estado terminal "Perdido".
+// "8. Fidelizacion" (101000007) se quito el 28/10/2026: la opcion sigue en Dataverse
+// pero ya no se usa (ver scripts/dataverse/19-quitar-fase-fidelizacion.ps1).
 export const Fase = {
   Prospeccion: 101000000,
   PrimerContacto: 101000001,
@@ -59,7 +61,6 @@ export const Fase = {
   Negociacion: 101000004,
   Cierre: 101000005,
   Entrega: 101000006,
-  Fidelizacion: 101000007,
   Perdido: 101000008,
 } as const
 export type Fase = (typeof Fase)[keyof typeof Fase]
@@ -72,11 +73,10 @@ export const FaseLabel: Record<Fase, string> = {
   [Fase.Negociacion]: '5. Negociación',
   [Fase.Cierre]: '6. Cierre',
   [Fase.Entrega]: '7. Entrega',
-  [Fase.Fidelizacion]: '8. Fidelización',
   [Fase.Perdido]: 'Perdido',
 }
 
-// Las 8 fases activas, en orden — excluye "Perdido" (estado terminal, no es
+// Las 7 fases activas, en orden — excluye "Perdido" (estado terminal, no es
 // un paso mas del embudo). Usar esta lista para graficos ordinales.
 export const FASES_ACTIVAS: Fase[] = [
   Fase.Prospeccion,
@@ -86,7 +86,6 @@ export const FASES_ACTIVAS: Fase[] = [
   Fase.Negociacion,
   Fase.Cierre,
   Fase.Entrega,
-  Fase.Fidelizacion,
 ]
 
 // ---------------------------------------------------------------- filas Dataverse
@@ -120,6 +119,10 @@ export interface UsuarioApp {
   _fl_systemuserid_value?: string
 }
 
+// El lead es la Oportunidad: cada intento de venta a una Empresa. Los datos de
+// empresa y contactos (secciones 1 y 2) viven en fl_empresa; esos campos del lead
+// se rellenan con los de su empresa al leerlo (ver conDatosDeEmpresa en
+// leadsService.ts) para que listas, KPIs y exportaciones sigan funcionando igual.
 export interface Lead {
   fl_leadid: string
   fl_numero: string
@@ -155,6 +158,8 @@ export interface Lead {
   fl_observaciones: string
   fl_motivoperdida?: string
   // estructurales
+  _fl_empresa_value?: string
+  _fl_comercial_value?: string
   _fl_ubicacion_value: string
   _fl_concesionario_value: string
   _fl_creadopor_value: string
@@ -215,6 +220,11 @@ export interface Tarea {
   fl_fecha: string
   fl_estado: EstadoTarea
   fl_notas?: string
+  /** Texto antiguo de "cómo fue"; las notas nuevas de la tarea van en fl_nota (fl_tarea). */
+  fl_resultado?: string
+  /** Enlace de la llamada o reunión (Teams, Meet...). */
+  fl_enlace?: string
+  createdon: string
   _fl_lead_value: string
 }
 
@@ -245,4 +255,78 @@ export interface Modelo {
   fl_acabado: string
   fl_orden: number
   fl_activo: boolean
+}
+
+// ---------------------------------------------------------------- empresa y lineas
+// Creados en scripts/dataverse/17-empresa-oportunidad.ps1.
+
+// Automatico, nadie lo edita: Cliente en cuanto una oportunidad llega a Cierre.
+// La opcion "Fidelizacion" (101000002) sigue en Dataverse pero no se usa.
+export const EstadoEmpresa = {
+  ClientePotencial: 101000000,
+  Cliente: 101000001,
+} as const
+export type EstadoEmpresa = (typeof EstadoEmpresa)[keyof typeof EstadoEmpresa]
+
+export const EstadoEmpresaLabel: Record<EstadoEmpresa, string> = {
+  [EstadoEmpresa.ClientePotencial]: 'Cliente potencial',
+  [EstadoEmpresa.Cliente]: 'Cliente',
+}
+
+/** El cliente: una por CIF dentro de cada concesionario. */
+export interface Empresa {
+  fl_empresaid: string
+  fl_razonsocial: string
+  fl_cif: string
+  fl_actividadeconomica?: string
+  fl_nombreresponsable?: string
+  fl_telefonocorporativo?: string
+  fl_emailcorporativo?: string
+  fl_numvehiculosactuales?: number
+  fl_marcasactuales?: string
+  fl_modofinanciacionactual?: ModoFinanciacion
+  fl_vencimientocontratosactuales?: string
+  fl_estado?: EstadoEmpresa
+  _fl_concesionario_value: string
+  /** La oportunidad en curso (Prospección a Negociación); vacía si no hay ninguna. */
+  _fl_oportunidadabierta_value?: string
+  '_fl_oportunidadabierta_value@OData.Community.Display.V1.FormattedValue'?: string
+}
+
+/** Modelo del catálogo y cantidad dentro de una oportunidad. */
+export interface LineaOportunidad {
+  fl_lineaoportunidadid: string
+  fl_titulo: string
+  fl_cantidad: number
+  _fl_lead_value: string
+  _fl_modelo_value: string
+}
+
+// ---------------------------------------------------------------- notas
+// Creadas en scripts/dataverse/21-notas-y-resultado-tareas.ps1.
+
+/** Nota libre sobre una oportunidad. La fecha es createdon. */
+export interface Nota {
+  fl_notaid: string
+  fl_texto: string
+  createdon: string
+  _fl_lead_value: string
+  /** Si tiene tarea, es una nota de esa tarea; si no, una nota general de la oportunidad. */
+  _fl_tarea_value?: string
+  _fl_autor_value?: string
+  '_fl_autor_value@OData.Community.Display.V1.FormattedValue'?: string
+}
+
+// ---------------------------------------------------------------- adjuntos
+// Notas nativas de Dataverse (annotation) colgadas de fl_tarea o fl_nota; ver
+// scripts/dataverse/22-adjuntos-enlace-notas-tarea.ps1. El contenido solo se pide al descargar.
+
+export interface Adjunto {
+  annotationid: string
+  filename: string
+  filesize: number
+  mimetype: string
+  createdon: string
+  _objectid_value: string
+  _ownerid_value: string
 }

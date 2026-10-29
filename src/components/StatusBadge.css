@@ -2,8 +2,7 @@
   display: inline-flex;
   align-items: center;
   border-radius: 999px;
-  border: 1px solid transparent;
-  font-weight: 600;
+  font-weight: 500;
   white-space: nowrap;
 }
 .fase-badge-md {
@@ -31,7 +30,6 @@
 .fase-dot {
   flex-shrink: 0;
   border-radius: 50%;
-  box-shadow: 0 0 0 1px rgba(29, 29, 27, 0.16) inset;
 }
 
 .fase-select {
@@ -50,10 +48,8 @@
   color: var(--color-text-muted);
 }
 .fase-select-panel {
-  position: absolute;
-  top: calc(100% + 8px);
-  left: 0;
-  z-index: 45;
+  position: fixed;
+  z-index: 70;
   min-width: 210px;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
@@ -87,4 +83,8 @@
 .fase-select-item.is-active {
   background: var(--color-surface-alt);
   font-weight: 700;
+}
+
+.fase-badge-punto {
+  gap: 7px;
 }

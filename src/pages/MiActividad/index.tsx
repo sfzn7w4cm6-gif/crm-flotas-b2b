@@ -2,47 +2,54 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { Icon } from '../../components/Icon'
-import { BarChart } from '../../components/charts/BarChart'
-import { FaseBadge, FASE_COLORS } from '../../components/StatusBadge'
+import { FaseColumnas } from '../../components/charts/FaseColumnas'
+import { FiltroMulti } from '../../components/filtros/Filtros'
 import { CalendarioTareas, FilaTarea } from '../../components/tareas/Tareas'
-import { fetchMisLeads } from '../../lib/leadsService'
-import {
-  calcularHitos,
-  fetchMiHistorico,
-  formatoEuros,
-  nombrePeriodo,
-  periodoActual,
-  rangoPeriodo,
-  resumenPeriodo,
-} from '../../lib/actividadService'
+import { fetchMisLeads, fetchTodosLosLeads } from '../../lib/leadsService'
+import { calcularHitos, fetchMiHistorico, formatoEuros, nombrePeriodo, periodoActual, rangoPeriodo, resumenPeriodo } from '../../lib/actividadService'
 import type { Periodo } from '../../lib/actividadService'
+import { fetchModelos } from '../../lib/catalogosService'
+import { coincideModelo } from '../../lib/filtrosLeads'
+import { crearNotaConAdjuntos } from '../../lib/notasService'
 import {
   cambiarEstadoTarea,
   fetchImportesVenta,
   fetchMisTareas,
   fetchObjetivoLeadsMes,
+  fetchObjetivos,
+  objetivoDeRed,
   tareaAbierta,
   tareaVencida,
 } from '../../lib/tareasService'
-import { FASES_ACTIVAS, Fase, FaseLabel } from '../../lib/types'
-import type { EstadoTarea, FaseHistorico, Lead, Tarea } from '../../lib/types'
+import { fetchConcesionarios } from '../../lib/usuariosService'
+import { Fase } from '../../lib/types'
+import type { Concesionario, EstadoTarea, FaseHistorico, Lead, Modelo, Objetivo, Tarea } from '../../lib/types'
 import { PeriodoFiltro } from './PeriodoFiltro'
 import './MiActividad.css'
 
-const PLEGADO_KEY = 'crmflotas.inicio.tareasPlegadas'
-const TAREAS_VISIBLES = 8
-
-function leerPlegado(): boolean {
-  try {
-    return localStorage.getItem(PLEGADO_KEY) === '1'
-  } catch {
-    return false
-  }
-}
+const TAREAS_VISIBLES = 5
 
 type Evento = { fecha: Date; valor: number }
 
+/** Lo que la pantalla de inicio de la red pasa al análisis de debajo, ya filtrado. */
+export interface DatosInicio {
+  leads: Lead[]
+  historico: FaseHistorico[]
+  periodo: Periodo
+  concesionarios: Concesionario[]
+}
+
+/** Pantalla de entrada del concesionario. */
 export function MiActividad() {
+  return <InicioPanel modo="concesionario" />
+}
+
+/**
+ * Inicio: las mismas cifras para el concesionario (sus oportunidades, con sus tareas) y para el
+ * equipo de ventas (toda la red, con filtros por concesionario, empresa y modelo).
+ */
+export function InicioPanel({ modo, debajo }: { modo: 'concesionario' | 'red'; debajo?: (d: DatosInicio) => ReactNode }) {
+  const red = modo === 'red'
   const { usuario, concesionario } = useAuth()
   const [leads, setLeads] = useState<Lead[]>([])
   const [historico, setHistorico] = useState<FaseHistorico[]>([])
@@ -50,14 +57,41 @@ export function MiActividad() {
   const [importes, setImportes] = useState<Map<string, number> | null>(null)
   const [tareas, setTareas] = useState<Tarea[] | null>(null)
   const [objetivo, setObjetivo] = useState<number | null | undefined>(undefined)
+  const [objetivos, setObjetivos] = useState<Objetivo[] | null>(null)
+  const [concesionarios, setConcesionarios] = useState<Concesionario[]>([])
+  const [modelos, setModelos] = useState<Modelo[]>([])
   const [cargando, setCargando] = useState(true)
-  const [plegado, setPlegado] = useState(leerPlegado)
+  // Un solo periodo para todas las cifras de la pantalla.
+  const [periodo, setPeriodo] = useState<Periodo>(() => periodoActual())
   const [verTodas, setVerTodas] = useState(false)
   const [calendario, setCalendario] = useState(false)
   // Tareas cerradas desde esta pantalla: se siguen mostrando (tachadas) hasta recargar.
   const [cambiadas, setCambiadas] = useState<Set<string>>(new Set())
+  const [filtroConc, setFiltroConc] = useState<string[]>([])
+  const [filtroEmpresa, setFiltroEmpresa] = useState<string[]>([])
+  const [filtroModelo, setFiltroModelo] = useState<string[]>([])
 
   useEffect(() => {
+    if (red) {
+      Promise.all([
+        fetchTodosLosLeads(),
+        fetchMiHistorico(),
+        fetchImportesVenta(),
+        fetchObjetivos().catch(() => null),
+        fetchConcesionarios(),
+        fetchModelos().catch(() => []),
+      ])
+        .then(([l, h, imp, obj, c, m]) => {
+          setLeads(l)
+          setHistorico(h)
+          setImportes(imp)
+          setObjetivos(obj)
+          setConcesionarios(c)
+          setModelos(m)
+        })
+        .finally(() => setCargando(false))
+      return
+    }
     Promise.all([
       fetchMisLeads(),
       fetchMiHistorico(),
@@ -73,11 +107,42 @@ export function MiActividad() {
         setObjetivo(obj)
       })
       .finally(() => setCargando(false))
-  }, [concesionario?.fl_concesionarioid])
+  }, [red, concesionario?.fl_concesionarioid])
 
-  const hitos = useMemo(() => calcularHitos(leads, historico), [leads, historico])
+  // ---------------------------------------------------------------- filtros (solo red)
+
+  const nombreConc = useMemo(() => new Map(concesionarios.map((c) => [c.fl_concesionarioid, c.fl_nombre])), [concesionarios])
+  const opcionesEmpresa = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const l of leads) if (l._fl_empresa_value && (filtroConc.length === 0 || filtroConc.includes(l._fl_concesionario_value))) m.set(l._fl_empresa_value, l.fl_razonsocial)
+    return [...m].sort((a, b) => a[1].localeCompare(b[1], 'es')).map(([value, label]) => ({ value, label }))
+  }, [leads, filtroConc])
+
+  const leadsFiltrados = useMemo(() => {
+    if (!red) return leads
+    const mods = modelos.filter((m) => filtroModelo.includes(m.fl_modeloid))
+    return leads.filter(
+      (l) =>
+        (filtroConc.length === 0 || filtroConc.includes(l._fl_concesionario_value)) &&
+        (filtroEmpresa.length === 0 || (!!l._fl_empresa_value && filtroEmpresa.includes(l._fl_empresa_value))) &&
+        (mods.length === 0 || coincideModelo(l, mods)),
+    )
+  }, [red, leads, modelos, filtroConc, filtroEmpresa, filtroModelo])
+  const idsFiltrados = useMemo(() => new Set(leadsFiltrados.map((l) => l.fl_leadid)), [leadsFiltrados])
+  const historicoFiltrado = useMemo(() => historico.filter((h) => idsFiltrados.has(h._fl_lead_value)), [historico, idsFiltrados])
+  const hayFiltros = filtroConc.length + filtroEmpresa.length + filtroModelo.length > 0
+
+  // ---------------------------------------------------------------- cifras
+
+  const hitos = useMemo(() => calcularHitos(leadsFiltrados, historicoFiltrado), [leadsFiltrados, historicoFiltrado])
   const leadPorId = useMemo(() => new Map(leads.map((l) => [l.fl_leadid, l])), [leads])
-  const nombreLead = useCallback((id: string) => leadPorId.get(id)?.fl_razonsocial ?? 'Lead', [leadPorId])
+  const infoLead = useCallback(
+    (id: string) => {
+      const l = leadPorId.get(id)
+      return { nombre: l?.fl_razonsocial ?? 'Oportunidad', numero: l?.fl_numero }
+    },
+    [leadPorId],
+  )
 
   const eventosActivados = useMemo<Evento[]>(
     () => [...hitos.values()].filter((h) => h.activado).map((h) => ({ fecha: h.activado!, valor: 1 })),
@@ -96,24 +161,43 @@ export function MiActividad() {
   const eventosVentas = useMemo<Evento[]>(() => cierres.map((c) => ({ fecha: c.fecha, valor: 1 })), [cierres])
   // Importe de cada venta en la fecha de cierre; null si la columna aun no existe.
   const eventosFacturado = useMemo<Evento[] | null>(
-    () =>
-      importes
-        ? cierres.map((c) => ({
-            fecha: c.fecha,
-            valor: importes.get(c.lead.fl_leadid) ?? 0,
-          }))
-        : null,
+    () => (importes ? cierres.map((c) => ({ fecha: c.fecha, valor: importes.get(c.lead.fl_leadid) ?? 0 })) : null),
     [cierres, importes],
   )
   const eventosCreados = useMemo<Evento[]>(
-    () => leads.filter((l) => l.fl_fechaprimercontacto).map((l) => ({ fecha: new Date(l.fl_fechaprimercontacto), valor: 1 })),
-    [leads],
+    () => leadsFiltrados.filter((l) => l.fl_fechaprimercontacto).map((l) => ({ fecha: new Date(l.fl_fechaprimercontacto), valor: 1 })),
+    [leadsFiltrados],
   )
-  // Primer año que se ofrece en los filtros: el del dato mas antiguo, y como minimo el anterior al actual.
+  // Primer año que se ofrece en el filtro: el del dato mas antiguo, y como minimo el anterior al actual.
   const primerAnio = useMemo(() => {
-    const anios = eventosCreados.map((e) => e.fecha.getFullYear())
+    const anios = leads.filter((l) => l.fl_fechaprimercontacto).map((l) => new Date(l.fl_fechaprimercontacto).getFullYear())
     return Math.min(new Date().getFullYear() - 1, ...anios)
-  }, [eventosCreados])
+  }, [leads])
+
+  // En la red, el objetivo es la suma del de cada concesionario elegido (o de todos).
+  const objetivoMes = red
+    ? objetivos === null
+      ? undefined
+      : objetivoDeRed(objetivos, filtroConc.length ? filtroConc : concesionarios.map((c) => c.fl_concesionarioid))
+    : objetivo
+
+  // Ventas y facturado por concesionario en el periodo (solo red).
+  const ranking = useMemo(() => {
+    if (!red) return []
+    const { desde, hasta } = rangoPeriodo(periodo)
+    const m = new Map<string, { ventas: number; importe: number }>()
+    for (const c of cierres) {
+      if (c.fecha < desde || c.fecha >= hasta) continue
+      const k = c.lead._fl_concesionario_value
+      const fila = m.get(k) ?? { ventas: 0, importe: 0 }
+      fila.ventas += 1
+      fila.importe += importes?.get(c.lead.fl_leadid) ?? 0
+      m.set(k, fila)
+    }
+    return [...m]
+      .map(([id, v]) => ({ id, nombre: nombreConc.get(id) ?? 'Sin concesionario', ...v }))
+      .sort((a, b) => b.ventas - a.ventas || b.importe - a.importe)
+  }, [red, cierres, periodo, importes, nombreConc])
 
   const tareasLista = useMemo(() => (tareas ?? []).filter((t) => tareaAbierta(t) || cambiadas.has(t.fl_tareaid)), [tareas, cambiadas])
   const pendientes = (tareas ?? []).filter(tareaAbierta)
@@ -124,126 +208,122 @@ export function MiActividad() {
     setTareas((ts) => (ts ?? []).map((t) => (t.fl_tareaid === tarea.fl_tareaid ? { ...t, fl_estado: estado } : t)))
     setCambiadas((s) => new Set(s).add(tarea.fl_tareaid))
   }
-
-  const togglePlegado = () => {
-    setPlegado((p) => {
-      try {
-        localStorage.setItem(PLEGADO_KEY, p ? '0' : '1')
-      } catch {
-        /* sin almacenamiento: solo dura esta sesion */
-      }
-      return !p
-    })
+  // Las notas se guardan en la tarea pero aquí no se muestran: se ven en la ficha de la oportunidad.
+  const guardarNota = async (tarea: Tarea, texto: string, archivos: File[]) => {
+    if (!usuario) throw new Error('No se pudo identificar tu usuario.')
+    await crearNotaConAdjuntos(tarea._fl_lead_value, texto, archivos, usuario, tarea.fl_tareaid)
   }
-
-  const porFase = useMemo(() => {
-    const activos = leads.filter((l) => l.fl_faseactual !== Fase.Perdido)
-    return FASES_ACTIVAS.map((f) => ({
-      label: FaseLabel[f],
-      value: activos.filter((l) => l.fl_faseactual === f).length,
-      color: FASE_COLORS[f].bg,
-      textColor: FASE_COLORS[f].fg,
-    }))
-  }, [leads])
 
   if (cargando) return <p className="wizard-loading">Cargando…</p>
 
   const hoy = new Date()
-  const grafico = (
-    <div className="chart-card">
-      <div className="chart-card-title">Mis leads por fase</div>
-      <BarChart data={porFase} />
-    </div>
-  )
   const tareasMostradas = verTodas ? tareasLista : tareasLista.slice(0, TAREAS_VISIBLES)
+  const etiquetaPeriodo = nombrePeriodo(periodo)
+  const abiertos = leadsFiltrados.filter((l) => l.fl_faseactual !== Fase.Perdido)
+  const vehiculosAbiertos = abiertos.reduce((acc, l) => acc + (l.fl_numvehiculosrenovarampliar || 0), 0)
 
   return (
     <div className="inicio">
-      <div className="page-header">
+      <header className="inicio-cabecera">
         <div>
-          <h1>
-            Hola
-            {usuario?.fl_nombre ? `, ${usuario.fl_nombre.split(' ')[0]}` : ''}
-          </h1>
-          <p className="inicio-subtitulo">
-            {hoy.toLocaleDateString('es-ES', {
-              weekday: 'long',
-              day: 'numeric',
-              month: 'long',
-              year: 'numeric',
-            })}
-            {concesionario ? ` · ${concesionario.fl_nombre}` : ''}
+          <p className="inicio-fecha">
+            {hoy.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
+            {red ? ' · Toda la red' : concesionario ? ` · ${concesionario.fl_nombre}` : ''}
           </p>
+          <h1 className="inicio-saludo">Hola{usuario?.fl_nombre ? `, ${usuario.fl_nombre.split(' ')[0]}` : ''}</h1>
         </div>
-        <Link to="/nuevo-lead" className="btn-primary inicio-nuevo">
-          <Icon name="add" size={16} /> Nuevo lead
-        </Link>
-      </div>
+        <div className="inicio-acciones">
+          <PeriodoFiltro value={periodo} onChange={setPeriodo} primerAnio={primerAnio} etiqueta={etiquetaPeriodo} />
+          {!red && (
+            <Link to="/nuevo-lead" className="btn-primary inicio-nuevo">
+              <Icon name="add" size={15} /> Nuevo lead
+            </Link>
+          )}
+        </div>
+      </header>
 
-      <div className="inicio-metricas">
-        <Metrica
-          icono="trendUp"
-          titulo="Leads activados"
-          ayuda="Leads con los que ya hubo al menos un primer contacto"
-          eventos={eventosActivados}
-          primerAnio={primerAnio}
-        />
-        <Metrica
-          icono="trophy"
-          titulo="Ventas cerradas"
-          ayuda="Leads que han llegado a la fase de cierre"
-          eventos={eventosVentas}
-          primerAnio={primerAnio}
-        />
-        <TarjetaObjetivo objetivo={objetivo} eventos={eventosCreados} primerAnio={primerAnio} />
+      {red && (
+        <div className="lista-filtros inicio-filtros">
+          <FiltroMulti
+            etiqueta="Concesionario"
+            opciones={concesionarios.map((c) => ({ value: c.fl_concesionarioid, label: c.fl_nombre }))}
+            value={filtroConc}
+            onChange={(v) => {
+              setFiltroConc(v)
+              setFiltroEmpresa([])
+            }}
+          />
+          <FiltroMulti etiqueta="Empresa" opciones={opcionesEmpresa} value={filtroEmpresa} onChange={setFiltroEmpresa} />
+          <FiltroMulti
+            etiqueta="Modelo"
+            opciones={modelos.map((m) => ({ value: m.fl_modeloid, label: m.fl_nombre }))}
+            value={filtroModelo}
+            onChange={setFiltroModelo}
+          />
+          {hayFiltros && (
+            <button
+              type="button"
+              className="lista-limpiar"
+              onClick={() => {
+                setFiltroConc([])
+                setFiltroEmpresa([])
+                setFiltroModelo([])
+              }}
+            >
+              Limpiar filtros
+            </button>
+          )}
+        </div>
+      )}
+
+      <section className="inicio-resumen" aria-label={`Resumen de ${etiquetaPeriodo}`}>
+        <Metrica titulo="Leads activados" ayuda="Leads con los que ya hubo al menos un primer contacto" eventos={eventosActivados} periodo={periodo} />
+        <Metrica titulo="Ventas" ayuda="Leads que han llegado a la fase de cierre" eventos={eventosVentas} periodo={periodo} />
+        <MetricaObjetivo objetivo={objetivoMes} eventos={eventosCreados} periodo={periodo} red={red} />
         {eventosFacturado ? (
           <Metrica
-            icono="euro"
             titulo="Facturado"
             ayuda="Suma del importe de venta de los leads cerrados, en la fecha de cierre"
             eventos={eventosFacturado}
+            periodo={periodo}
             formato={formatoEuros}
-            primerAnio={primerAnio}
           />
         ) : (
           <div className="inicio-metrica">
-            <CabeceraTarjeta icono="euro" titulo="Facturado" filtro={null} />
-            <p className="flow-meta">El importe de venta aún no está activado en la base de datos.</p>
+            <span className="inicio-metrica-titulo">Facturado</span>
+            <span className="inicio-metrica-valor is-vacio">—</span>
           </div>
         )}
-      </div>
+      </section>
 
       <div className="inicio-grid">
-        <section className="chart-card">
-          <div className="chart-card-title-row">
-            <div className="chart-card-title">Últimas ventas</div>
-            {cierres.length > 0 && <span className="inicio-etiqueta">{cierres.length} en total</span>}
+        <section className="inicio-bloque">
+          <div className="inicio-bloque-cabecera">
+            <h2>Últimas ventas</h2>
+            {cierres.length > 0 && <span className="inicio-bloque-nota">{cierres.length} en total</span>}
           </div>
           {cierres.length === 0 ? (
-            <p className="flow-meta">Aún no hay ventas cerradas.</p>
+            <p className="inicio-vacio">Aún no hay ventas cerradas.</p>
           ) : (
-            <ul className="ventas-lista">
-              {cierres.slice(0, 6).map(({ lead, fecha }) => {
+            <ul className="inicio-lista">
+              {cierres.slice(0, red ? 6 : 5).map(({ lead, fecha }) => {
                 const importe = importes?.get(lead.fl_leadid)
                 const detalle = [
+                  red ? nombreConc.get(lead._fl_concesionario_value) : '',
                   lead.fl_modelosinteres,
                   lead.fl_numvehiculosrenovarampliar ? `${lead.fl_numvehiculosrenovarampliar} vehículos` : '',
                 ].filter(Boolean)
                 return (
                   <li key={lead.fl_leadid}>
                     <Link to={`/lead/${lead.fl_leadid}`} className="venta-fila">
-                      <span className="venta-fecha">
-                        <span className="venta-fecha-dia">{fecha.getDate()}</span>
-                        <span className="venta-fecha-mes">{fecha.toLocaleDateString('es-ES', { month: 'short' }).replace('.', '')}</span>
-                      </span>
                       <span className="venta-cuerpo">
                         <span className="venta-empresa">{lead.fl_razonsocial}</span>
-                        {detalle.length > 0 && <span className="venta-meta">{detalle.join(' · ')}</span>}
+                        <span className="venta-meta">
+                          {fecha.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }).replace('.', '')}
+                          {detalle.length > 0 && ` · ${detalle.join(' · ')}`}
+                        </span>
                       </span>
-                      <span className="venta-derecha">
-                        <span className="venta-importe">{importe != null ? formatoEuros(importe) : '—'}</span>
-                        <FaseBadge fase={lead.fl_faseactual} size="sm" />
-                      </span>
+                      <span className="venta-importe">{importe != null ? formatoEuros(importe) : '—'}</span>
                     </Link>
                   </li>
                 )
@@ -252,215 +332,169 @@ export function MiActividad() {
           )}
         </section>
 
-        <div className="inicio-lateral">
-          <section className={`chart-card tareas-panel${plegado ? ' is-plegado' : ''}`}>
-            <div className="tareas-cabecera">
-              <button type="button" className="tareas-toggle" onClick={togglePlegado} aria-expanded={!plegado}>
-                <Icon name={plegado ? 'chevronRight' : 'chevronDown'} size={16} />
-                <span className="chart-card-title">Mis tareas</span>
-                {tareas && (
-                  <span className="tareas-contador">
-                    {pendientes.length} pendiente
-                    {pendientes.length === 1 ? '' : 's'}
-                    {vencidas > 0 && (
-                      <span className="tareas-contador-vencidas">
-                        {' '}
-                        · {vencidas} vencida{vencidas === 1 ? '' : 's'}
-                      </span>
-                    )}
-                  </span>
-                )}
-              </button>
+        {red ? (
+          <section className="inicio-bloque">
+            <div className="inicio-bloque-cabecera">
+              <h2>Ventas por concesionario</h2>
+              <span className="inicio-bloque-nota">{etiquetaPeriodo}</span>
+            </div>
+            {ranking.length === 0 ? (
+              <p className="inicio-vacio">Sin ventas en este periodo.</p>
+            ) : (
+              <ol className="ranking">
+                {ranking.slice(0, 8).map((r) => (
+                  <li key={r.id} className="ranking-fila">
+                    <span className="ranking-nombre">{r.nombre}</span>
+                    <span className="ranking-barra" aria-hidden="true">
+                      <span style={{ width: `${(r.ventas / ranking[0].ventas) * 100}%` }} />
+                    </span>
+                    <span className="ranking-valor">
+                      {r.ventas} {r.ventas === 1 ? 'venta' : 'ventas'}
+                    </span>
+                    <span className="ranking-importe">{importes ? formatoEuros(r.importe) : ''}</span>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </section>
+        ) : (
+          <section className="inicio-bloque">
+            <div className="inicio-bloque-cabecera">
+              <h2>Tareas</h2>
               {tareas && (
-                <button type="button" className="tareas-calendario-btn" onClick={() => setCalendario(true)} title="Ver en el calendario">
-                  <Icon name="calendar" size={17} />
+                <span className="inicio-bloque-nota">
+                  {pendientes.length} pendiente{pendientes.length === 1 ? '' : 's'}
+                  {vencidas > 0 && (
+                    <span className="inicio-vencidas">
+                      {' '}
+                      · {vencidas} vencida{vencidas === 1 ? '' : 's'}
+                    </span>
+                  )}
+                </span>
+              )}
+              {tareas && (
+                <button type="button" className="inicio-icono-btn" onClick={() => setCalendario(true)} title="Ver en el calendario" aria-label="Ver en el calendario">
+                  <Icon name="calendar" size={16} />
                 </button>
               )}
             </div>
-
-            {!plegado &&
-              (tareas === null ? (
-                <p className="flow-meta">Las tareas aún no están activadas en la base de datos.</p>
-              ) : tareasLista.length === 0 ? (
-                <div className="tareas-vacio">
-                  <Icon name="check" size={20} />
-                  <p>No tienes tareas pendientes.</p>
-                  <p className="flow-meta">Se crean desde la ficha de cada lead, en Mis leads.</p>
-                </div>
-              ) : (
-                <>
-                  <ul className="tarea-lista">
-                    {tareasMostradas.map((t) => (
-                      <FilaTarea
-                        key={t.fl_tareaid}
-                        tarea={t}
-                        lead={{
-                          id: t._fl_lead_value,
-                          nombre: nombreLead(t._fl_lead_value),
-                        }}
-                        onCambiarEstado={(e) => cambiarEstado(t, e)}
-                      />
-                    ))}
-                  </ul>
-                  {tareasLista.length > TAREAS_VISIBLES && (
-                    <button type="button" className="table-twin-toggle" onClick={() => setVerTodas((v) => !v)}>
-                      {verTodas ? 'Ver menos' : `Ver todas (${tareasLista.length})`}
-                    </button>
-                  )}
-                </>
-              ))}
+            {tareas === null ? (
+              <p className="inicio-vacio">Las tareas aún no están activadas en la base de datos.</p>
+            ) : tareasLista.length === 0 ? (
+              <p className="inicio-vacio">Nada pendiente. Las tareas se crean desde la ficha de cada lead.</p>
+            ) : (
+              <>
+                <ul className={`tarea-lista${verTodas ? ' is-desplazable' : ''}`}>
+                  {tareasMostradas.map((t) => (
+                    <FilaTarea
+                      key={t.fl_tareaid}
+                      tarea={t}
+                      lead={{ id: t._fl_lead_value, ...infoLead(t._fl_lead_value) }}
+                      onCambiarEstado={(e) => cambiarEstado(t, e)}
+                      onGuardarNota={(texto, archivos) => guardarNota(t, texto, archivos)}
+                    />
+                  ))}
+                </ul>
+                {tareasLista.length > TAREAS_VISIBLES && (
+                  <button type="button" className="inicio-ver-mas" onClick={() => setVerTodas((v) => !v)}>
+                    {verTodas ? 'Ver menos' : `Ver todas (${tareasLista.length})`}
+                  </button>
+                )}
+              </>
+            )}
           </section>
-          {/* Con las tareas plegadas, el grafico sube a ocupar el hueco junto a Ultimas ventas. */}
-          {plegado && grafico}
-        </div>
+        )}
       </div>
 
-      {!plegado && (
-        <>
-          <h2 className="inicio-seccion">Mi pipeline</h2>
-          {grafico}
-        </>
-      )}
+      <section className="inicio-bloque">
+        <div className="inicio-bloque-cabecera">
+          <h2>Oportunidades por fase</h2>
+          <span className="inicio-bloque-nota">
+            {abiertos.length} oportunidades · {vehiculosAbiertos} vehículos
+          </span>
+        </div>
+        <FaseColumnas leads={abiertos} destino={red ? '/seguimiento' : '/mis-leads'} />
+      </section>
+
+      {debajo?.({ leads: leadsFiltrados, historico: historicoFiltrado, periodo, concesionarios })}
 
       {calendario && tareas && (
-        <CalendarioTareas tareas={tareas} nombreLead={nombreLead} onCambiarEstado={cambiarEstado} onClose={() => setCalendario(false)} />
+        <CalendarioTareas tareas={tareas} infoLead={infoLead} onCambiarEstado={cambiarEstado} onGuardarNota={guardarNota} onClose={() => setCalendario(false)} />
       )}
-    </div>
-  )
-}
-
-function CabeceraTarjeta({ icono, titulo, ayuda, filtro }: { icono: string; titulo: string; ayuda?: string; filtro: ReactNode }) {
-  return (
-    <div className="inicio-metrica-cabecera">
-      <span className="inicio-metrica-icono">
-        <Icon name={icono} size={16} />
-      </span>
-      <span className="inicio-metrica-titulo" title={ayuda}>
-        {titulo}
-      </span>
-      {filtro}
     </div>
   )
 }
 
 function Metrica({
-  icono,
   titulo,
   ayuda,
   eventos,
+  periodo,
   formato = (n: number) => (Math.round(n * 10) / 10).toLocaleString('es-ES'),
-  primerAnio,
 }: {
-  icono: string
   titulo: string
   ayuda: string
   eventos: Evento[]
+  periodo: Periodo
   formato?: (n: number) => string
-  primerAnio: number
 }) {
-  const [periodo, setPeriodo] = useState<Periodo>(() => periodoActual())
   const r = resumenPeriodo(eventos, periodo)
-  const diff = variacion(r.valor, r.comparado)
+  const diff = r.comparado > 0 ? Math.round(((r.valor - r.comparado) / r.comparado) * 100) : null
 
   return (
     <div className="inicio-metrica">
-      <CabeceraTarjeta
-        icono={icono}
-        titulo={titulo}
-        ayuda={ayuda}
-        filtro={<PeriodoFiltro value={periodo} onChange={setPeriodo} primerAnio={primerAnio} />}
-      />
-      <div className="inicio-metrica-principal">
-        <span className="inicio-metrica-valor">{formato(r.valor)}</span>
-        <span className="inicio-metrica-periodo">en {nombrePeriodo(periodo)}</span>
-      </div>
-      {diff !== null && <Delta diff={diff} etiqueta={r.comparadoEtiqueta} />}
-      <div className="inicio-metrica-pie">
-        {r.pie.map((p) => (
-          <Dato key={p.etiqueta} etiqueta={p.etiqueta} valor={formato(p.valor)} />
-        ))}
-      </div>
+      <span className="inicio-metrica-titulo" title={ayuda}>
+        {titulo}
+      </span>
+      <span className="inicio-metrica-valor">{formato(r.valor)}</span>
+      <span className="inicio-metrica-nota">
+        {diff === null ? (
+          'Sin datos para comparar'
+        ) : (
+          <>
+            <span className={diff > 0 ? 'is-up' : diff < 0 ? 'is-down' : ''}>
+              {diff > 0 ? '+' : diff < 0 ? '−' : ''}
+              {Math.abs(diff)} %
+            </span>{' '}
+            {r.comparadoEtiqueta.replace('vs. ', 'frente a ')}
+          </>
+        )}
+      </span>
     </div>
   )
 }
 
-function variacion(valor: number, comparado: number): number | null {
-  return comparado > 0 ? Math.round(((valor - comparado) / comparado) * 100) : null
-}
-
-function Delta({ diff, etiqueta }: { diff: number; etiqueta: string }) {
-  return (
-    <span className={`inicio-delta ${diff > 0 ? 'is-up' : diff < 0 ? 'is-down' : ''}`}>
-      {diff > 0 ? '▲' : diff < 0 ? '▼' : '='} {diff === 0 ? 'igual' : `${Math.abs(diff)} %`} {etiqueta}
-    </span>
-  )
-}
-
-function TarjetaObjetivo({
-  objetivo,
-  eventos,
-  primerAnio,
-}: {
-  objetivo: number | null | undefined
-  eventos: Evento[]
-  primerAnio: number
-}) {
-  const [periodo, setPeriodo] = useState<Periodo>(() => periodoActual())
-  const cabecera = (
-    <CabeceraTarjeta
-      icono="target"
-      titulo="Objetivo de leads"
-      ayuda="Leads creados frente al objetivo asignado"
-      filtro={objetivo ? <PeriodoFiltro value={periodo} onChange={setPeriodo} primerAnio={primerAnio} /> : null}
-    />
-  )
+function MetricaObjetivo({ objetivo, eventos, periodo, red }: { objetivo: number | null | undefined; eventos: Evento[]; periodo: Periodo; red: boolean }) {
   if (!objetivo) {
     return (
       <div className="inicio-metrica">
-        {cabecera}
-        <p className="flow-meta">
-          {objetivo === undefined
-            ? 'Los objetivos aún no están activados en la base de datos.'
-            : 'Todavía no hay un objetivo asignado. Lo define el equipo de ventas.'}
-        </p>
+        <span className="inicio-metrica-titulo">Objetivo de leads</span>
+        <span className="inicio-metrica-valor is-vacio">—</span>
+        <span className="inicio-metrica-nota">{objetivo === undefined ? 'Objetivos aún no activados' : 'Sin objetivo asignado'}</span>
       </div>
     )
   }
-
   const { desde, hasta, meses } = rangoPeriodo(periodo)
   const meta = objetivo * meses
   const creados = eventos.filter((e) => e.fecha >= desde && e.fecha < hasta).length
   const pct = Math.round((creados / meta) * 100)
-  const cumplido = creados >= meta
 
   return (
     <div className="inicio-metrica">
-      {cabecera}
-      <div className="objetivo-principal">
-        <span className="inicio-metrica-valor">{creados}</span>
-        <span className="objetivo-barra-sep">/</span>
-        <span className={`objetivo-meta${cumplido ? ' is-cumplido' : ''}`}>{meta}</span>
-      </div>
-      <span className="inicio-metrica-periodo">
-        leads creados en {nombrePeriodo(periodo)} · objetivo {meta}
-        {meses > 1 ? ` (${objetivo} al mes)` : ''}
+      <span
+        className="inicio-metrica-titulo"
+        title={red ? 'Leads creados frente a la suma de los objetivos de cada concesionario' : 'Leads creados frente al objetivo asignado'}
+      >
+        Objetivo de leads
       </span>
-      <div className="objetivo-track">
-        <div className={`objetivo-fill${cumplido ? ' is-completo' : ''}`} style={{ width: `${Math.min(100, pct)}%` }} />
+      <span className="inicio-metrica-valor">
+        {creados}
+        <span className="inicio-metrica-meta"> / {meta}</span>
+      </span>
+      <div className="objetivo-track" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
+        <div className={`objetivo-fill${creados >= meta ? ' is-completo' : ''}`} style={{ width: `${Math.min(100, pct)}%` }} />
       </div>
-      <div className="inicio-metrica-pie">
-        <Dato etiqueta="Cumplido" valor={`${pct} %`} />
-        <Dato etiqueta={cumplido ? 'Por encima del objetivo' : 'Faltan para el objetivo'} valor={Math.abs(meta - creados)} />
-      </div>
-    </div>
-  )
-}
-
-function Dato({ etiqueta, valor }: { etiqueta: string; valor: ReactNode }) {
-  return (
-    <div className="inicio-dato">
-      <span className="inicio-dato-valor">{valor}</span>
-      <span className="inicio-dato-etiqueta">{etiqueta}</span>
+      <span className="inicio-metrica-nota">{pct} % del objetivo</span>
     </div>
   )
 }

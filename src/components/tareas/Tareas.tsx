@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Icon } from '../Icon'
+import { ComposerNota, ListaAdjuntos, ListaNotas, SelectorAdjuntos } from '../notas/Notas'
 import { EstadoTarea, EstadoTareaLabel, TipoTarea, TipoTareaLabel } from '../../lib/types'
-import type { Tarea } from '../../lib/types'
+import type { Adjunto, Nota, Tarea } from '../../lib/types'
 import { formatoFechaTarea, inicioDia, tareaVencida } from '../../lib/tareasService'
 import type { NuevaTareaInput } from '../../lib/tareasService'
 import './Tareas.css'
@@ -15,13 +16,24 @@ const ICONO_TIPO: Record<TipoTarea, string> = {
   [TipoTarea.Otro]: 'check',
 }
 
-const CLASE_ESTADO: Record<EstadoTarea, string> = {
-  [EstadoTarea.Pendiente]: 'is-pendiente',
-  [EstadoTarea.EnCurso]: 'is-encurso',
-  [EstadoTarea.Completada]: 'is-completada',
-  [EstadoTarea.Cancelada]: 'is-cancelada',
+// Lo que se pregunta al cerrar la tarea, según su tipo. Se puede dejar para más tarde.
+const PREGUNTA_COMPLETADA: Record<TipoTarea, string> = {
+  [TipoTarea.Llamada]: '¿Cómo fue la llamada?',
+  [TipoTarea.Correo]: '¿Hubo respuesta?',
+  [TipoTarea.Reunion]: '¿Cómo fue la reunión?',
+  [TipoTarea.Visita]: '¿Cómo fue la visita?',
+  [TipoTarea.Otro]: '¿Cuál fue el resultado?',
+}
+function preguntaCierre(t: Tarea, estado: EstadoTarea): string {
+  return estado === EstadoTarea.Cancelada ? '¿Por qué se cancela?' : (PREGUNTA_COMPLETADA[t.fl_tipo] ?? '¿Cuál fue el resultado?')
 }
 
+// Las de llamada y reunión pueden llevar el enlace de la videollamada.
+const CON_ENLACE = new Set<TipoTarea>([TipoTarea.Llamada, TipoTarea.Reunion])
+
+export type GuardarNotaTarea = (texto: string, archivos: File[]) => Promise<void>
+
+/** Desplegable de estado: siempre del mismo color neutro, el estado se lee en el texto. */
 export function EstadoTareaSelect({
   value,
   onChange,
@@ -33,10 +45,11 @@ export function EstadoTareaSelect({
 }) {
   return (
     <select
-      className={`tarea-estado ${CLASE_ESTADO[value]}`}
+      className="tarea-estado"
       value={value}
       disabled={disabled}
       onChange={(e) => onChange(Number(e.target.value) as EstadoTarea)}
+      onClick={(e) => e.stopPropagation()}
       aria-label="Estado de la tarea"
     >
       {Object.entries(EstadoTareaLabel).map(([v, l]) => (
@@ -48,31 +61,55 @@ export function EstadoTareaSelect({
   )
 }
 
-/** Fila de tarea. `lead` se muestra cuando la lista mezcla varios leads (inicio). */
-export function FilaTarea({
-  tarea,
-  lead,
-  onCambiarEstado,
-  soloLectura,
-}: {
-  tarea: Tarea
-  lead?: { id: string; nombre: string }
-  onCambiarEstado?: (estado: EstadoTarea) => Promise<void>
-  soloLectura?: boolean
-}) {
+/** Al cerrar una tarea se ofrece apuntar cómo fue; tras guardar, solo se confirma. */
+function useCierreConNota(tarea: Tarea, onCambiarEstado?: (e: EstadoTarea) => Promise<void>, onGuardarNota?: GuardarNotaTarea) {
   const [guardando, setGuardando] = useState(false)
-  const vencida = tareaVencida(tarea)
-  const cerrada = tarea.fl_estado === EstadoTarea.Completada || tarea.fl_estado === EstadoTarea.Cancelada
+  const [pregunta, setPregunta] = useState<string | null>(null)
+  const [guardada, setGuardada] = useState(false)
+
+  useEffect(() => {
+    if (!guardada) return
+    const t = setTimeout(() => setGuardada(false), 3000)
+    return () => clearTimeout(t)
+  }, [guardada])
 
   const cambiar = async (estado: EstadoTarea) => {
     if (!onCambiarEstado) return
     setGuardando(true)
     try {
       await onCambiarEstado(estado)
+      const cierra = estado === EstadoTarea.Completada || estado === EstadoTarea.Cancelada
+      setPregunta(cierra && onGuardarNota ? preguntaCierre(tarea, estado) : null)
     } finally {
       setGuardando(false)
     }
   }
+  const guardarNota: GuardarNotaTarea = async (texto, archivos) => {
+    await onGuardarNota?.(texto, archivos)
+    setPregunta(null)
+    setGuardada(true)
+  }
+  return { guardando, pregunta, setPregunta, guardada, setGuardada, cambiar, guardarNota }
+}
+
+/**
+ * Fila de tarea de las listas que mezclan oportunidades (Inicio, calendario): qué, cuándo, de qué
+ * empresa y oportunidad, y un botón para ir a ella. Las notas no se muestran aquí, solo se pueden añadir.
+ */
+export function FilaTarea({
+  tarea,
+  lead,
+  onCambiarEstado,
+  onGuardarNota,
+}: {
+  tarea: Tarea
+  lead?: { id: string; nombre: string; numero?: string }
+  onCambiarEstado?: (estado: EstadoTarea) => Promise<void>
+  onGuardarNota?: GuardarNotaTarea
+}) {
+  const c = useCierreConNota(tarea, onCambiarEstado, onGuardarNota)
+  const vencida = tareaVencida(tarea)
+  const cerrada = tarea.fl_estado === EstadoTarea.Completada || tarea.fl_estado === EstadoTarea.Cancelada
 
   return (
     <li className={`tarea-fila${cerrada ? ' is-cerrada' : ''}`}>
@@ -88,21 +125,150 @@ export function FilaTarea({
           </span>
           {lead && (
             <>
-              {' · '}
-              <Link to={`/lead/${lead.id}`} className="tarea-lead">
-                {lead.nombre}
-              </Link>
+              <span className="tarea-sep">·</span>
+              <span className="tarea-empresa">{lead.nombre}</span>
+              {lead.numero && <span className="tarea-numero">{lead.numero}</span>}
             </>
           )}
         </span>
-        {tarea.fl_notas && <span className="tarea-notas">{tarea.fl_notas}</span>}
+        {c.pregunta && (
+          <div className="tarea-cierre">
+            <ComposerNota placeholder={c.pregunta} textoBoton="Guardar nota" autoFocus siempreAbierto onGuardar={c.guardarNota} onCancelar={() => c.setPregunta(null)} />
+          </div>
+        )}
+        {c.guardada && (
+          <span className="tarea-nota-guardada" role="status">
+            <Icon name="check" size={13} /> Nota guardada
+          </span>
+        )}
       </div>
-      {soloLectura || !onCambiarEstado ? (
-        <span className={`tarea-estado tarea-estado-fijo ${CLASE_ESTADO[tarea.fl_estado]}`}>
-          {EstadoTareaLabel[tarea.fl_estado]}
-        </span>
+      {onCambiarEstado ? (
+        <EstadoTareaSelect value={tarea.fl_estado} onChange={c.cambiar} disabled={c.guardando} />
       ) : (
-        <EstadoTareaSelect value={tarea.fl_estado} onChange={cambiar} disabled={guardando} />
+        <span className="tarea-estado tarea-estado-fijo">{EstadoTareaLabel[tarea.fl_estado]}</span>
+      )}
+      {lead && (
+        <Link to={`/lead/${lead.id}`} className="tarea-ir" title={`Abrir la oportunidad${lead.numero ? ` ${lead.numero}` : ''}`} aria-label="Abrir la oportunidad">
+          <Icon name="chevronRight" size={16} />
+        </Link>
+      )}
+    </li>
+  )
+}
+
+/**
+ * Tarea dentro de la ficha de la oportunidad: una línea que se despliega con la descripción, el
+ * enlace de la llamada, sus adjuntos y sus notas. Se pueden añadir notas cuando se quiera; al
+ * completarla o cancelarla se pregunta directamente cómo fue.
+ */
+export function TareaEnFicha({
+  tarea,
+  notas,
+  adjuntos,
+  usuarioId,
+  soloLectura,
+  onCambiarEstado,
+  onGuardarNota,
+  onBorrarNota,
+  onAdjuntoBorrado,
+}: {
+  tarea: Tarea
+  /** Notas de esta tarea (fl_nota con fl_tarea), de la más reciente a la más antigua. */
+  notas: Nota[]
+  /** Adjuntos por id de tarea o de nota. */
+  adjuntos: Map<string, Adjunto[]>
+  usuarioId?: string
+  soloLectura: boolean
+  onCambiarEstado: (estado: EstadoTarea) => Promise<void>
+  onGuardarNota: GuardarNotaTarea
+  onBorrarNota: (n: Nota) => void
+  onAdjuntoBorrado: (a: Adjunto) => void
+}) {
+  const [abierta, setAbierta] = useState(false)
+  const c = useCierreConNota(tarea, onCambiarEstado, onGuardarNota)
+  const vencida = tareaVencida(tarea)
+  const cerrada = tarea.fl_estado === EstadoTarea.Completada || tarea.fl_estado === EstadoTarea.Cancelada
+  const adjTarea = adjuntos.get(tarea.fl_tareaid) ?? []
+  const totalNotas = notas.length + (tarea.fl_resultado ? 1 : 0)
+  const totalAdjuntos = adjTarea.length + notas.reduce((acc, n) => acc + (adjuntos.get(n.fl_notaid)?.length ?? 0), 0)
+
+  const cambiar = async (estado: EstadoTarea) => {
+    await c.cambiar(estado)
+    if (estado === EstadoTarea.Completada || estado === EstadoTarea.Cancelada) setAbierta(true)
+  }
+
+  return (
+    <li className={`tarea-ficha${cerrada ? ' is-cerrada' : ''}${abierta ? ' is-abierta' : ''}`}>
+      <div className="tarea-ficha-linea">
+        <button type="button" className="tarea-ficha-toggle" onClick={() => setAbierta((a) => !a)} aria-expanded={abierta}>
+          <span className="tarea-icono" title={TipoTareaLabel[tarea.fl_tipo]}>
+            <Icon name={ICONO_TIPO[tarea.fl_tipo] ?? 'check'} size={14} />
+          </span>
+          <span className="tarea-cuerpo">
+            <span className="tarea-titulo">{tarea.fl_titulo}</span>
+            <span className="tarea-meta">
+              <span className={vencida ? 'tarea-vencida' : undefined}>
+                {vencida && 'Vencida · '}
+                {formatoFechaTarea(tarea.fl_fecha)}
+              </span>
+              {totalNotas > 0 && (
+                <span className="tarea-contador" title={`${totalNotas} ${totalNotas === 1 ? 'nota' : 'notas'}`}>
+                  <Icon name="note" size={12} /> {totalNotas}
+                </span>
+              )}
+              {totalAdjuntos > 0 && (
+                <span className="tarea-contador" title={`${totalAdjuntos} ${totalAdjuntos === 1 ? 'adjunto' : 'adjuntos'}`}>
+                  <Icon name="clip" size={12} /> {totalAdjuntos}
+                </span>
+              )}
+            </span>
+          </span>
+          <Icon name="chevronDown" size={14} className="tarea-ficha-chevron" />
+        </button>
+        {soloLectura ? (
+          <span className="tarea-estado tarea-estado-fijo">{EstadoTareaLabel[tarea.fl_estado]}</span>
+        ) : (
+          <EstadoTareaSelect value={tarea.fl_estado} onChange={cambiar} disabled={c.guardando} />
+        )}
+      </div>
+
+      {abierta && (
+        <div className="tarea-ficha-detalle">
+          {tarea.fl_notas && <p className="tarea-descripcion">{tarea.fl_notas}</p>}
+          {tarea.fl_enlace && (
+            <a className="tarea-enlace" href={tarea.fl_enlace} target="_blank" rel="noreferrer">
+              <Icon name="link" size={13} />
+              {tarea.fl_tipo === TipoTarea.Reunion ? 'Abrir enlace de la reunión' : 'Abrir enlace de la llamada'}
+            </a>
+          )}
+          <ListaAdjuntos adjuntos={adjTarea} puedeBorrar={() => !soloLectura} onBorrado={onAdjuntoBorrado} />
+
+          {!soloLectura && (
+            <div className="tarea-ficha-composer">
+              <ComposerNota
+                key={c.pregunta ?? 'nota'}
+                placeholder={c.pregunta ?? 'Añadir una nota a esta tarea…'}
+                textoBoton="Guardar nota"
+                autoFocus={!!c.pregunta}
+                siempreAbierto={!!c.pregunta}
+                onGuardar={c.guardarNota}
+                onCancelar={c.pregunta ? () => c.setPregunta(null) : undefined}
+              />
+            </div>
+          )}
+          {c.guardada && (
+            <span className="tarea-nota-guardada" role="status">
+              <Icon name="check" size={13} /> Nota guardada
+            </span>
+          )}
+          <ListaNotas notas={notas} adjuntos={adjuntos} usuarioId={usuarioId} soloLectura={soloLectura} compacta onBorrar={onBorrarNota} onAdjuntoBorrado={onAdjuntoBorrado} />
+          {tarea.fl_resultado && (
+            <div className="tarea-resultado-antiguo">
+              <span className="nota-autor">Resultado</span>
+              <p className="nota-texto">{tarea.fl_resultado}</p>
+            </div>
+          )}
+        </div>
       )}
     </li>
   )
@@ -118,14 +284,16 @@ function claveDia(d: Date) {
 
 export function CalendarioTareas({
   tareas,
-  nombreLead,
+  infoLead,
   onCambiarEstado,
+  onGuardarNota,
   onClose,
 }: {
   tareas: Tarea[]
-  nombreLead: (leadId: string) => string
+  infoLead: (leadId: string) => { nombre: string; numero?: string }
   /** Si se pasa, el detalle del dia permite cambiar el estado de cada tarea. */
   onCambiarEstado?: (tarea: Tarea, estado: EstadoTarea) => Promise<void>
+  onGuardarNota?: (tarea: Tarea, texto: string, archivos: File[]) => Promise<void>
   onClose: () => void
 }) {
   const [mes, setMes] = useState(() => {
@@ -215,11 +383,14 @@ export function CalendarioTareas({
                 <button key={k} type="button" className={clases} onClick={() => setDiaSel(d)}>
                   <span className="calendario-num">{d.getDate()}</span>
                   <span className="calendario-chips">
-                    {del.slice(0, 3).map((t) => (
-                      <span key={t.fl_tareaid} className={`calendario-chip ${CLASE_ESTADO[t.fl_estado]}${tareaVencida(t) ? ' is-vencida' : ''}`}>
-                        {new Date(t.fl_fecha).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })} {t.fl_titulo}
-                      </span>
-                    ))}
+                    {del.slice(0, 3).map((t) => {
+                      const cerrada = t.fl_estado === EstadoTarea.Completada || t.fl_estado === EstadoTarea.Cancelada
+                      return (
+                        <span key={t.fl_tareaid} className={`calendario-chip${cerrada ? ' is-cerrada' : ''}${tareaVencida(t) ? ' is-vencida' : ''}`}>
+                          {new Date(t.fl_fecha).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })} {t.fl_titulo}
+                        </span>
+                      )
+                    })}
                     {del.length > 3 && <span className="calendario-mas">+{del.length - 3} más</span>}
                   </span>
                 </button>
@@ -237,8 +408,9 @@ export function CalendarioTareas({
                   <FilaTarea
                     key={t.fl_tareaid}
                     tarea={t}
-                    lead={{ id: t._fl_lead_value, nombre: nombreLead(t._fl_lead_value) }}
+                    lead={{ id: t._fl_lead_value, ...infoLead(t._fl_lead_value) }}
                     onCambiarEstado={onCambiarEstado ? (estado) => onCambiarEstado(t, estado) : undefined}
+                    onGuardarNota={onGuardarNota ? (texto, archivos) => onGuardarNota(t, texto, archivos) : undefined}
                   />
                 ))}
               </ul>
@@ -273,18 +445,33 @@ export function NuevaTareaForm({
     return valorLocal(d)
   })
   const [notas, setNotas] = useState('')
+  const [enlace, setEnlace] = useState('')
+  const [adjuntos, setAdjuntos] = useState<File[]>([])
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const conEnlace = CON_ENLACE.has(tipo)
 
   const guardar = async () => {
     if (!titulo.trim() || !fecha) {
       setError('Indica qué hay que hacer y cuándo.')
       return
     }
+    const url = enlace.trim()
+    if (conEnlace && url && !/^https?:\/\//i.test(url)) {
+      setError('El enlace debe empezar por https://')
+      return
+    }
     setGuardando(true)
     setError(null)
     try {
-      await onGuardar({ tipo, titulo: titulo.trim(), fecha: new Date(fecha).toISOString(), notas: notas.trim() })
+      await onGuardar({
+        tipo,
+        titulo: titulo.trim(),
+        fecha: new Date(fecha).toISOString(),
+        notas: notas.trim(),
+        enlace: conEnlace ? url : '',
+        adjuntos,
+      })
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo guardar la tarea.')
       setGuardando(false)
@@ -323,9 +510,19 @@ export function NuevaTareaForm({
         <label>Fecha y hora *</label>
         <input type="datetime-local" value={fecha} onChange={(e) => setFecha(e.target.value)} />
       </div>
+      {conEnlace && (
+        <div className="field">
+          <label>Enlace de la {tipo === TipoTarea.Reunion ? 'reunión' : 'llamada'}</label>
+          <input type="url" value={enlace} onChange={(e) => setEnlace(e.target.value)} placeholder="https://teams.microsoft.com/…" />
+        </div>
+      )}
       <div className="field">
-        <label>Notas</label>
-        <textarea rows={2} value={notas} onChange={(e) => setNotas(e.target.value)} />
+        <label>Descripción</label>
+        <textarea rows={2} value={notas} onChange={(e) => setNotas(e.target.value)} placeholder="Lo que haya que tener en cuenta" />
+      </div>
+      <div className="tarea-form-adjuntos">
+        <SelectorAdjuntos archivos={adjuntos} onChange={setAdjuntos} disabled={guardando} />
+        {adjuntos.length === 0 && <span className="flow-meta">Adjuntar archivos (presupuesto, ficha técnica…)</span>}
       </div>
       {error && <p className="wizard-error">{error}</p>}
       <div className="tarea-form-acciones">

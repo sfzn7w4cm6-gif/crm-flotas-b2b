@@ -1,121 +1,93 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { Icon } from '../../components/Icon'
-import { StatTile } from '../../components/charts/StatTile'
 import { BarChart } from '../../components/charts/BarChart'
 import { TableTwin } from '../../components/charts/TableTwin'
 import { RiesgoBadge, FASE_COLORS } from '../../components/StatusBadge'
-import { fetchTodosLosLeads } from '../../lib/leadsService'
-import { listRecords, Tables } from '../../lib/dataverseClient'
-import { fetchConcesionarios } from '../../lib/usuariosService'
 import { descargarExcel } from '../../lib/excelExport'
-import {
-  embudoPorFase,
-  filtrarPorPeriodo,
-  leadsEnRiesgo,
-  leadsPorConcesionario,
-  OBJETIVOS_KPI,
-  PERIODO_OBJETIVO_LABEL,
-  statsResumen,
-  tasasConversion,
-  tiempoMedioPorFase,
-  type Periodo,
-} from '../../lib/kpiService'
-import type { Concesionario, FaseHistorico, Lead } from '../../lib/types'
+import { rangoPeriodo } from '../../lib/actividadService'
+import { leadsEnRiesgo, leadsPorConcesionario, OBJETIVOS_KPI, statsResumen, tasasConversion, tiempoMedioPorFase } from '../../lib/kpiService'
+import { InicioPanel, type DatosInicio } from '../MiActividad'
 import '../../components/charts/charts.css'
+import './PanelKPI.css'
 
+/**
+ * Inicio del equipo de ventas: las mismas cifras que ve cada concesionario, pero de toda la red y
+ * con filtros por concesionario, empresa y modelo. Debajo, el análisis del pipeline con los
+ * indicadores del Excel "KPI Dashboard", con los mismos filtros.
+ */
 export function PanelKPI() {
-  const [leads, setLeads] = useState<Lead[]>([])
-  const [historico, setHistorico] = useState<FaseHistorico[]>([])
-  const [concesionarios, setConcesionarios] = useState<Concesionario[]>([])
-  const [cargando, setCargando] = useState(true)
-  const [periodo, setPeriodo] = useState<Periodo>(0)
+  return <InicioPanel modo="red" debajo={(d) => <Analisis {...d} />} />
+}
 
-  useEffect(() => {
-    Promise.all([fetchTodosLosLeads(), listRecords<FaseHistorico>(Tables.FaseHistorico, { top: 5000 }), fetchConcesionarios()]).then(
-      ([l, h, c]) => {
-        setLeads(l)
-        setHistorico(h)
-        setConcesionarios(c)
-        setCargando(false)
-      },
-    )
-  }, [])
-
-  const leadsPeriodo = useMemo(() => filtrarPorPeriodo(leads, periodo), [leads, periodo])
-  const idsPeriodo = useMemo(() => new Set(leadsPeriodo.map((l) => l.fl_leadid)), [leadsPeriodo])
-  const historicoPeriodo = useMemo(() => historico.filter((h) => idsPeriodo.has(h._fl_lead_value)), [historico, idsPeriodo])
+function Analisis({ leads, historico, periodo, concesionarios }: DatosInicio) {
+  // Los indicadores del plan comercial cuentan los leads dados de alta en el periodo.
+  const { desde, hasta } = rangoPeriodo(periodo)
+  const leadsPeriodo = useMemo(
+    () =>
+      leads.filter((l) => {
+        const f = l.fl_fechaprimercontacto ? new Date(l.fl_fechaprimercontacto) : null
+        return f !== null && f >= desde && f < hasta
+      }),
+    [leads, desde, hasta],
+  )
+  const ids = useMemo(() => new Set(leadsPeriodo.map((l) => l.fl_leadid)), [leadsPeriodo])
+  const historicoPeriodo = useMemo(() => historico.filter((h) => ids.has(h._fl_lead_value)), [historico, ids])
 
   const resumen = useMemo(() => statsResumen(leadsPeriodo, historicoPeriodo), [leadsPeriodo, historicoPeriodo])
-  const embudo = useMemo(() => embudoPorFase(leads), [leads]) // embudo = foto actual, no depende del periodo
-  const conversion = useMemo(() => tasasConversion(historicoPeriodo), [historicoPeriodo])
-  const tiempos = useMemo(() => tiempoMedioPorFase(historicoPeriodo), [historicoPeriodo])
+  const conversion = useMemo(() => tasasConversion(historico), [historico])
+  const tiempos = useMemo(() => tiempoMedioPorFase(historico), [historico])
   const porConcesionario = useMemo(() => leadsPorConcesionario(leadsPeriodo, concesionarios), [leadsPeriodo, concesionarios])
   const enRiesgo = useMemo(() => leadsEnRiesgo(leads, historico), [leads, historico])
-  const periodoLabel = PERIODO_OBJETIVO_LABEL[periodo]
+  // Objetivos del Excel: mensuales con un mes elegido, anuales con un año.
+  const obj = (k: keyof typeof OBJETIVOS_KPI) => OBJETIVOS_KPI[k][periodo.tipo === 'mes' ? 30 : 0]
 
-  if (cargando) return <p className="wizard-loading">Cargando…</p>
+  const indicadores: { label: string; valor: number; sufijo?: string; meta?: number }[] = [
+    { label: 'Leads captados', valor: resumen.leadsNuevos, meta: obj('leadsNuevos') },
+    { label: 'Reuniones de diagnóstico', valor: resumen.reunionesDiagnostico, meta: obj('reunionesDiagnostico') },
+    { label: 'Propuestas enviadas', valor: resumen.propuestasEnviadas, meta: obj('propuestasEnviadas') },
+    { label: 'Pedidos cerrados', valor: resumen.cierres, meta: obj('cierres') },
+    { label: 'Tasa de cierre', valor: resumen.tasaCierre, sufijo: ' %', meta: obj('tasaCierre') },
+    { label: 'Tasa de pérdida', valor: resumen.tasaPerdida, sufijo: ' %' },
+    { label: 'Seguimientos completados', valor: resumen.seguimientosCompletados },
+    { label: 'Unidades entregadas', valor: resumen.unidadesEntregadas },
+    { label: 'Nuevos clientes empresa', valor: resumen.nuevosClientesEmpresa },
+    { label: 'Renovaciones gestionadas', valor: resumen.renovacionesGestionadas },
+  ]
 
   return (
-    <div>
-      <div className="page-header">
-        <h1>Panel KPI</h1>
-      </div>
+    <>
+      <h2 className="analisis-titulo">Análisis del pipeline</h2>
 
-      <div className="period-filter">
-        {([0, 30, 90] as Periodo[]).map((p) => (
-          <button key={p} type="button" className={periodo === p ? 'is-active' : ''} onClick={() => setPeriodo(p)}>
-            {p === 0 ? 'Todo' : `Últimos ${p} días`}
-          </button>
-        ))}
-      </div>
-
-      <div className="kpi-row">
-        <StatTile
-          label="Leads captados"
-          value={resumen.leadsNuevos}
-          objetivo={{ meta: OBJETIVOS_KPI.leadsNuevos[periodo], periodoLabel }}
-        />
-        <StatTile
-          label="Reuniones de diagnóstico"
-          value={resumen.reunionesDiagnostico}
-          objetivo={{ meta: OBJETIVOS_KPI.reunionesDiagnostico[periodo], periodoLabel }}
-        />
-        <StatTile
-          label="Propuestas enviadas"
-          value={resumen.propuestasEnviadas}
-          objetivo={{ meta: OBJETIVOS_KPI.propuestasEnviadas[periodo], periodoLabel }}
-        />
-        <StatTile
-          label="Pedidos cerrados"
-          value={resumen.cierres}
-          tono="success"
-          objetivo={{ meta: OBJETIVOS_KPI.cierres[periodo], periodoLabel }}
-        />
-        <StatTile label="Seguimientos completados" value={resumen.seguimientosCompletados} />
-        <StatTile label="Unidades entregadas" value={resumen.unidadesEntregadas} tono="success" />
-        <StatTile label="Nuevos clientes empresa" value={resumen.nuevosClientesEmpresa} />
-        <StatTile label="Renovaciones gestionadas" value={resumen.renovacionesGestionadas} />
-        <StatTile
-          label="Tasa de cierre"
-          value={resumen.tasaCierre}
-          sufijo="%"
-          objetivo={{ meta: OBJETIVOS_KPI.tasaCierre[periodo], periodoLabel }}
-        />
-        <StatTile label="Tasa de pérdida" value={resumen.tasaPerdida} sufijo="%" tono={resumen.tasaPerdida > 0 ? 'danger' : 'default'} />
-      </div>
+      <section className="inicio-bloque">
+        <div className="inicio-bloque-cabecera">
+          <h2>Indicadores del plan comercial</h2>
+          <span className="inicio-bloque-nota">Leads dados de alta en el periodo</span>
+        </div>
+        <div className="indicadores">
+          {indicadores.map((i) => (
+            <div key={i.label} className="indicador">
+              <span className="indicador-valor">
+                {i.valor}
+                {i.sufijo}
+              </span>
+              <span className="indicador-label">{i.label}</span>
+              {i.meta !== undefined && (
+                <span className={`indicador-meta${i.valor >= i.meta ? ' is-cumplido' : ''}`}>
+                  Objetivo {i.meta}
+                  {i.sufijo}
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+      </section>
 
       <div className="chart-grid">
         <div className="chart-card">
-          <div className="chart-card-title">Embudo de pipeline por fase (actual)</div>
-          <BarChart data={embudo.map((e) => ({ label: e.label, value: e.cantidad, color: FASE_COLORS[e.fase].bg, textColor: FASE_COLORS[e.fase].fg }))} />
-          <TableTwin titulo="Embudo de pipeline por fase" headers={['Fase', 'Leads']} rows={embudo.map((e) => [e.label, e.cantidad])} />
-        </div>
-
-        <div className="chart-card">
           <div className="chart-card-title">Tiempo medio en cada fase</div>
           <BarChart
-            data={tiempos.map((t) => ({ label: t.label, value: t.diasMedio, color: FASE_COLORS[t.fase].bg, textColor: FASE_COLORS[t.fase].fg }))}
+            data={tiempos.map((t) => ({ label: t.label, value: t.diasMedio, color: FASE_COLORS[t.fase].dot, textColor: FASE_COLORS[t.fase].onDot }))}
             unidad=" d"
           />
           <TableTwin titulo="Tiempo medio en cada fase" headers={['Fase', 'Días medio']} rows={tiempos.map((t) => [t.label, t.diasMedio])} />
@@ -123,13 +95,13 @@ export function PanelKPI() {
 
         <div className="chart-card">
           <div className="chart-card-title">Tasa de conversión entre fases</div>
-          <BarChart data={conversion.map((c) => ({ label: c.label, value: c.porcentaje }))} flatColor="#1d1d1b" unidad="%" />
+          <BarChart data={conversion.map((c) => ({ label: c.label, value: c.porcentaje }))} flatColor="var(--color-text)" unidad="%" />
           <TableTwin titulo="Tasa de conversión entre fases" headers={['Transición', '%']} rows={conversion.map((c) => [c.label, c.porcentaje])} />
         </div>
 
         <div className="chart-card">
           <div className="chart-card-title">Leads por concesionario</div>
-          <BarChart data={porConcesionario.map((c) => ({ label: c.nombre, value: c.cantidad }))} flatColor="#1d1d1b" maxBars={8} />
+          <BarChart data={porConcesionario.map((c) => ({ label: c.nombre, value: c.cantidad }))} flatColor="var(--color-text)" maxBars={8} />
           <TableTwin titulo="Leads por concesionario" headers={['Concesionario', 'Leads']} rows={porConcesionario.map((c) => [c.nombre, c.cantidad])} />
         </div>
       </div>
@@ -140,7 +112,7 @@ export function PanelKPI() {
           {enRiesgo.length > 0 && (
             <button
               type="button"
-              className="table-twin-toggle"
+              className="btn-mini"
               onClick={() =>
                 descargarExcel(
                   'Leads en riesgo',
@@ -150,7 +122,7 @@ export function PanelKPI() {
               }
             >
               <Icon name="download" size={14} />
-              Descargar Excel
+              Excel
             </button>
           )}
         </div>
@@ -187,6 +159,6 @@ export function PanelKPI() {
           </div>
         )}
       </div>
-    </div>
+    </>
   )
 }

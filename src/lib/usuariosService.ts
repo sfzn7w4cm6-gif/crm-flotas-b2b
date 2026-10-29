@@ -24,6 +24,15 @@ export async function fetchUsuariosApp(): Promise<UsuarioApp[]> {
   })
 }
 
+/** Usuarios activos asignados a una sede: los comerciales que pueden llevar sus oportunidades. */
+export async function fetchComercialesDeUbicacion(ubicacionId: string): Promise<UsuarioApp[]> {
+  return listRecords<UsuarioApp>(Tables.UsuarioApp, {
+    select: 'fl_usuarioappid,fl_nombre,fl_correo,fl_rol,fl_activo,_fl_ubicacion_value,_fl_systemuserid_value',
+    filter: `_fl_ubicacion_value eq ${ubicacionId} and fl_activo eq true`,
+    orderby: 'fl_nombre asc',
+  })
+}
+
 export interface NodoDirectorio {
   concesionario: Concesionario
   ubicaciones: {

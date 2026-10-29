@@ -11,10 +11,13 @@ export function PeriodoFiltro({
   value,
   onChange,
   primerAnio,
+  etiqueta,
 }: {
   value: Periodo
   onChange: (p: Periodo) => void
   primerAnio: number
+  /** Si se indica, el botón muestra este texto (el periodo elegido) en lugar del icono. */
+  etiqueta?: string
 }) {
   const hoy = new Date()
   const [abierto, setAbierto] = useState(false)
@@ -49,7 +52,7 @@ export function PeriodoFiltro({
     <div className="periodo-filtro" ref={ref}>
       <button
         type="button"
-        className={`periodo-btn${filtrado ? ' is-activo' : ''}`}
+        className={etiqueta ? 'periodo-btn-texto' : `periodo-btn${filtrado ? ' is-activo' : ''}`}
         onClick={() => {
           setModo(value.tipo)
           setAnioVista(value.anio)
@@ -59,7 +62,14 @@ export function PeriodoFiltro({
         aria-expanded={abierto}
         title="Filtrar por mes o año"
       >
-        <Icon name="filter" size={14} />
+        {etiqueta ? (
+          <>
+            {etiqueta}
+            <Icon name="chevronDown" size={13} />
+          </>
+        ) : (
+          <Icon name="filter" size={14} />
+        )}
       </button>
 
       {abierto && (

@@ -31,7 +31,7 @@ Add-DvStringColumn -Entity "fl_usuarioapp" -Name "fl_telefono" -Label "Telefono"
 Add-DvBoolColumn -Entity "fl_usuarioapp" -Name "fl_activo" -Label "Activo" -Default $true
 
 Write-Host "--- 4. fl_lead ---"
-New-DvTable -Name "fl_lead" -DisplayName "Lead" -DisplayCollectionName "Leads" -PrimaryColumnName "fl_numero" -PrimaryColumnLabel "Numero" -AutoNumber -AutoNumberFormat "LEAD-{SEQNUM:5}"
+New-DvTable -Name "fl_lead" -DisplayName "Lead" -DisplayCollectionName "Leads" -PrimaryColumnName "fl_numero" -PrimaryColumnLabel "Numero" -AutoNumber -AutoNumberFormat "L{SEQNUM:5}"
 # Seccion 1 - Datos de la empresa
 Add-DvStringColumn -Entity "fl_lead" -Name "fl_razonsocial" -Label "Razon Social / Nombre comercial" -MaxLength 200 -Required "ApplicationRequired"
 Add-DvStringColumn -Entity "fl_lead" -Name "fl_cif" -Label "CIF / NIF" -MaxLength 20 -Required "ApplicationRequired"

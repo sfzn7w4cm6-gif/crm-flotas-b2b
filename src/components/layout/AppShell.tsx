@@ -76,7 +76,7 @@ export function AppShell() {
                 onClick={() => setMobileOpen(false)}
               >
                 <Icon name={item.icon as never} />
-                <span>{item.label}</span>
+                <span>{isAdmin && viewAsRole === null && item.etiquetaAdmin ? item.etiquetaAdmin : item.label}</span>
               </NavLink>
             </li>
           ))}

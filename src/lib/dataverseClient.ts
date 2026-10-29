@@ -20,6 +20,10 @@ export const Tables = {
   Objetivo: 'fl_objetivos',
   Zona: 'fl_zonas',
   Modelo: 'fl_modelos',
+  Empresa: 'fl_empresas',
+  LineaOportunidad: 'fl_lineaoportunidads',
+  Nota: 'fl_notas',
+  Adjunto: 'annotations',
 } as const
 
 interface EntityItem {

@@ -5,6 +5,8 @@ import { RolApp } from './lib/types'
 import { NuevoLead } from './pages/NuevoLead'
 import { MisLeads } from './pages/MisLeads'
 import { DetalleLead } from './pages/DetalleLead'
+import { DetalleEmpresa } from './pages/DetalleEmpresa'
+import { Empresas } from './pages/Empresas'
 import { MiActividad } from './pages/MiActividad'
 import { SeguimientoLeads } from './pages/SeguimientoLeads'
 import { PanelKPI } from './pages/PanelKPI'
@@ -13,7 +15,7 @@ import './App.css'
 
 function Home() {
   const { effectiveRol } = useAuth()
-  if (effectiveRol === RolApp.EquipoVentas) return <Navigate to="/seguimiento" replace />
+  if (effectiveRol === RolApp.EquipoVentas) return <Navigate to="/panel-kpi" replace />
   return <Navigate to="/mi-actividad" replace />
 }
 
@@ -44,6 +46,8 @@ function App() {
         <Route path="/mis-leads" element={<MisLeads />} />
         <Route path="/mi-actividad" element={<MiActividad />} />
         <Route path="/lead/:id" element={<DetalleLead />} />
+        <Route path="/empresas" element={<Empresas />} />
+        <Route path="/empresa/:id" element={<DetalleEmpresa />} />
         <Route path="/seguimiento" element={<SeguimientoLeads />} />
         <Route path="/panel-kpi" element={<PanelKPI />} />
         <Route path="/info" element={<Info />} />

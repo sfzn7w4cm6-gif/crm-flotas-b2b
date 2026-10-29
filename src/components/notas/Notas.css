@@ -1,0 +1,224 @@
+/* ---------------------------------------------------------------- editor de nota */
+
+.nota-composer {
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+  transition: border-color 0.15s ease;
+}
+.nota-composer:focus-within,
+.nota-composer.is-activo {
+  border-color: var(--color-text-muted);
+}
+.nota-composer textarea {
+  display: block;
+  width: 100%;
+  padding: 10px 13px 4px;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.45;
+  resize: none;
+}
+.nota-composer textarea:focus {
+  outline: none;
+}
+.nota-composer-pie {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  padding: 2px 8px 8px;
+}
+.nota-composer-acciones {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+.nota-composer-error {
+  margin: 0 12px 10px;
+}
+.btn-primary.btn-sm {
+  padding: 6px 14px;
+  font-size: 12.5px;
+  border-radius: 8px;
+}
+
+.adjuntar-btn {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+.adjuntar-btn:hover:not(:disabled) {
+  background: var(--color-surface-alt);
+  color: var(--color-text);
+}
+
+/* ---------------------------------------------------------------- adjuntos */
+
+.adjuntos {
+  margin-top: 6px;
+}
+.adjuntos-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.adjuntos-pendientes {
+  flex-basis: 100%;
+  order: -1;
+  padding: 2px 0 2px;
+}
+.adjuntos-error {
+  flex-basis: 100%;
+  margin: 0;
+}
+.adjunto {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface-alt);
+}
+.adjunto.is-ocupado {
+  opacity: 0.5;
+}
+.adjunto-nombre {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 4px 8px;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 12px;
+  color: var(--color-text);
+  cursor: pointer;
+}
+span.adjunto-nombre {
+  cursor: default;
+}
+.adjunto-nombre > span:first-of-type {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 200px;
+}
+button.adjunto-nombre:hover > span:first-of-type {
+  text-decoration: underline;
+}
+.adjunto-nombre svg {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+}
+.adjunto-tamano {
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.adjunto-quitar {
+  display: inline-flex;
+  padding: 4px 6px 4px 0;
+  border: none;
+  background: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+.adjunto-quitar:hover {
+  color: var(--color-danger);
+}
+
+/* ---------------------------------------------------------------- lista de notas */
+
+.notas-lista {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.nota {
+  display: flex;
+  gap: 12px;
+  padding: 12px 0;
+}
+.nota + .nota {
+  border-top: 1px solid var(--color-border);
+}
+.notas-lista.is-compacta {
+  margin-top: 0;
+}
+.notas-lista.is-compacta .nota {
+  padding: 8px 0;
+}
+.nota-avatar {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--color-surface-alt);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+.nota-cuerpo {
+  flex: 1;
+  min-width: 0;
+}
+.nota-cabecera {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.nota-autor {
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.nota-fecha {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+.nota-eliminar {
+  margin-left: auto;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.nota:hover .nota-eliminar,
+.nota-eliminar:focus-visible {
+  opacity: 1;
+}
+.nota-eliminar:hover {
+  color: var(--color-danger);
+}
+.nota-texto {
+  margin: 3px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

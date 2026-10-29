@@ -130,17 +130,16 @@ export function statsResumen(leads: Lead[], historico: FaseHistorico[]): StatsRe
   const seguimientosCompletados = historicoDeEstosLeads.filter((h) => !h.fl_esactual).length
 
   const idsEntregados = leadsQueAlcanzaronFase(historico, Fase.Entrega)
-  const idsFidelizados = leadsQueAlcanzaronFase(historico, Fase.Fidelizacion)
   const unidadesEntregadas = leads
-    .filter((l) => idsEntregados.has(l.fl_leadid) || idsFidelizados.has(l.fl_leadid))
+    .filter((l) => idsEntregados.has(l.fl_leadid))
     .reduce((acc, l) => acc + (l.fl_numvehiculosrenovarampliar || 0), 0)
 
+  // Empresas distintas con alguna venta cerrada; cada venta de más a una misma empresa
+  // cuenta como renovación (antes salía de la fase Fidelización, que ya no existe).
   const idsCerrados = leadsQueAlcanzaronFase(historico, Fase.Cierre)
-  const nuevosClientesEmpresa = new Set(
-    leads.filter((l) => idsCerrados.has(l.fl_leadid)).map((l) => l.fl_razonsocial),
-  ).size
-
-  const renovacionesGestionadas = idsFidelizados.size
+  const ventas = leads.filter((l) => idsCerrados.has(l.fl_leadid))
+  const nuevosClientesEmpresa = new Set(ventas.map((l) => l._fl_empresa_value ?? l.fl_razonsocial)).size
+  const renovacionesGestionadas = ventas.length - nuevosClientesEmpresa
 
   return {
     leadsNuevos: total,

@@ -435,3 +435,65 @@
 .view-editor-item input[type='checkbox']:disabled {
   cursor: not-allowed;
 }
+
+/* Empresa enlazada dentro de una fila clicable: abre la empresa, no el lead. */
+.link-empresa {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: var(--color-border);
+  text-underline-offset: 3px;
+}
+.link-empresa:hover {
+  text-decoration-color: currentColor;
+}
+
+.filter-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.celda-en-curso {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+.celda-en-curso-fase {
+  font-weight: 500;
+}
+.celda-en-curso-fase.is-muted {
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+.celda-en-curso-numero {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.celda-en-curso-otro {
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1.5px solid var(--color-text-muted);
+}
+.celda-vacia {
+  color: var(--color-text-muted);
+}
+
+.view-editor-pista {
+  margin: 8px 6px 2px;
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--color-text-muted);
+}

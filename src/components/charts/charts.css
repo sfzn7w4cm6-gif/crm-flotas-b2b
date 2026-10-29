@@ -244,3 +244,112 @@
   color: var(--color-primary-contrast);
   border-color: var(--color-primary);
 }
+
+/* ---------------------------------------------------------------- columnas por fase (Inicio) */
+
+.fase-columnas {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 2px;
+  padding-top: 8px;
+}
+.fase-columnas-col {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 4px 6px;
+  border-radius: 10px;
+  color: inherit;
+  text-decoration: none;
+  min-width: 0;
+}
+a.fase-columnas-col:hover {
+  background: var(--color-surface-alt);
+}
+.fase-columnas-valor {
+  font-size: 20px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.fase-columnas-pista {
+  position: relative;
+  width: 100%;
+  max-width: 44px;
+  height: 120px;
+  display: flex;
+  align-items: flex-end;
+  border-bottom: 1px solid var(--color-border);
+}
+.fase-columnas-barra {
+  width: 100%;
+  border-radius: 4px 4px 0 0;
+  background: var(--color-text);
+  transition: height 0.5s ease, opacity 0.15s ease;
+}
+.fase-columnas:hover .fase-columnas-barra {
+  opacity: 0.35;
+}
+.fase-columnas .fase-columnas-col:hover .fase-columnas-barra {
+  opacity: 1;
+}
+.fase-columnas-nombre {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.fase-columnas-punto {
+  width: 7px;
+  height: 7px;
+  flex-shrink: 0;
+  border-radius: 50%;
+}
+.fase-columnas-veh {
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.fase-columnas-tip {
+  position: absolute;
+  bottom: calc(100% - 4px);
+  left: 50%;
+  z-index: 5;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: 200px;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-md);
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--color-text-muted);
+  text-align: left;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+.fase-columnas-tip strong {
+  display: block;
+  color: var(--color-text);
+  font-weight: 600;
+}
+.fase-columnas-col:hover .fase-columnas-tip {
+  opacity: 1;
+}
+@media (max-width: 640px) {
+  .fase-columnas {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    row-gap: 12px;
+  }
+}

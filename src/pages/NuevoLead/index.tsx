@@ -1,68 +1,148 @@
-import { useMemo, useState, type ReactNode } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { Icon } from '../../components/Icon'
-import { crearLeadBase, type NuevoLeadInput } from '../../lib/leadsService'
-import { ModoFinanciacionLabel, PlazoDecisionLabel } from '../../lib/types'
+import { crearOportunidad, fetchLead, OportunidadDuplicadaError } from '../../lib/leadsService'
+import { buscarEmpresaPorCif, numeroOportunidadAbierta } from '../../lib/empresasService'
+import { fetchComercialesDeUbicacion } from '../../lib/usuariosService'
+import { EstadoEmpresa, EstadoEmpresaLabel } from '../../lib/types'
+import type { Empresa, UsuarioApp } from '../../lib/types'
 import { cifNifValido, emailValido, telefonoValido } from '../../lib/validators'
 import './NuevoLead.css'
 
-const PASOS = ['Datos de la empresa', 'Contactos clave', 'Situación de flota', 'Necesidad', 'Histórico y seguimiento']
+// En el alta solo se piden las secciones 1 y 2 de la ficha; el resto se completa después desde el detalle del lead.
+const PASOS = ['Datos de la empresa', 'Contactos clave']
+const ULTIMO_PASO = PASOS.length - 1
 
-type Form = Partial<NuevoLeadInput>
+interface Form {
+  razonSocial?: string
+  cif?: string
+  nombreResponsable?: string
+  telefonoCorporativo?: string
+  emailCorporativo?: string
+}
+
+// Resultado de buscar el CIF en el concesionario antes de dejar continuar.
+type Busqueda =
+  | { estado: 'buscando' }
+  | { estado: 'nueva' }
+  | { estado: 'existe'; empresa: Empresa }
+  // puedeVerla: la oportunidad en curso es del usuario (o es admin) y puede abrirla.
+  | { estado: 'duplicada'; empresa: Empresa; leadId: string; numero?: string; puedeVerla: boolean }
+  | { estado: 'error'; mensaje: string }
 
 export function NuevoLead() {
-  const { usuario } = useAuth()
+  const { usuario, ubicacion, concesionario } = useAuth()
   const navigate = useNavigate()
+  // Desde la ficha de una empresa se llega con su CIF ya puesto.
+  const cifInicial = (useLocation().state as { cif?: string } | null)?.cif
 
   const [paso, setPaso] = useState(0)
-  const [form, setForm] = useState<Form>({})
+  const [form, setForm] = useState<Form>({ cif: cifInicial })
+  const [busqueda, setBusqueda] = useState<Busqueda | null>(null)
+  const [comerciales, setComerciales] = useState<UsuarioApp[]>([])
+  const [comercialId, setComercialId] = useState<string>('')
   const [enviando, setEnviando] = useState(false)
   const [errorEnvio, setErrorEnvio] = useState<string | null>(null)
-  const [resultado, setResultado] = useState<{ numero: string } | null>(null)
+  const [resultado, setResultado] = useState<{ leadId: string; numero: string; asignadaA?: string } | null>(null)
 
   const set = <K extends keyof Form>(key: K, value: Form[K]) => setForm((f) => ({ ...f, [key]: value }))
+
+  // El concesionario, la instalación y el area manager salen de la sede del usuario conectado.
+  // El comercial es el propio usuario; si la sede tiene varios, puede elegir otro.
+  useEffect(() => {
+    if (!ubicacion || !usuario) return
+    fetchComercialesDeUbicacion(ubicacion.fl_ubicacionid)
+      .then((lista) => {
+        const conUsuario = lista.some((u) => u.fl_usuarioappid === usuario.fl_usuarioappid) ? lista : [usuario, ...lista]
+        setComerciales(conUsuario)
+      })
+      .catch(() => setComerciales([usuario]))
+    setComercialId(usuario.fl_usuarioappid)
+  }, [ubicacion, usuario])
+
+  const comercial = comerciales.find((c) => c.fl_usuarioappid === comercialId) ?? usuario ?? undefined
+
+  // Al escribir un CIF válido se busca la empresa en el concesionario.
+  const cif = form.cif ?? ''
+  useEffect(() => {
+    setBusqueda(null)
+    if (!concesionario || !cifNifValido(cif)) return
+    let cancelado = false
+    const t = setTimeout(async () => {
+      setBusqueda({ estado: 'buscando' })
+      try {
+        const empresa = await buscarEmpresaPorCif(concesionario.fl_concesionarioid, cif)
+        if (cancelado) return
+        if (!empresa) {
+          setBusqueda({ estado: 'nueva' })
+        } else if (empresa._fl_oportunidadabierta_value) {
+          const leadId = empresa._fl_oportunidadabierta_value
+          const visible = await fetchLead(leadId).catch(() => null)
+          if (cancelado) return
+          setBusqueda({ estado: 'duplicada', empresa, leadId, numero: numeroOportunidadAbierta(empresa), puedeVerla: !!visible })
+        } else {
+          setBusqueda({ estado: 'existe', empresa })
+          setForm((f) => ({
+            ...f,
+            razonSocial: empresa.fl_razonsocial,
+            nombreResponsable: empresa.fl_nombreresponsable ?? f.nombreResponsable,
+            telefonoCorporativo: empresa.fl_telefonocorporativo ?? f.telefonoCorporativo,
+            emailCorporativo: empresa.fl_emailcorporativo ?? f.emailCorporativo,
+          }))
+        }
+      } catch (e) {
+        if (!cancelado) setBusqueda({ estado: 'error', mensaje: e instanceof Error ? e.message : 'No se pudo comprobar el CIF.' })
+      }
+    }, 400)
+    return () => {
+      cancelado = true
+      clearTimeout(t)
+    }
+  }, [cif, concesionario])
 
   const faltanPaso = useMemo(() => {
     switch (paso) {
       case 0:
-        return !form.razonSocial || !cifNifValido(form.cif ?? '')
+        return (
+          !cifNifValido(cif) ||
+          (busqueda?.estado !== 'nueva' && busqueda?.estado !== 'existe') ||
+          !form.razonSocial?.trim() ||
+          !comercial
+        )
       case 1:
         return !form.nombreResponsable || !telefonoValido(form.telefonoCorporativo ?? '') || !emailValido(form.emailCorporativo ?? '')
-      case 2:
-        return (
-          form.numVehiculosActuales === undefined ||
-          !form.marcasActuales ||
-          !form.actividadEconomica ||
-          form.modoFinanciacionActual === undefined ||
-          !form.vencimientoContratosActuales
-        )
-      case 3:
-        return (
-          form.cuotasObjetivo === undefined ||
-          !form.modelosInteres ||
-          form.numVehiculosRenovarAmpliar === undefined ||
-          form.plazoEstimadoDecision === undefined ||
-          !form.competidoresDetectados ||
-          !form.requisitos ||
-          !form.kmTiempo
-        )
-      case 4:
-        return !form.proximaAccion || !form.fechaProximaAccion || !form.observaciones
       default:
         return false
     }
-  }, [paso, form])
+  }, [paso, form, cif, busqueda, comercial])
 
   const enviar = async () => {
-    if (!usuario || faltanPaso) return
+    if (!usuario || !comercial || faltanPaso) return
     setEnviando(true)
     setErrorEnvio(null)
     try {
-      const { numero } = await crearLeadBase(form as NuevoLeadInput, usuario)
-      setResultado({ numero })
+      const r = await crearOportunidad(
+        {
+          razonSocial: form.razonSocial!.trim(),
+          cif,
+          nombreResponsable: form.nombreResponsable!,
+          telefonoCorporativo: form.telefonoCorporativo!,
+          emailCorporativo: form.emailCorporativo!,
+          comercial,
+        },
+        usuario,
+      )
+      setResultado(r)
     } catch (e) {
-      setErrorEnvio(e instanceof Error ? e.message : 'No se pudo crear el lead.')
+      if (e instanceof OportunidadDuplicadaError) {
+        // Otro comercial la ha dado de alta mientras se rellenaba el formulario.
+        const visible = await fetchLead(e.leadId).catch(() => null)
+        setBusqueda({ estado: 'duplicada', empresa: { fl_razonsocial: form.razonSocial } as Empresa, leadId: e.leadId, numero: e.numero, puedeVerla: !!visible })
+        setPaso(0)
+      } else {
+        setErrorEnvio(e instanceof Error ? e.message : 'No se pudo crear el lead.')
+      }
     } finally {
       setEnviando(false)
     }
@@ -78,10 +158,21 @@ export function NuevoLead() {
         <p>
           El lead <strong>{resultado.numero}</strong> se creó correctamente en fase <strong>1. Prospección</strong>.
         </p>
+        {resultado.asignadaA && (
+          <p>
+            Se ha asignado a <strong>{resultado.asignadaA}</strong>: aparecerá en sus leads, no en los tuyos.
+          </p>
+        )}
         <div className="wizard-done-actions">
-          <button type="button" className="btn-primary" onClick={() => navigate('/mis-leads')}>
-            Ver mis leads
-          </button>
+          {resultado.asignadaA ? (
+            <button type="button" className="btn-primary" onClick={() => navigate('/mis-leads')}>
+              Ver mis leads
+            </button>
+          ) : (
+            <button type="button" className="btn-primary" onClick={() => navigate(`/lead/${resultado.leadId}`)}>
+              Abrir el lead
+            </button>
+          )}
           <button type="button" className="btn-secondary" onClick={() => window.location.reload()}>
             Crear otro lead
           </button>
@@ -106,13 +197,69 @@ export function NuevoLead() {
       <div className="wizard-card">
         {paso === 0 && (
           <div className="wizard-form">
-            <Field label="Razón Social / Nombre comercial">
-              <input value={form.razonSocial ?? ''} onChange={(e) => set('razonSocial', e.target.value)} />
-            </Field>
             <Field label="CIF / NIF">
-              <input value={form.cif ?? ''} onChange={(e) => set('cif', e.target.value)} placeholder="B12345678" />
-              {form.cif && !cifNifValido(form.cif) && <span className="field-error">Formato de CIF/NIF/NIE no válido.</span>}
+              <input value={cif} onChange={(e) => set('cif', e.target.value)} placeholder="B12345678" autoFocus />
+              {cif && !cifNifValido(cif) && <span className="field-error">Formato de CIF/NIF/NIE no válido.</span>}
+              {busqueda?.estado === 'buscando' && <span className="field-help">Comprobando si la empresa ya existe…</span>}
             </Field>
+
+            {busqueda?.estado === 'duplicada' && (
+              <div className="aviso aviso-error">
+                <strong>{busqueda.empresa.fl_razonsocial} ya tiene una oportunidad en curso{busqueda.numero ? ` (${busqueda.numero})` : ''}.</strong>
+                <span>
+                  {busqueda.puedeVerla
+                    ? 'No se puede abrir otra mientras esta siga abierta. Continúa la que ya existe.'
+                    : 'La lleva otro comercial de tu concesionario. Coordínate con quien la lleva antes de contactar con la empresa.'}
+                </span>
+                {busqueda.puedeVerla && (
+                  <button type="button" className="btn-secondary" onClick={() => navigate(`/lead/${busqueda.leadId}`)}>
+                    Abrir la oportunidad
+                  </button>
+                )}
+              </div>
+            )}
+            {busqueda?.estado === 'existe' && (
+              <div className="aviso">
+                <strong>Empresa ya registrada · {EstadoEmpresaLabel[busqueda.empresa.fl_estado ?? EstadoEmpresa.ClientePotencial]}</strong>
+                <span>Se creará una nueva oportunidad para ella con sus datos actuales, que puedes revisar.</span>
+              </div>
+            )}
+            {busqueda?.estado === 'error' && <p className="wizard-error">{busqueda.mensaje}</p>}
+
+            {(busqueda?.estado === 'nueva' || busqueda?.estado === 'existe') && (
+              <>
+                <Field label="Razón Social / Nombre comercial">
+                  <input value={form.razonSocial ?? ''} onChange={(e) => set('razonSocial', e.target.value)} />
+                </Field>
+                <Field label="Concesionario" auto>
+                  <input value={concesionario?.fl_nombre ?? '—'} readOnly />
+                </Field>
+                <Field label="Instalación" auto>
+                  <input value={ubicacion?.fl_nombre ?? '—'} readOnly />
+                </Field>
+                <Field label="Comercial responsable" auto={comerciales.length <= 1}>
+                  {comerciales.length > 1 ? (
+                    <select value={comercialId} onChange={(e) => setComercialId(e.target.value)}>
+                      {comerciales.map((c) => (
+                        <option key={c.fl_usuarioappid} value={c.fl_usuarioappid}>
+                          {c.fl_nombre}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input value={comercial?.fl_nombre ?? ''} readOnly />
+                  )}
+                  {comercial && comercial.fl_usuarioappid !== usuario?.fl_usuarioappid && !comercial._fl_systemuserid_value && (
+                    <span className="field-help">
+                      {comercial.fl_nombre} aún no tiene acceso a la app: el lead quedará a tu nombre hasta que lo tenga.
+                    </span>
+                  )}
+                </Field>
+                <Field label="Area Manager EBRO (Zona)" auto>
+                  <input value={ubicacion?.fl_areamanager || '—'} readOnly />
+                </Field>
+              </>
+            )}
           </div>
         )}
 
@@ -131,111 +278,6 @@ export function NuevoLead() {
               <input type="email" value={form.emailCorporativo ?? ''} onChange={(e) => set('emailCorporativo', e.target.value)} placeholder="nombre@empresa.com" />
               {form.emailCorporativo && !emailValido(form.emailCorporativo) && <span className="field-error">Formato de e-mail no válido.</span>}
             </Field>
-          </div>
-        )}
-
-        {paso === 2 && (
-          <div className="wizard-form">
-            <Field label="Nº vehículos actuales">
-              <input
-                type="number"
-                min={0}
-                value={form.numVehiculosActuales ?? ''}
-                onChange={(e) => set('numVehiculosActuales', e.target.value === '' ? undefined : Number(e.target.value))}
-              />
-            </Field>
-            <Field label="Marcas actuales">
-              <input value={form.marcasActuales ?? ''} onChange={(e) => set('marcasActuales', e.target.value)} />
-            </Field>
-            <Field label="Actividad económica (sector)">
-              <input value={form.actividadEconomica ?? ''} onChange={(e) => set('actividadEconomica', e.target.value)} />
-            </Field>
-            <Field label="Modo de financiación actual">
-              <select
-                value={form.modoFinanciacionActual ?? ''}
-                onChange={(e) => set('modoFinanciacionActual', e.target.value === '' ? undefined : Number(e.target.value))}
-              >
-                <option value="">Selecciona una opción</option>
-                {Object.entries(ModoFinanciacionLabel).map(([v, l]) => (
-                  <option key={v} value={v}>
-                    {l}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Vencimiento contratos actuales">
-              <input
-                type="date"
-                value={form.vencimientoContratosActuales ?? ''}
-                onChange={(e) => set('vencimientoContratosActuales', e.target.value)}
-              />
-            </Field>
-          </div>
-        )}
-
-        {paso === 3 && (
-          <div className="wizard-form">
-            <Field label="Modelos de interés">
-              <input value={form.modelosInteres ?? ''} onChange={(e) => set('modelosInteres', e.target.value)} />
-            </Field>
-            <Field label="Cuotas objetivo (€)">
-              <input
-                type="number"
-                min={0}
-                value={form.cuotasObjetivo ?? ''}
-                onChange={(e) => set('cuotasObjetivo', e.target.value === '' ? undefined : Number(e.target.value))}
-              />
-            </Field>
-            <Field label="Nº vehículos a renovar / ampliar">
-              <input
-                type="number"
-                min={0}
-                value={form.numVehiculosRenovarAmpliar ?? ''}
-                onChange={(e) => set('numVehiculosRenovarAmpliar', e.target.value === '' ? undefined : Number(e.target.value))}
-              />
-            </Field>
-            <Field label="Plazo estimado de decisión">
-              <select
-                value={form.plazoEstimadoDecision ?? ''}
-                onChange={(e) => set('plazoEstimadoDecision', e.target.value === '' ? undefined : Number(e.target.value))}
-              >
-                <option value="">Selecciona una opción</option>
-                {Object.entries(PlazoDecisionLabel).map(([v, l]) => (
-                  <option key={v} value={v}>
-                    {l}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Competidores detectados">
-              <input value={form.competidoresDetectados ?? ''} onChange={(e) => set('competidoresDetectados', e.target.value)} />
-            </Field>
-            <Field label="Requisitos (etiquetas, tecnología, política de flotas)">
-              <textarea rows={3} value={form.requisitos ?? ''} onChange={(e) => set('requisitos', e.target.value)} />
-            </Field>
-            <Field label="Km / tiempo">
-              <input value={form.kmTiempo ?? ''} onChange={(e) => set('kmTiempo', e.target.value)} />
-            </Field>
-          </div>
-        )}
-
-        {paso === 4 && (
-          <div className="wizard-form">
-            <Field label="Fase actual">
-              <div className="fase-inicial-chip">1. Prospección</div>
-            </Field>
-            <Field label="Próxima acción">
-              <input value={form.proximaAccion ?? ''} onChange={(e) => set('proximaAccion', e.target.value)} />
-            </Field>
-            <Field label="Fecha próxima acción">
-              <input type="date" value={form.fechaProximaAccion ?? ''} onChange={(e) => set('fechaProximaAccion', e.target.value)} />
-            </Field>
-            <Field label="Observaciones / notas clave">
-              <textarea rows={4} value={form.observaciones ?? ''} onChange={(e) => set('observaciones', e.target.value)} />
-            </Field>
-            <Field label="Oferta (Descuento/Condiciones)" opcional>
-              <textarea rows={3} value={form.ofertaCondiciones ?? ''} onChange={(e) => set('ofertaCondiciones', e.target.value)} />
-            </Field>
             {errorEnvio && <p className="wizard-error">{errorEnvio}</p>}
           </div>
         )}
@@ -245,12 +287,12 @@ export function NuevoLead() {
         <button type="button" className="btn-secondary" disabled={paso === 0} onClick={() => setPaso((p) => p - 1)}>
           Atrás
         </button>
-        {paso < 4 && (
+        {paso < ULTIMO_PASO && (
           <button type="button" className="btn-primary" disabled={faltanPaso} onClick={() => setPaso((p) => p + 1)}>
             Siguiente
           </button>
         )}
-        {paso === 4 && (
+        {paso === ULTIMO_PASO && (
           <button type="button" className="btn-primary" disabled={faltanPaso || enviando} onClick={enviar}>
             {enviando ? 'Guardando…' : 'Crear lead'}
           </button>
@@ -260,10 +302,10 @@ export function NuevoLead() {
   )
 }
 
-function Field({ label, children, opcional }: { label: string; children: ReactNode; opcional?: boolean }) {
+function Field({ label, children, opcional, auto }: { label: string; children: ReactNode; opcional?: boolean; auto?: boolean }) {
   return (
-    <div className="field">
-      <label>{label} {opcional ? '' : '*'}</label>
+    <div className={auto ? 'field field-auto' : 'field'}>
+      <label>{label} {opcional || auto ? '' : '*'}</label>
       {children}
     </div>
   )

@@ -1,44 +1,343 @@
+/* Ficha de la oportunidad: a la izquierda los datos (compactos, en dos columnas), a la derecha
+   la actividad (historial con sus tareas y notas). Las dos columnas tienen el mismo ancho. */
+
 .detalle-lead {
-  max-width: 1040px;
+  max-width: 1280px;
+}
+.detalle-volver {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  margin-bottom: 14px;
+  color: var(--color-text-muted);
+  font-weight: 500;
 }
 
+.detalle-cabecera {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 22px;
+}
+.detalle-cabecera h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.detalle-cabecera-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 0;
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+.detalle-cabecera-meta > * + *::before {
+  content: '·';
+  margin: 0 8px;
+  color: var(--color-border);
+}
+.detalle-numero {
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  color: var(--color-text);
+}
+.detalle-enlace {
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  color: var(--color-text);
+  text-decoration: underline;
+  text-decoration-color: var(--color-border);
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.detalle-enlace:hover {
+  text-decoration-color: currentColor;
+}
 .detalle-fase-actions {
   display: flex;
   align-items: center;
   gap: 10px;
 }
+.btn-secondary.btn-compacto {
+  padding: 7px 14px;
+  font-size: 12.5px;
+}
 
 .detalle-grid {
   display: grid;
-  grid-template-columns: 1fr 280px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 24px;
   align-items: start;
 }
-@media (max-width: 900px) {
+@media (max-width: 1000px) {
   .detalle-grid {
     grid-template-columns: 1fr;
   }
 }
 
+/* ---------------------------------------------------------------- datos */
+
+.detalle-datos {
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  background: var(--color-surface);
+  padding: 4px 22px;
+}
+.bloque-datos {
+  padding: 18px 0;
+}
+.bloque-datos + .bloque-datos {
+  border-top: 1px solid var(--color-border);
+}
+.bloque-datos-cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 26px;
+  margin-bottom: 10px;
+}
+.bloque-datos-cabecera h2 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+}
+.bloque-datos-editar {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 7px;
+  background: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 0.12s ease, background 0.12s ease;
+}
+.bloque-datos:hover .bloque-datos-editar {
+  opacity: 1;
+}
+.bloque-datos-editar:hover {
+  background: var(--color-surface-alt);
+  color: var(--color-text);
+}
+.datos-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px 20px;
+  margin: 0;
+}
+.datos-grid-fijo {
+  margin-bottom: 12px;
+}
+.dato {
+  min-width: 0;
+}
+.dato.is-ancho {
+  grid-column: 1 / -1;
+}
+.dato dt {
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+  margin-bottom: 2px;
+}
+.dato dd {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.dato dd.is-vacio {
+  color: var(--color-border);
+}
+.dato-cambiar {
+  margin-left: 8px;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.dato-edicion {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.dato-edicion select {
+  min-width: 0;
+  flex: 1;
+  padding: 5px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 7px;
+  background: var(--color-surface);
+  font: inherit;
+  font-size: 13px;
+  color: var(--color-text);
+}
+.datos-form-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px 16px;
+}
+.datos-form-grid .field {
+  margin: 0;
+}
+.datos-form-grid .field.is-ancho {
+  grid-column: 1 / -1;
+}
+.bloque-datos-acciones {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+}
+@media (max-width: 560px) {
+  .datos-grid,
+  .datos-form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------------------------------------------------------------- actividad */
+
+.detalle-actividad {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  position: sticky;
+  top: 20px;
+}
+.panel-actividad {
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  background: var(--color-surface);
+  padding: 18px 22px 20px;
+}
+.panel-actividad-cabecera {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  margin-bottom: 12px;
+}
+.panel-actividad-cabecera h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.panel-actividad-nota {
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+}
+.panel-actividad-accion {
+  margin-left: auto;
+}
+.notas-vacio {
+  margin-top: 12px;
+}
+
+/* Historial: una línea vertical fina; cada fase con su punto de color y sus tareas debajo. */
+.historial {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.historial-fase {
+  position: relative;
+  padding: 0 0 14px 22px;
+}
+.historial-fase::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 14px;
+  bottom: -2px;
+  width: 1px;
+  background: var(--color-border);
+}
+.historial-fase:last-child::before {
+  display: none;
+}
+.historial-fase-cabecera {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+  min-height: 22px;
+}
+.historial-punto {
+  position: absolute;
+  left: 0;
+  top: 5px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--color-surface);
+  border: 2px solid var(--fase-color);
+}
+.historial-fase.is-actual .historial-punto {
+  background: var(--fase-color);
+}
+.historial-nombre {
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.historial-fechas {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.historial-en-curso {
+  color: var(--color-success);
+  font-weight: 500;
+}
+.historial-tareas {
+  list-style: none;
+  margin: 6px 0 0 -8px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Secciones de la ficha de empresa y de Info (mismo aspecto que los bloques de datos). */
 .detalle-seccion {
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  border-radius: 16px;
   background: var(--color-surface);
-  padding: 22px 24px;
-  margin-bottom: 18px;
-  box-shadow: var(--shadow-sm);
+  padding: 20px 22px;
+  margin-bottom: 16px;
 }
 .detalle-seccion-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
 }
 .detalle-seccion-header h2 {
-  font-size: 12.5px;
-  font-weight: 700;
+  font-size: 12px;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
   color: var(--color-text-muted);
 }
 .detalle-seccion-body {
@@ -47,53 +346,203 @@
   gap: 9px;
 }
 
-.detalle-col-timeline {
-  position: sticky;
-  top: 20px;
-}
-.timeline-title {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 13px;
-  color: var(--color-text-muted);
-  margin-bottom: 12px;
-}
-.fase-timeline {
+/* Líneas de la oportunidad: modelo del catálogo + cantidad. */
+.lineas-oportunidad {
+  margin-bottom: 14px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  border-left: 2px solid var(--color-border);
-  padding-left: 14px;
+  gap: 6px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--color-border);
 }
-.fase-timeline li {
+.lineas-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
   display: flex;
   flex-direction: column;
   gap: 4px;
+  font-size: 13.5px;
 }
-.fase-timeline-meta {
-  display: flex;
-  gap: 8px;
-  font-size: 11.5px;
-  color: var(--color-text-muted);
-}
-.fase-timeline-actual {
-  color: var(--color-success);
-  font-weight: 600;
-}
-
-.tareas-lead {
-  margin-top: 28px;
-  padding-top: 20px;
-  border-top: 1px solid var(--color-border);
-}
-.tareas-lead-cabecera {
+.lineas-lista li {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 10px;
-  margin-bottom: 8px;
 }
-.tareas-lead-cabecera .timeline-title {
-  margin-bottom: 0;
+.lineas-lista li > span:first-child {
+  flex: 1;
 }
+.lineas-cantidad {
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-muted);
+}
+.lineas-total {
+  border-top: 1px solid var(--color-border);
+  padding-top: 4px;
+  font-weight: 600;
+}
+.lineas-nueva {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.lineas-nueva select,
+.lineas-nueva input {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 7px 9px;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-size: 13px;
+}
+.lineas-nueva select {
+  flex: 1;
+  min-width: 160px;
+}
+.lineas-nueva input {
+  width: 72px;
+}
+
+/* Ficha de empresa: lista de oportunidades. */
+.oportunidades-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.oportunidad-fila {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+.oportunidad-fila:hover {
+  border-color: var(--color-primary);
+}
+.oportunidad-numero {
+  font-weight: 600;
+  font-size: 13.5px;
+}
+
+/* Aviso de datos que faltan en la fase actual: franja fina, color solo en el punto y la línea de progreso. */
+.aviso-fase {
+  margin-bottom: 20px;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: var(--color-surface);
+  overflow: hidden;
+}
+.aviso-fase-contenido {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+}
+.aviso-fase-punto {
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--color-text-muted);
+}
+.aviso-fase.is-urgente .aviso-fase-punto {
+  background: var(--color-warning);
+}
+.aviso-fase-texto {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.aviso-fase-titulo {
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+.aviso-fase-detalle {
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.aviso-fase-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 32px;
+  padding: 0 12px 0 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text);
+  cursor: pointer;
+}
+.aviso-fase-btn:hover {
+  background: var(--color-surface-alt);
+}
+.aviso-fase-progreso {
+  height: 2px;
+  background: var(--color-surface-alt);
+}
+.aviso-fase-progreso > div {
+  height: 100%;
+  background: var(--color-text-muted);
+  transition: width 0.5s ease;
+}
+.aviso-fase.is-urgente .aviso-fase-progreso > div {
+  background: var(--color-warning);
+}
+@media (max-width: 640px) {
+  .aviso-fase-detalle {
+    white-space: normal;
+  }
+}
+
+/* Ventana de cambio de fase. */
+.fase-dialog {
+  max-width: 640px;
+}
+.fase-dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-top: 18px;
+}
+.fase-dialog-seccion h3 {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  margin: 0 0 10px;
+}
+.fase-dialog-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 22px;
+  border-top: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+.fase-dialog-footer .flow-meta {
+  margin-right: auto;
+}
+

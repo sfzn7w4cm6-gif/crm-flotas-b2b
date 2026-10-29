@@ -116,7 +116,7 @@ seguridad de Dataverse del usuario para eso, se usa esta fila.
 | `fl_activo` | Sí/No | |
 | `fl_systemuserid` | Lookup → `systemuser` | Enlaza con el usuario real de Entra/Dynamics |
 
-### `fl_lead` — la Ficha de Cliente (autonumérico `LEAD-{SEQNUM:5}`, UserOwned)
+### `fl_lead` — la Ficha de Cliente (autonumérico `L{SEQNUM:5}`, antes `LEAD-{SEQNUM:5}` — ver `20-numero-lead-L.ps1`; UserOwned)
 
 Secciones calcadas de la plantilla Excel original, más los campos
 estructurales:
@@ -132,9 +132,12 @@ estructurales:
 
 `fl_faseactual` / `fl_fasehistorico.fl_fase` comparten el mismo choice: **1.
 Prospección → 2. Primer Contacto → 3. Cualificación → 4. Propuesta → 5.
-Negociación → 6. Cierre → 7. Entrega → 8. Fidelización**, más **Perdido**
+Negociación → 6. Cierre → 7. Entrega**, más **Perdido**
 (estado terminal alcanzable desde cualquier fase, excluido del embudo/gráficos
-ordinales, exige rellenar `fl_motivoperdida`).
+ordinales, exige rellenar `fl_motivoperdida`). "8. Fidelización" (101000007) se
+quitó el 28/10/2026 (`19-quitar-fase-fidelizacion.ps1`): la opción sigue en
+Dataverse pero la app ya no la tiene. El KPI "Renovaciones gestionadas" pasó a
+ser ventas cerradas a empresas que ya tenían otra venta en el periodo.
 
 ### `fl_fasehistorico` — registro de cuánto tiempo pasa un lead en cada fase
 
@@ -169,6 +172,38 @@ del lead y se ven en la pantalla de inicio del concesionario (lista + calendario
 | `fl_notas` | Texto largo | |
 | `fl_lead` | Lookup → `fl_lead` | Requerido |
 
+### `fl_nota` y `fl_tarea.fl_resultado` — notas y resultado de tareas
+
+Creados con `scripts/dataverse/21-notas-y-resultado-tareas.ps1`.
+
+- `fl_nota`: nota libre sobre una oportunidad (`fl_texto`, `fl_lead`, `fl_autor` →
+  `fl_usuarioapp`; la fecha es `createdon`). UserOwned, cascada de asignación desde
+  `fl_lead`. Concesionario CRUD Basic (solo borra las suyas), Equipo de Ventas Read
+  Global. Se muestran en la ficha del lead (`NotasLead.tsx`); el nombre del autor sale
+  de la anotación `FormattedValue` del lookup.
+- `fl_tarea.fl_resultado`: cómo fue la tarea. Al marcarla Completada (`FilaTarea` con
+  `onGuardarResultado`) se pregunta según el tipo ("¿Cómo fue la visita?"); se puede
+  saltar y añadir o editar después.
+
+### Adjuntos, enlace de llamada y notas de tarea (29/10/2026)
+
+Creados con `scripts/dataverse/22-adjuntos-enlace-notas-tarea.ps1`.
+
+- **Adjuntos**: notas nativas de Dataverse (`annotation`, archivo en `documentbody`)
+  colgadas de `fl_tarea` (los que se suben al crear la tarea) o de `fl_nota` (los de
+  cada nota). Se activó `HasNotes` en las dos tablas (irreversible). Código en
+  `src/lib/adjuntosService.ts`: al listar no se pide el contenido, solo al descargar.
+  Límite de 5 MB por archivo (el de subida por defecto de Dataverse). Privilegios sobre
+  `Note`: Concesionario Create/Read/Write/Delete/Assign Basic, Ventas Read Global,
+  Append/AppendTo Global para los dos, Administrador todo Global.
+- **`fl_tarea.fl_enlace`**: enlace de la llamada o reunión (solo se pide en esos dos tipos).
+- **`fl_nota.fl_tarea`**: una nota con tarea es una nota de esa tarea; sin tarea, nota
+  general de la oportunidad. Al completar o cancelar una tarea se pregunta cómo fue y se
+  guarda como nota de la tarea. `fl_tarea.fl_resultado` ya no se escribe; si tiene texto
+  antiguo se muestra como "Resultado" dentro de la tarea.
+- La fase de cada tarea no se guarda: es la fase en la que estaba la oportunidad cuando
+  se creó (`createdon` frente a `fl_fasehistorico`), ver `HistorialTareas.tsx`.
+
 ### `fl_objetivo` — objetivo de leads al mes
 
 Una fila sin `fl_concesionario` = objetivo general; una fila con concesionario
@@ -200,25 +235,57 @@ pestañas RESPONSABLE EBRO BUSINESS y MODELOS DE INTERES). Lectura vía
   salir en los desplegables; `fl_lead.fl_modelosinteres` sigue siendo texto
   libre hasta la reestructuración de abajo.
 
-## Reestructuración acordada (pendiente)
+## Empresa / Oportunidad (implantado el 28/10/2026)
 
-Decidido el 28/10/2026 con el responsable del proyecto:
+Esquema en `scripts/dataverse/17-empresa-oportunidad.ps1`; los 46 leads que
+había se pasaron con `18-migrar-empresas.ps1` (46 empresas, ningún CIF
+repetido dentro de un concesionario).
 
-- **Empresa** (cliente, una por CIF) separada de **Oportunidad** (cada intento
-  de venta; el `fl_lead` actual). Si una empresa vuelve a comprar, se crea una
-  oportunidad nueva en la misma empresa, nunca otra empresa ni más ventas en la
-  misma oportunidad.
-- Datos de empresa: razón social, CIF, sector, contactos, flota actual.
-  Datos de oportunidad: fase, necesidad, modelos, próxima acción, importe,
-  motivo de pérdida, sede y comercial.
-- Comercial responsable como lookup a `fl_usuarioapp` (hoy es texto libre).
-- Líneas de oportunidad (modelo de `fl_modelo` + cantidad + precio) para el
-  importe facturado y el ranking de modelos.
-- Alta: el primer paso pide el CIF; si la empresa existe se crea solo la
-  oportunidad. Ficha de empresa nueva con todas sus oportunidades.
-- "Fidelización" como estado de la empresa, no como fase de la oportunidad.
-- Pendiente de decidir con ventas: empresa global de la red o por concesionario,
-  y si el importe va por líneas de modelo o como total.
+- **`fl_empresa`** — el cliente, **una por CIF dentro de cada concesionario**
+  (`fl_cif` normalizado sin espacios/guiones/puntos y en mayúsculas,
+  `fl_concesionario`). Guarda las secciones 1 y 2 de la ficha: razón social,
+  CIF y contactos. Las secciones 3-5 (flota, necesidad, seguimiento) son de
+  cada oportunidad. Sus columnas de flota y sector existen pero no se usan
+  (la migración las rellenó; se pueden borrar). Además guarda
+  `fl_estado` (Cliente potencial / Cliente / Fidelización) y
+  `fl_oportunidadabierta` (lookup a la oportunidad en curso).
+- **`fl_lead` es la Oportunidad**: nuevos lookups `fl_empresa` y
+  `fl_comercial` (→ `fl_usuarioapp`). `fl_comercialresponsable` (texto) se
+  sigue rellenando con el nombre para las listas. Razón social y CIF se copian
+  en el lead porque las listas filtran por ellos; los contactos se leen de
+  la empresa: `conDatosDeEmpresa` (leadsService.ts)
+  los copia sobre cada lead al leerlo, así listas, KPIs y Excel no cambian.
+  Al editar el detalle, los contactos se guardan en la empresa
+  (`CAMPOS_EMPRESA`).
+- **`fl_lineaoportunidad`** — modelo de `fl_modelo` + cantidad. Tras cada
+  cambio, `fl_modelosinteres` y `fl_numvehiculosrenovarampliar` del lead se
+  recalculan como resumen (`guardarResumenLineas`). Los leads migrados
+  conservan su texto libre (eran familias, "S700", sin modelo exacto).
+- **Duplicados**: una oportunidad está abierta de Prospección a Negociación
+  (`esFaseAbierta`). Solo una abierta por empresa: el alta pide primero el CIF
+  y, si la empresa tiene `fl_oportunidadabierta`, no deja continuar. Se usa
+  el lookup de la empresa y no una consulta de leads porque con seguridad
+  Basic no se ven los de los compañeros; su número sale de la anotación
+  `FormattedValue` del lookup. `cambiarFaseLead` lo mantiene
+  (`sincronizarEmpresaConFase`) y pasa la empresa a Cliente al llegar a
+  Cierre/Entrega.
+- **Comercial**: en el alta, si la sede tiene varios usuarios activos sale un
+  desplegable (por defecto el conectado). Si se elige a otro y tiene
+  `fl_systemuserid`, la oportunidad se le reasigna (`ownerid`) al final del
+  alta; las relaciones de `fl_lead` con `fl_fasehistorico`, `fl_tarea` y
+  `fl_lineaoportunidad` cascadean la asignación. Si no tiene usuario
+  vinculado, queda a nombre de quien la crea.
+- Ficha de empresa en `/empresa/:id` con todas sus oportunidades visibles.
+
+Decisiones tomadas sin validar aún con Ventas:
+
+- Empresa por concesionario, no global de la red: cada concesionario tiene su
+  propia ficha del cliente y no se avisa si otro concesionario trabaja el
+  mismo CIF (sería revelar clientes entre concesionarios).
+- Importe facturado como total (`fl_importeventa`, se pide al pasar a
+  Cierre); las líneas llevan modelo y cantidad, sin precio.
+- Estado de la empresa automático, solo Cliente potencial / Cliente (la
+  opción Fidelización sigue en Dataverse sin usarse).
 
 ## Seguridad (roles reales, auditados en el entorno — no solo lo que dicen los scripts)
 
@@ -232,7 +299,14 @@ concesionarios es por `Basic`/ownership, no por BU).
 | **CRM Flotas B2B - Administrador** | CRUD completo, Global, en las 5 tablas | — |
 
 `fl_tarea`: Concesionario CRUD Basic, Equipo de Ventas Read Global, Administrador
-todo Global. `fl_objetivo`: Read Global para Concesionario y Equipo de Ventas,
+todo Global. `fl_empresa`: Concesionario Create/Read/Write **Global** (la
+comparten los comerciales del concesionario y la app filtra por
+concesionario; sin unidades de negocio por concesionario, un usuario con
+conocimientos técnicos podría leer empresas de otros), Equipo de Ventas Read
+Global. `fl_lineaoportunidad`: Concesionario CRUD Basic, Equipo de Ventas
+Read Global. Concesionario tiene además `Assign` Basic en `fl_lead`,
+`fl_fasehistorico`, `fl_tarea` y `fl_lineaoportunidad` para reasignar al
+comercial elegido. `fl_objetivo`: Read Global para Concesionario y Equipo de Ventas,
 Administrador todo Global.
 
 `Append`/`AppendTo` concedido Global en las 5 tablas a los roles no-admin
@@ -248,12 +322,14 @@ probar la vista de Concesionario/Equipo de Ventas sin otra cuenta.
 
 | Ruta | Para quién | Qué hace |
 |---|---|---|
-| `/nuevo-lead` | Concesionario | Wizard de 5 pasos calcado de las 5 secciones del Excel. Fase inicial fija en "1. Prospección". |
-| `/mis-leads` | Concesionario | Lista filtrada por `ownerid` vía seguridad Basic (no hace falta filtrar en la query). |
-| `/mis-leads/:id` (`DetalleLead`) | Concesionario (edición) / Equipo de Ventas (solo lectura) | Edición de secciones 3-5, cambio de fase (con color por fase), timeline de `fl_fasehistorico`. |
-| `/mi-actividad` ("Inicio") | Concesionario | Pantalla de entrada del dealer. Tarjetas con filtro mes/año: leads activados (llegaron a Primer Contacto o más), ventas cerradas (llegaron a Cierre y no están Perdido), objetivo de leads (creados vs `fl_objetivo`), facturado (`fl_importeventa`). Últimas ventas, Mis tareas (plegable, cambio de estado, calendario) y leads por fase. Fechas de hito sacadas de `fl_fasehistorico` (`actividadService.ts`). |
-| `/seguimiento` (`SeguimientoLeads`) | Equipo de Ventas | Tabla de todos los leads, filtros Concesionario/Ubicación/Fase, columnas reordenables (drag & drop) y configurables ("Editar vista"), ordenable. |
-| `/panel-kpi` | Equipo de Ventas | Las métricas del Excel "KPI Dashboard" (ver `kpiService.ts`), gráficos SVG propios (sin librería), filtro de periodo 30/90/todo sobre `fl_fechaprimercontacto` (no `createdon`). |
+| `/nuevo-lead` | Concesionario | Alta en 2 pasos (secciones 1 y 2 del Excel). Pide primero el CIF y comprueba empresa existente / oportunidad en curso. Concesionario, instalación y area manager salen de la sede del usuario; comercial con desplegable si la sede tiene varios. Fase inicial fija en "1. Prospección". |
+| `/mis-leads` | Concesionario | Lista filtrada por `ownerid` vía seguridad Basic (no hace falta filtrar en la query). Vista Tabla o Pipeline. Filtros de varias opciones (fase, modelo del catálogo, empresa) y buscador que busca en todos los campos, tareas y notas (`src/lib/filtrosLeads.ts`). En el pipeline las tarjetas se arrastran a otra fase y se abre `CambioFaseDialog` con esa fase; los campos de las tarjetas los elige cada usuario ("Campos de tarjeta", guardado en su navegador, `camposTarjeta.ts`). Acepta `?fase=` en el enlace (lo usa el gráfico de Inicio). |
+| `/lead/:id` (`DetalleLead`) | Concesionario (edición) / Equipo de Ventas (solo lectura) | Izquierda: datos en bloques compactos (`DatosLead.tsx`), todos editables en cualquier fase con el lápiz, salvo la fecha de primer contacto y lo que viene de la sede; razón social, CIF y contactos se guardan en `fl_empresa` (el CIF se comprueba contra las otras empresas del concesionario); el comercial se cambia entre los usuarios de la sede y la oportunidad se le reasigna. Derecha: historial de fases con las tareas de cada fase debajo (cada tarea se despliega con descripción, enlace, adjuntos y notas) y notas generales con adjuntos. Cambio de fase con ventana (`CambioFaseDialog`) que pide los datos de la fase destino, y aviso arriba de lo que falta en la fase actual con botón "Completar". Qué pide cada fase y qué es obligatorio está en `src/lib/camposFase.ts` (`REQUISITOS`). |
+| `/empresas` (`Empresas`) | Concesionario (las de su concesionario) / Equipo de Ventas (toda la red) | Lista de empresas con estado, oportunidad en curso, nº de oportunidades y ventas; filtros por texto, estado, concesionario y "con oportunidad en curso". |
+| `/empresa/:id` (`DetalleEmpresa`) | Todos | Datos de la empresa, estado (automático, solo lectura) y sus oportunidades; "Nueva oportunidad" si no tiene una en curso. |
+| `/mi-actividad` ("Inicio") | Concesionario | Pantalla de entrada del dealer. Tarjetas con filtro mes/año: leads activados (llegaron a Primer Contacto o más), ventas cerradas (llegaron a Cierre y no están Perdido), objetivo de leads (creados vs `fl_objetivo`), facturado (`fl_importeventa`). Últimas ventas, Tareas (cambio de estado, número de oportunidad y botón para abrirla; al cerrarla se pide una nota que no se muestra aquí; "Ver todas" con desplazamiento; calendario) y oportunidades por fase en columnas (`FaseColumnas`, cada columna abre Mis leads filtrado). Es `InicioPanel` en modo `concesionario`. Fechas de hito sacadas de `fl_fasehistorico` (`actividadService.ts`). |
+| `/seguimiento` (`SeguimientoLeads`) | Equipo de Ventas | Todos los leads en Tabla o Pipeline (de solo lectura, sin arrastrar). Filtros de varias opciones: concesionario, sede, fase, modelo, empresa; buscador en todo. Columnas reordenables y configurables, ordenable. |
+| `/panel-kpi` ("Inicio" del equipo de ventas) | Equipo de Ventas | Pantalla de entrada de ventas: las mismas cifras que el Inicio del concesionario pero de toda la red (`InicioPanel` en modo `red`), con filtros por concesionario, empresa y modelo y el mismo selector de mes/año. Objetivo de la red = suma del objetivo de cada concesionario (`objetivoDeRed`). Ventas por concesionario en lugar de tareas. Debajo, "Análisis del pipeline": indicadores del Excel "KPI Dashboard" (`kpiService.ts`, leads dados de alta en el periodo), tiempo medio por fase, conversión, leads por concesionario y en riesgo. |
 | `/info` | Equipo de Ventas | Árbol Concesionario → Ubicaciones → usuario asignado (directorio de solo lectura). |
 
 ## Diseño

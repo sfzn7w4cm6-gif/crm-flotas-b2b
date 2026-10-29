@@ -1,0 +1,289 @@
+/* Barra de las listas: buscador y filtros en una fila; debajo, el recuento a la izquierda
+   y las acciones (vista, configurar, Excel) a la derecha. Todo a 32 px de alto. */
+
+.lista-barra {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.lista-filtros {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.lista-acciones {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.lista-cuenta {
+  margin-right: auto;
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.lista-limpiar {
+  border: none;
+  background: none;
+  padding: 0 4px;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+.lista-limpiar:hover {
+  color: var(--color-text);
+  text-decoration: underline;
+}
+
+/* Botón pequeño de acción (Excel, configurar): mismo alto que los filtros. */
+.btn-mini {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--color-text);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn-mini:hover {
+  background: var(--color-surface-alt);
+}
+.btn-mini.is-icono {
+  width: 32px;
+  padding: 0;
+  justify-content: center;
+  color: var(--color-text-muted);
+}
+.btn-mini.is-icono:hover,
+.btn-mini.is-icono[aria-expanded='true'] {
+  color: var(--color-text);
+}
+
+/* ---------------------------------------------------------------- buscador */
+
+.buscador {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  flex: 1 1 240px;
+  max-width: 340px;
+  padding: 0 10px 0 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+}
+.buscador:focus-within {
+  border-color: var(--color-text-muted);
+}
+.buscador input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  color: var(--color-text);
+}
+.buscador button {
+  display: inline-flex;
+  padding: 2px;
+  border: none;
+  background: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+/* ---------------------------------------------------------------- filtro */
+
+.filtro {
+  position: relative;
+}
+.filtro-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  max-width: 220px;
+  padding: 0 10px 0 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.filtro-chip:hover {
+  color: var(--color-text);
+  background: var(--color-surface-alt);
+}
+.filtro-chip.is-activo {
+  border-color: var(--color-text);
+  color: var(--color-text);
+}
+.filtro-chip > svg {
+  flex-shrink: 0;
+  opacity: 0.6;
+}
+.filtro-chip-texto {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.filtro-cuenta {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--color-primary);
+  color: var(--color-primary-contrast);
+  font-size: 11px;
+  font-weight: 600;
+}
+.filtro-dot {
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  border-radius: 50%;
+}
+.filtro-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 45;
+  min-width: 220px;
+  max-width: 300px;
+  padding: 6px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-md);
+}
+.filtro-buscar {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 2px 2px 6px;
+  padding: 0 9px;
+  height: 30px;
+  border-radius: 7px;
+  background: var(--color-surface-alt);
+  color: var(--color-text-muted);
+}
+.filtro-buscar input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--color-text);
+}
+.filtro-opciones {
+  display: flex;
+  flex-direction: column;
+  max-height: 280px;
+  overflow-y: auto;
+}
+.filtro-opcion {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 7px 8px;
+  border: none;
+  border-radius: 7px;
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  color: var(--color-text);
+  text-align: left;
+  cursor: pointer;
+}
+.filtro-opcion:hover {
+  background: var(--color-surface-alt);
+}
+.filtro-opcion input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+}
+.filtro-opcion-simple {
+  justify-content: space-between;
+}
+.filtro-opcion-simple.is-sel {
+  font-weight: 600;
+}
+.filtro-vacio {
+  margin: 6px 8px;
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+}
+.filtro-limpiar {
+  width: 100%;
+  margin-top: 4px;
+  padding: 8px;
+  border: none;
+  border-top: 1px solid var(--color-border);
+  background: none;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  text-align: left;
+  cursor: pointer;
+}
+.filtro-limpiar:hover {
+  color: var(--color-text);
+}
+
+/* ---------------------------------------------------------------- tabla / pipeline */
+
+.vista-toggle {
+  display: inline-flex;
+  height: 32px;
+  padding: 3px;
+  border-radius: 8px;
+  background: var(--color-surface-alt);
+}
+.vista-toggle button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 11px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+.vista-toggle button.is-activo {
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: var(--shadow-sm);
+}

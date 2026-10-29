@@ -11,9 +11,8 @@ const FASES_DESDE_CONTACTO: Fase[] = [
   Fase.Negociacion,
   Fase.Cierre,
   Fase.Entrega,
-  Fase.Fidelizacion,
 ]
-const FASES_DESDE_CIERRE: Fase[] = [Fase.Cierre, Fase.Entrega, Fase.Fidelizacion]
+const FASES_DESDE_CIERRE: Fase[] = [Fase.Cierre, Fase.Entrega]
 
 export async function fetchMiHistorico(): Promise<FaseHistorico[]> {
   return listRecords<FaseHistorico>(Tables.FaseHistorico, {
@@ -24,7 +23,7 @@ export async function fetchMiHistorico(): Promise<FaseHistorico[]> {
 export interface HitosLead {
   /** Primera vez que paso de Prospeccion a Primer Contacto o mas alla. */
   activado: Date | null
-  /** Primera vez que llego a Cierre (o Entrega/Fidelizacion). */
+  /** Primera vez que llego a Cierre (o Entrega). */
   cerrado: Date | null
 }
 

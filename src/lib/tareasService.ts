@@ -2,9 +2,9 @@ import { createRecord, listRecords, Tables, updateRecord } from './dataverseClie
 import { EstadoTarea } from './types'
 import type { Objetivo, Tarea, TipoTarea } from './types'
 
-const TAREA_SELECT = 'fl_tareaid,fl_titulo,fl_tipo,fl_fecha,fl_estado,fl_notas,_fl_lead_value'
+const TAREA_SELECT = 'fl_tareaid,fl_titulo,fl_tipo,fl_fecha,fl_estado,fl_notas,fl_resultado,fl_enlace,createdon,_fl_lead_value'
 
-/** Tareas del usuario conectado (la seguridad Basic ya limita a las suyas). */
+/** Tareas del usuario conectado (la seguridad Basic ya limita a las suyas; el equipo de ventas ve todas). */
 export async function fetchMisTareas(): Promise<Tarea[]> {
   return listRecords<Tarea>(Tables.Tarea, { select: TAREA_SELECT, orderby: 'fl_fecha asc' })
 }
@@ -22,15 +22,19 @@ export interface NuevaTareaInput {
   tipo: TipoTarea
   fecha: string // ISO
   notas?: string
+  enlace?: string
+  adjuntos?: File[]
 }
 
-export async function crearTarea(leadId: string, input: NuevaTareaInput): Promise<void> {
-  await createRecord(Tables.Tarea, {
+/** Crea la tarea y devuelve su id. Los adjuntos los sube quien llama (ver adjuntosService). */
+export async function crearTarea(leadId: string, input: NuevaTareaInput): Promise<string> {
+  return createRecord(Tables.Tarea, {
     fl_titulo: input.titulo,
     fl_tipo: input.tipo,
     fl_fecha: input.fecha,
     fl_estado: EstadoTarea.Pendiente,
     fl_notas: input.notas ?? '',
+    fl_enlace: input.enlace ?? '',
     'fl_lead@odata.bind': `/${Tables.Lead}(${leadId})`,
   })
 }
@@ -39,8 +43,33 @@ export async function cambiarEstadoTarea(tareaId: string, estado: EstadoTarea): 
   await updateRecord(Tables.Tarea, tareaId, { fl_estado: estado })
 }
 
+/** Cómo fue la tarea; vacío para borrarlo. */
+export async function guardarResultadoTarea(tareaId: string, resultado: string): Promise<void> {
+  await updateRecord(Tables.Tarea, tareaId, { fl_resultado: resultado })
+}
+
 export function tareaAbierta(t: Tarea): boolean {
   return t.fl_estado === EstadoTarea.Pendiente || t.fl_estado === EstadoTarea.EnCurso
+}
+
+/** Todas las filas de objetivo (la general y las de cada concesionario). */
+export async function fetchObjetivos(): Promise<Objetivo[]> {
+  return listRecords<Objetivo>(Tables.Objetivo, { select: 'fl_objetivoid,fl_nombre,fl_leadsmes,_fl_concesionario_value' })
+}
+
+/** Objetivo de la red: la suma del de cada concesionario (el suyo propio o, si no tiene, el general). */
+export function objetivoDeRed(filas: Objetivo[], concesionarioIds: string[]): number | null {
+  const general = filas.find((f) => !f._fl_concesionario_value)?.fl_leadsmes
+  let total = 0
+  let alguno = false
+  for (const id of concesionarioIds) {
+    const v = filas.find((f) => f._fl_concesionario_value === id)?.fl_leadsmes ?? general
+    if (v != null) {
+      total += v
+      alguno = true
+    }
+  }
+  return alguno ? total : null
 }
 
 /** Objetivo de leads al mes: el propio del concesionario si existe, si no el

@@ -1,8 +1,6 @@
 import { FASES_ACTIVAS, Fase, FaseLabel } from './types'
 import type { Concesionario, FaseHistorico, Lead } from './types'
 
-export const DIAS_ESTANCADO = 21
-
 export interface ConteoFase {
   fase: Fase
   label: string
@@ -71,28 +69,6 @@ export function leadsPorConcesionario(leads: Lead[], concesionarios: Concesionar
     conteo.set(nombre, (conteo.get(nombre) ?? 0) + 1)
   }
   return [...conteo.entries()].map(([nombre, cantidad]) => ({ nombre, cantidad })).sort((a, b) => b.cantidad - a.cantidad)
-}
-
-export interface LeadEnRiesgo {
-  lead: Lead
-  diasEnFaseActual: number
-}
-
-/** Leads cuya fase actual lleva abierta mas de DIAS_ESTANCADO dias. */
-export function leadsEnRiesgo(leads: Lead[], historico: FaseHistorico[]): LeadEnRiesgo[] {
-  const abiertosPorLead = new Map(
-    historico.filter((h) => h.fl_esactual).map((h) => [h._fl_lead_value, h]),
-  )
-  const ahora = Date.now()
-  const riesgo: LeadEnRiesgo[] = []
-  for (const l of leads) {
-    if (l.fl_faseactual === Fase.Perdido) continue
-    const abierto = abiertosPorLead.get(l.fl_leadid)
-    if (!abierto) continue
-    const dias = Math.floor((ahora - new Date(abierto.fl_fechainicio).getTime()) / (1000 * 60 * 60 * 24))
-    if (dias > DIAS_ESTANCADO) riesgo.push({ lead: l, diasEnFaseActual: dias })
-  }
-  return riesgo.sort((a, b) => b.diasEnFaseActual - a.diasEnFaseActual)
 }
 
 export interface StatsResumen {

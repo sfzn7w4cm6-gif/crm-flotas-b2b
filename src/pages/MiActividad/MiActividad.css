@@ -67,6 +67,12 @@
   font-weight: 500;
   color: var(--color-text-muted);
 }
+.inicio-metrica-ayuda {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  opacity: 0.8;
+  margin-top: -4px;
+}
 .inicio-metrica-valor {
   font-size: 34px;
   font-weight: 500;
@@ -134,7 +140,8 @@
 }
 .inicio-bloque-cabecera {
   display: flex;
-  align-items: baseline;
+  align-items: center;
+  flex-wrap: wrap;
   gap: 10px;
   margin-bottom: 8px;
 }
@@ -423,56 +430,82 @@
   scrollbar-width: thin;
 }
 
-/* Filtros de la red (equipo de ventas), bajo la cabecera. */
-.inicio-filtros {
-  margin-top: -12px;
-}
 
-/* Ventas por concesionario: nombre, barra fina, ventas e importe. */
-.ranking {
-  list-style: none;
-  margin: 4px 0 0;
-  padding: 0;
-}
-.ranking-fila {
-  display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto auto;
+/* Tabla general del equipo de ventas, agrupada por zona/concesionario/sede/
+   modelo (2 niveles, como un Excel con subtotales), con el desglose de leads
+   en cada fase. */
+.tabla-grupos-controles {
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 14px;
-  padding: 11px 0;
-  font-size: 13.5px;
+  gap: 16px;
+  margin-bottom: 12px;
 }
-.ranking-fila + .ranking-fila {
-  border-top: 1px solid var(--color-border);
-}
-.ranking-nombre {
+.tabla-grupos-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
   font-weight: 500;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  color: var(--color-text-muted);
+}
+.tabla-grupos-control .filter-select {
+  height: 32px;
+}
+.tabla-grupos-nota {
+  margin: -4px 0 10px;
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+.fila-grupo-principal {
+  background: var(--color-surface-alt);
+  font-weight: 600;
+}
+.fila-grupo-principal td:first-child {
+  font-weight: 700;
+}
+.fila-grupo-hija td:first-child {
+  padding-left: 30px;
+  color: var(--color-text-muted);
+}
+.fila-grupo-hija .grupo-total-cifra {
+  font-weight: 500;
+  color: var(--color-text);
+}
+.tabla-grupos th.col-fase,
+.tabla-grupos td.col-fase {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
-.ranking-barra {
-  height: 4px;
+.col-fase-perdido {
+  color: var(--color-danger);
+  font-weight: 600;
+}
+.grupo-total {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 110px;
+}
+.grupo-total-barra {
+  flex: 1;
+  height: 5px;
+  min-width: 48px;
   border-radius: 999px;
   background: var(--color-surface-alt);
   overflow: hidden;
 }
-.ranking-barra > span {
+.grupo-total-barra > span {
   display: block;
   height: 100%;
   border-radius: 999px;
   background: var(--color-text);
 }
-.ranking-valor {
-  font-size: 12.5px;
-  color: var(--color-text-muted);
+.grupo-total-cifra {
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-.ranking-importe {
-  min-width: 80px;
+  min-width: 18px;
   text-align: right;
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
 }

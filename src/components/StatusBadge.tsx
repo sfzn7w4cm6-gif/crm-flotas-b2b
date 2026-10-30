@@ -37,13 +37,6 @@ export function FaseBadge({ fase, size = 'md', conPunto }: { fase: Fase; size?: 
   )
 }
 
-export function RiesgoBadge({ dias }: { dias: number }) {
-  return (
-    <span className="riesgo-badge">
-      ⚠ Estancado {dias} días
-    </span>
-  )
-}
 
 /** Desplegable de fase con puntos de color (sustituye al <select> nativo con
  * <option> pintadas, que se renderiza mal/feo en el navegador). */

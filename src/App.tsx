@@ -11,6 +11,7 @@ import { MiActividad } from './pages/MiActividad'
 import { SeguimientoLeads } from './pages/SeguimientoLeads'
 import { PanelKPI } from './pages/PanelKPI'
 import { Info } from './pages/Info'
+import { Configuracion } from './pages/Configuracion'
 import './App.css'
 
 function Home() {
@@ -51,6 +52,7 @@ function App() {
         <Route path="/seguimiento" element={<SeguimientoLeads />} />
         <Route path="/panel-kpi" element={<PanelKPI />} />
         <Route path="/info" element={<Info />} />
+        <Route path="/configuracion" element={<Configuracion />} />
       </Route>
     </Routes>
   )

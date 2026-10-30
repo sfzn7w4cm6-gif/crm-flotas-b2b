@@ -72,6 +72,27 @@ export function objetivoDeRed(filas: Objetivo[], concesionarioIds: string[]): nu
   return alguno ? total : null
 }
 
+/** Crea o actualiza el objetivo de leads al mes de un concesionario (o el
+ *  general, si concesionarioId es null). Si ya existe una fila para ese
+ *  concesionario, la actualiza; si no, la crea. */
+export async function guardarObjetivo(
+  filas: Objetivo[],
+  concesionarioId: string | null,
+  nombre: string,
+  leadsMes: number,
+): Promise<void> {
+  const existente = concesionarioId ? filas.find((f) => f._fl_concesionario_value === concesionarioId) : filas.find((f) => !f._fl_concesionario_value)
+  if (existente) {
+    await updateRecord(Tables.Objetivo, existente.fl_objetivoid, { fl_leadsmes: leadsMes })
+    return
+  }
+  await createRecord(Tables.Objetivo, {
+    fl_nombre: nombre,
+    fl_leadsmes: leadsMes,
+    ...(concesionarioId ? { 'fl_concesionario@odata.bind': `/${Tables.Concesionario}(${concesionarioId})` } : {}),
+  })
+}
+
 /** Objetivo de leads al mes: el propio del concesionario si existe, si no el
  *  general (fila sin concesionario). null si no hay ninguno definido. */
 export async function fetchObjetivoLeadsMes(concesionarioId?: string): Promise<number | null> {

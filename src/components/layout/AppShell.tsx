@@ -10,7 +10,7 @@ import './AppShell.css'
 const SIDEBAR_HIDDEN_KEY = 'crmflotas.sidebarHidden'
 
 export function AppShell() {
-  const { usuario, concesionario, ubicacion, effectiveRol, isAdmin, viewAsRole, setViewAsRole } = useAuth()
+  const { usuario, concesionario, ubicacion, sedes, concesionarios, effectiveRol, isAdmin, viewAsRole, setViewAsRole } = useAuth()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [sidebarHidden, setSidebarHidden] = useState(() => localStorage.getItem(SIDEBAR_HIDDEN_KEY) === '1')
 
@@ -36,7 +36,17 @@ export function AppShell() {
     .join('')
     .toUpperCase()
 
-  const subtitulo = concesionario ? `${concesionario.fl_nombre}${ubicacion ? ` · ${ubicacion.fl_ciudad ?? ubicacion.fl_nombre}` : ''}` : (effectiveRol !== null ? RolAppLabel[effectiveRol] : '—')
+  // Lo que lleva el usuario: su sede, o cuántas si lleva varias.
+  const subtitulo =
+    concesionarios.length > 1
+      ? `${concesionarios.length} concesionarios · ${sedes.length} sedes`
+      : concesionario && sedes.length > 1
+        ? `${concesionario.fl_nombre} · ${sedes.length} sedes`
+        : concesionario
+          ? `${concesionario.fl_nombre}${ubicacion ? ` · ${ubicacion.fl_ciudad ?? ubicacion.fl_nombre}` : ''}`
+          : effectiveRol !== null
+            ? RolAppLabel[effectiveRol]
+            : '—'
 
   return (
     <div className={`shell ${sidebarHidden ? 'is-sidebar-hidden' : ''}`}>

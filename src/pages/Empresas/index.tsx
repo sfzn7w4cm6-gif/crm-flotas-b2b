@@ -27,8 +27,10 @@ interface FilaEmpresa {
  */
 export function Empresas() {
   const navigate = useNavigate()
-  const { effectiveRol, concesionario } = useAuth()
+  const { effectiveRol, concesionarios: misConcesionarios } = useAuth()
   const vistaRed = effectiveRol !== RolApp.Concesionario
+  // Columna y filtro de concesionario: en la red, y para quien lleva más de uno.
+  const conConcesionario = vistaRed || misConcesionarios.length > 1
 
   const [filas, setFilas] = useState<FilaEmpresa[]>([])
   const [concesionarios, setConcesionarios] = useState<Concesionario[]>([])
@@ -40,12 +42,12 @@ export function Empresas() {
   const [concesionariosSel, setConcesionariosSel] = useState<string[]>([])
 
   useEffect(() => {
-    if (!vistaRed && !concesionario) return
+    if (!vistaRed && !misConcesionarios.length) return
     setCargando(true)
     Promise.all([
-      fetchEmpresas(vistaRed ? undefined : concesionario!.fl_concesionarioid),
+      fetchEmpresas(vistaRed ? undefined : misConcesionarios.map((c) => c.fl_concesionarioid)),
       vistaRed ? fetchTodosLosLeads() : fetchMisLeads(),
-      vistaRed ? fetchConcesionarios() : Promise.resolve([]),
+      vistaRed ? fetchConcesionarios() : Promise.resolve(misConcesionarios),
     ])
       .then(([empresas, leads, cs]) => {
         setConcesionarios(cs)
@@ -70,7 +72,7 @@ export function Empresas() {
       })
       .catch((e) => setError(e instanceof Error ? e.message : 'No se pudieron cargar las empresas.'))
       .finally(() => setCargando(false))
-  }, [vistaRed, concesionario])
+  }, [vistaRed, misConcesionarios])
 
   const nombreConcesionario = useMemo(() => new Map(concesionarios.map((c) => [c.fl_concesionarioid, c.fl_nombre])), [concesionarios])
 
@@ -121,7 +123,7 @@ export function Empresas() {
             value={estados}
             onChange={setEstados}
           />
-          {vistaRed && (
+          {conConcesionario && (
             <FiltroMulti
               etiqueta="Concesionario"
               opciones={concesionarios.map((c) => ({ value: c.fl_concesionarioid, label: c.fl_nombre }))}
@@ -169,7 +171,7 @@ export function Empresas() {
               <tr>
                 <th>Empresa</th>
                 <th>CIF</th>
-                {vistaRed && <th>Concesionario</th>}
+                {conConcesionario && <th>Concesionario</th>}
                 <th>Estado</th>
                 <th>Oportunidad en curso</th>
                 <th>Oportunidades</th>
@@ -184,7 +186,7 @@ export function Empresas() {
                   <tr key={f.empresa.fl_empresaid} className="row-clickable" onClick={() => navigate(`/empresa/${f.empresa.fl_empresaid}`)}>
                     <td className="cell-strong">{f.empresa.fl_razonsocial}</td>
                     <td>{f.empresa.fl_cif}</td>
-                    {vistaRed && <td>{nombreConcesionario.get(f.empresa._fl_concesionario_value) ?? '—'}</td>}
+                    {conConcesionario && <td>{nombreConcesionario.get(f.empresa._fl_concesionario_value) ?? '—'}</td>}
                     <td>{EstadoEmpresaLabel[f.empresa.fl_estado ?? EstadoEmpresa.ClientePotencial]}</td>
                     <td>
                       {f.enCurso ? (

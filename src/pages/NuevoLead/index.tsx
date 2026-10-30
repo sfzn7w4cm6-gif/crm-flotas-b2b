@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext'
 import { Icon } from '../../components/Icon'
 import { crearOportunidad, fetchLead, OportunidadDuplicadaError } from '../../lib/leadsService'
 import { buscarEmpresaPorCif, numeroOportunidadAbierta } from '../../lib/empresasService'
-import { fetchComercialesDeUbicacion } from '../../lib/usuariosService'
+import { fetchComercialesDeSede } from '../../lib/asignacionesService'
 import { EstadoEmpresa, EstadoEmpresaLabel } from '../../lib/types'
 import type { Empresa, UsuarioApp } from '../../lib/types'
 import { cifNifValido, emailValido, telefonoValido } from '../../lib/validators'
@@ -32,7 +32,7 @@ type Busqueda =
   | { estado: 'error'; mensaje: string }
 
 export function NuevoLead() {
-  const { usuario, ubicacion, concesionario } = useAuth()
+  const { usuario, ubicacion, sedes, concesionarios } = useAuth()
   const navigate = useNavigate()
   // Desde la ficha de una empresa se llega con su CIF ya puesto.
   const cifInicial = (useLocation().state as { cif?: string } | null)?.cif
@@ -48,18 +48,24 @@ export function NuevoLead() {
 
   const set = <K extends keyof Form>(key: K, value: Form[K]) => setForm((f) => ({ ...f, [key]: value }))
 
-  // El concesionario, la instalación y el area manager salen de la sede del usuario conectado.
-  // El comercial es el propio usuario; si la sede tiene varios, puede elegir otro.
+  // Quien lleva varias sedes elige en cuál da de alta (por defecto, su sede principal). El
+  // concesionario y el area manager salen de esa sede.
+  const [sedeId, setSedeId] = useState(ubicacion?.fl_ubicacionid ?? '')
+  const sede = sedes.find((s) => s.fl_ubicacionid === sedeId) ?? ubicacion
+  const concesionario = concesionarios.find((c) => c.fl_concesionarioid === sede?._fl_concesionario_value) ?? null
+  const variosConcesionarios = concesionarios.length > 1
+
+  // El comercial es el propio usuario; puede elegir a otro que lleve la misma sede.
   useEffect(() => {
-    if (!ubicacion || !usuario) return
-    fetchComercialesDeUbicacion(ubicacion.fl_ubicacionid)
+    if (!sede || !usuario) return
+    fetchComercialesDeSede(sede.fl_ubicacionid, sede._fl_concesionario_value)
       .then((lista) => {
         const conUsuario = lista.some((u) => u.fl_usuarioappid === usuario.fl_usuarioappid) ? lista : [usuario, ...lista]
         setComerciales(conUsuario)
       })
       .catch(() => setComerciales([usuario]))
     setComercialId(usuario.fl_usuarioappid)
-  }, [ubicacion, usuario])
+  }, [sede, usuario])
 
   const comercial = comerciales.find((c) => c.fl_usuarioappid === comercialId) ?? usuario ?? undefined
 
@@ -108,17 +114,18 @@ export function NuevoLead() {
           !cifNifValido(cif) ||
           (busqueda?.estado !== 'nueva' && busqueda?.estado !== 'existe') ||
           !form.razonSocial?.trim() ||
-          !comercial
+          !comercial ||
+          !sede
         )
       case 1:
         return !form.nombreResponsable || !telefonoValido(form.telefonoCorporativo ?? '') || !emailValido(form.emailCorporativo ?? '')
       default:
         return false
     }
-  }, [paso, form, cif, busqueda, comercial])
+  }, [paso, form, cif, busqueda, comercial, sede])
 
   const enviar = async () => {
-    if (!usuario || !comercial || faltanPaso) return
+    if (!usuario || !comercial || !sede || faltanPaso) return
     setEnviando(true)
     setErrorEnvio(null)
     try {
@@ -132,6 +139,8 @@ export function NuevoLead() {
           comercial,
         },
         usuario,
+        sede,
+        concesionario?._fl_equipo_value,
       )
       setResultado(r)
     } catch (e) {
@@ -197,6 +206,29 @@ export function NuevoLead() {
       <div className="wizard-card">
         {paso === 0 && (
           <div className="wizard-form">
+            {sedes.length > 1 && (
+              <Field label="Instalación" ayuda="Lo buscas y lo das de alta en la sede que elijas">
+                <select value={sede?.fl_ubicacionid ?? ''} onChange={(e) => setSedeId(e.target.value)}>
+                  {variosConcesionarios
+                    ? concesionarios.map((c) => (
+                        <optgroup key={c.fl_concesionarioid} label={c.fl_nombre}>
+                          {sedes
+                            .filter((s) => s._fl_concesionario_value === c.fl_concesionarioid)
+                            .map((s) => (
+                              <option key={s.fl_ubicacionid} value={s.fl_ubicacionid}>
+                                {s.fl_nombre}
+                              </option>
+                            ))}
+                        </optgroup>
+                      ))
+                    : sedes.map((s) => (
+                        <option key={s.fl_ubicacionid} value={s.fl_ubicacionid}>
+                          {s.fl_nombre}
+                        </option>
+                      ))}
+                </select>
+              </Field>
+            )}
             <Field label="CIF / NIF">
               <input value={cif} onChange={(e) => set('cif', e.target.value)} placeholder="B12345678" autoFocus />
               {cif && !cifNifValido(cif) && <span className="field-error">Formato de CIF/NIF/NIE no válido.</span>}
@@ -234,9 +266,11 @@ export function NuevoLead() {
                 <Field label="Concesionario" auto>
                   <input value={concesionario?.fl_nombre ?? '—'} readOnly />
                 </Field>
-                <Field label="Instalación" auto>
-                  <input value={ubicacion?.fl_nombre ?? '—'} readOnly />
-                </Field>
+                {sedes.length <= 1 && (
+                  <Field label="Instalación" auto>
+                    <input value={sede?.fl_nombre ?? '—'} readOnly />
+                  </Field>
+                )}
                 <Field label="Comercial responsable" auto={comerciales.length <= 1}>
                   {comerciales.length > 1 ? (
                     <select value={comercialId} onChange={(e) => setComercialId(e.target.value)}>
@@ -256,7 +290,7 @@ export function NuevoLead() {
                   )}
                 </Field>
                 <Field label="Area Manager EBRO (Zona)" auto>
-                  <input value={ubicacion?.fl_areamanager || '—'} readOnly />
+                  <input value={sede?.fl_areamanager || '—'} readOnly />
                 </Field>
               </>
             )}

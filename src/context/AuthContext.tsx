@@ -2,7 +2,8 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 import { getContext } from '@microsoft/power-apps/app'
 import type { IContext } from '@microsoft/power-apps/app'
 import { listRecords, Tables } from '../lib/dataverseClient'
-import type { UsuarioApp, Ubicacion, Concesionario } from '../lib/types'
+import { fetchAsignaciones, sedesDeAsignaciones } from '../lib/asignacionesService'
+import type { Asignacion, UsuarioApp, Ubicacion, Concesionario } from '../lib/types'
 import { RolApp } from '../lib/types'
 
 const VIEW_AS_KEY = 'crmflotas.viewAsRole'
@@ -12,8 +13,15 @@ interface AuthState {
   error: string | null
   appContext: IContext | null
   usuario: UsuarioApp | null
+  /** Sede principal: la que sale por defecto al dar de alta. */
   ubicacion: Ubicacion | null
+  /** Concesionario de la sede principal. */
   concesionario: Concesionario | null
+  /** Lo que lleva el usuario (concesionarios enteros o sedes sueltas). */
+  asignaciones: Asignacion[]
+  /** Todas las sedes que lleva, y sus concesionarios. */
+  sedes: Ubicacion[]
+  concesionarios: Concesionario[]
   rol: RolApp | null
   viewAsRole: RolApp | null
   effectiveRol: RolApp | null
@@ -31,6 +39,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [usuario, setUsuario] = useState<UsuarioApp | null>(null)
   const [ubicacion, setUbicacion] = useState<Ubicacion | null>(null)
   const [concesionario, setConcesionario] = useState<Concesionario | null>(null)
+  const [asignaciones, setAsignaciones] = useState<Asignacion[]>([])
+  const [sedes, setSedes] = useState<Ubicacion[]>([])
+  const [concesionarios, setConcesionarios] = useState<Concesionario[]>([])
   const [viewAsRole, setViewAsRoleState] = useState<RolApp | null>(
     () => {
       const raw = sessionStorage.getItem(VIEW_AS_KEY)
@@ -77,23 +88,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const u = usuarios[0]
         setUsuario(u)
 
+        // Sedes que lleva: las de sus asignaciones. Sin asignaciones (usuarios antiguos), su sede principal.
+        const asigs = await fetchAsignaciones(u.fl_usuarioappid)
+        if (cancelled) return
+        let principal: Ubicacion | null = null
         if (u._fl_ubicacion_value) {
-          const ubicaciones = await listRecords<Ubicacion>(Tables.Ubicacion, {
-            filter: `fl_ubicacionid eq ${u._fl_ubicacion_value}`,
-            top: 1,
-          })
+          principal = (await listRecords<Ubicacion>(Tables.Ubicacion, { filter: `fl_ubicacionid eq ${u._fl_ubicacion_value}`, top: 1 }))[0] ?? null
           if (cancelled) return
-          const ubi = ubicaciones[0] ?? null
-          setUbicacion(ubi)
-          if (ubi) {
-            const concesionarios = await listRecords<Concesionario>(Tables.Concesionario, {
-              filter: `fl_concesionarioid eq ${ubi._fl_concesionario_value}`,
-              top: 1,
-            })
-            if (cancelled) return
-            setConcesionario(concesionarios[0] ?? null)
-          }
         }
+        const concIds = [...new Set([...asigs.map((a) => a._fl_concesionario_value), ...(principal ? [principal._fl_concesionario_value] : [])])]
+        const [ubis, concs] = concIds.length
+          ? await Promise.all([
+              listRecords<Ubicacion>(Tables.Ubicacion, {
+                filter: `fl_activo eq true and (${concIds.map((id) => `_fl_concesionario_value eq ${id}`).join(' or ')})`,
+                orderby: 'fl_nombre asc',
+              }),
+              listRecords<Concesionario>(Tables.Concesionario, {
+                filter: concIds.map((id) => `fl_concesionarioid eq ${id}`).join(' or '),
+                orderby: 'fl_nombre asc',
+              }),
+            ])
+          : [[], []]
+        if (cancelled) return
+        const suyas = asigs.length ? sedesDeAsignaciones(asigs, ubis) : principal ? [principal] : []
+        const sedePrincipal = suyas.find((x) => x.fl_ubicacionid === principal?.fl_ubicacionid) ?? suyas[0] ?? null
+        setAsignaciones(asigs)
+        setSedes(suyas)
+        setConcesionarios(concs.filter((c) => suyas.some((x) => x._fl_concesionario_value === c.fl_concesionarioid)))
+        setUbicacion(sedePrincipal)
+        setConcesionario(concs.find((c) => c.fl_concesionarioid === sedePrincipal?._fl_concesionario_value) ?? null)
 
         setLoading(false)
       } catch (e) {
@@ -122,6 +145,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     usuario,
     ubicacion,
     concesionario,
+    asignaciones,
+    sedes,
+    concesionarios,
     rol,
     viewAsRole,
     effectiveRol,

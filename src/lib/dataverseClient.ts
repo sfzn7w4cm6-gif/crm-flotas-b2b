@@ -24,6 +24,7 @@ export const Tables = {
   LineaOportunidad: 'fl_lineaoportunidads',
   Nota: 'fl_notas',
   Adjunto: 'annotations',
+  Asignacion: 'fl_asignacions',
 } as const
 
 interface EntityItem {
@@ -151,6 +152,61 @@ export async function deleteRecord(entityName: string, id: string): Promise<void
       tableName: DATASOURCE,
       operationName: 'DeleteRecordWithOrganization',
       parameters: { organization: ORGANIZATION, entityName, recordId: id },
+    },
+  })
+  if (!result.success) {
+    throw new Error(describeError(result.error))
+  }
+}
+
+/**
+ * Relaciona dos filas por una relación N:N o 1:N (ej. un usuario como miembro de un equipo:
+ * relateRecords('teams', equipoId, 'teammembership_association', 'systemusers', usuarioId)).
+ */
+export async function relateRecords(
+  entityName: string,
+  id: string,
+  relacion: string,
+  destinoEntity: string,
+  destinoId: string,
+): Promise<void> {
+  const result = await dv.executeAsync<Record<string, unknown>, unknown>({
+    connectorOperation: {
+      tableName: DATASOURCE,
+      operationName: 'AssociateEntitiesWithOrganization',
+      parameters: {
+        organization: ORGANIZATION,
+        entityName,
+        recordId: id,
+        associationEntityRelationship: relacion,
+        item: { '@odata.id': `${ORGANIZATION}/api/data/v9.2/${destinoEntity}(${destinoId})` },
+      },
+    },
+  })
+  if (!result.success) {
+    throw new Error(describeError(result.error))
+  }
+}
+
+/** Deshace una relación hecha con relateRecords. */
+export async function unrelateRecords(
+  entityName: string,
+  id: string,
+  relacion: string,
+  destinoEntity: string,
+  destinoId: string,
+): Promise<void> {
+  const result = await dv.executeAsync<Record<string, unknown>, unknown>({
+    connectorOperation: {
+      tableName: DATASOURCE,
+      operationName: 'DisassociateEntitiesWithOrganization',
+      parameters: {
+        organization: ORGANIZATION,
+        entityName,
+        recordId: id,
+        associationEntityRelationship: relacion,
+        $id: `${ORGANIZATION}/api/data/v9.2/${destinoEntity}(${destinoId})`,
+      },
     },
   })
   if (!result.success) {

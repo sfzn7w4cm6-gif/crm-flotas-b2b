@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { AppShell } from './components/layout/AppShell'
 import { useAuth } from './context/AuthContext'
@@ -12,12 +13,20 @@ import { SeguimientoLeads } from './pages/SeguimientoLeads'
 import { PanelKPI } from './pages/PanelKPI'
 import { Info } from './pages/Info'
 import { Configuracion } from './pages/Configuracion'
+import { Usuarios } from './pages/Usuarios'
 import './App.css'
 
 function Home() {
   const { effectiveRol } = useAuth()
   if (effectiveRol === RolApp.EquipoVentas) return <Navigate to="/panel-kpi" replace />
   return <Navigate to="/mi-actividad" replace />
+}
+
+/** Pantallas de administración: solo para el administrador (y no mientras "ve como" otro rol). */
+function SoloAdmin({ children }: { children: ReactNode }) {
+  const { isAdmin, viewAsRole } = useAuth()
+  if (!isAdmin || viewAsRole !== null) return <Navigate to="/" replace />
+  return children
 }
 
 function App() {
@@ -53,6 +62,7 @@ function App() {
         <Route path="/panel-kpi" element={<PanelKPI />} />
         <Route path="/info" element={<Info />} />
         <Route path="/configuracion" element={<Configuracion />} />
+        <Route path="/usuarios" element={<SoloAdmin><Usuarios /></SoloAdmin>} />
       </Route>
     </Routes>
   )

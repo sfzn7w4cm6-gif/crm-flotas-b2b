@@ -43,7 +43,9 @@ B2B. **Nunca editar sus tablas (`hr_*`) ni su código desde este proyecto.**
   autogenerado por tabla de Power Apps.
 - `src/context/AuthContext.tsx` — al cargar, resuelve
   `getContext().user.userPrincipalName` → busca la fila en `fl_usuarioapp` con
-  ese correo → de ahí saca `fl_rol`, `fl_ubicacion` y `fl_concesionario`. Si el
+  ese correo → de ahí saca `fl_rol`, sus asignaciones (`fl_asignacion`) y con ellas
+  `sedes` y `concesionarios` (todo lo que lleva), además de la sede principal
+  (`ubicacion`, de `fl_usuarioapp.fl_ubicacion`) y su `concesionario`. Si el
   usuario no está dado de alta en `fl_usuarioapp`, la app no le deja entrar
   (mensaje de error, no un crash). Los administradores pueden simular otro rol
   con "Ver como rol" (`viewAsRole`, guardado en `sessionStorage`,
@@ -204,11 +206,37 @@ Creados con `scripts/dataverse/22-adjuntos-enlace-notas-tarea.ps1`.
 - La fase de cada tarea no se guarda: es la fase en la que estaba la oportunidad cuando
   se creó (`createdon` frente a `fl_fasehistorico`), ver `HistorialTareas.tsx`.
 
-### `fl_objetivo` — objetivo de leads al mes
+### `fl_objetivo` — objetivo de leads al mes por concesionario
 
-Una fila sin `fl_concesionario` = objetivo general; una fila con concesionario
-lo sustituye solo para ese. `fl_leadsmes` (entero). Falta la pantalla de
-administración para editarlo (de momento existe la fila "General" = 10).
+Una fila sin `fl_concesionario` = objetivo general; una fila con concesionario lo
+sustituye solo para ese. `fl_leadsmes` (entero). Lo edita el equipo de ventas en
+`/configuracion` (`guardarObjetivo`). El objetivo de un Inicio es la suma del de
+cada concesionario que mira (`objetivoDeRed`): toda la red, los concesionarios del
+comercial, o solo los de las sedes que haya filtrado.
+
+### `fl_asignacion` — qué sedes lleva cada usuario (30/10/2026)
+
+Creada con `scripts/dataverse/24-asignaciones-y-equipos.ps1`. Una fila por
+(usuario, concesionario, sede): `fl_usuarioapp`, `fl_concesionario` (obligatorios),
+`fl_ubicacion` (vacío = **el concesionario entero**, incluidas las sedes que se abran
+después). La columna `fl_objetivoleadsmes` existe pero **no se usa** (el objetivo va
+por concesionario, ver `fl_objetivo`). Se gestiona en
+`/usuarios`; `src/lib/asignacionesService.ts` tiene la lógica.
+
+- `fl_usuarioapp.fl_ubicacion` sigue existiendo como **sede principal** (la que sale
+  por defecto en el alta); al guardar en `/usuarios` se corrige si deja de ser suya.
+- **Compañeros de una sede** (`fetchComercialesDeSede`): usuarios activos con una
+  asignación a esa sede o a su concesionario entero. Se usa en el alta y al cambiar
+  el comercial de una oportunidad.
+- **Equipo por concesionario**: cada `fl_concesionario` tiene un equipo propietario
+  (`fl_concesionario.fl_equipo` → `team`, "CRM Flotas - <nombre>", con el rol
+  Concesionario). Es el **dueño de las empresas** de ese concesionario; sus miembros son
+  los usuarios con alguna sede en él. `/usuarios` los mete y saca del equipo
+  (`teammembership_association`, vía `relateRecords`/`unrelateRecords` de
+  `dataverseClient.ts`) y les pone el rol de seguridad de su tipo
+  (`systemuserroles_association`), salvo a los administradores, que se gestionan a mano.
+  Solo funciona si el usuario ya tiene cuenta en el entorno (`fl_systemuserid`); si no,
+  se avisa y se completa al volver a guardarlo cuando la tenga.
 
 `fl_lead.fl_importeventa` (moneda): precio final de la venta; se pide al pasar
 a Cierre y suma en "Facturado". Se lee aparte de `LEAD_SELECT`
@@ -269,6 +297,9 @@ repetido dentro de un concesionario).
   `FormattedValue` del lookup. `cambiarFaseLead` lo mantiene
   (`sincronizarEmpresaConFase`) y pasa la empresa a Cliente al llegar a
   Cierre/Entrega.
+- **Sede**: quien lleva varias elige primero en cuál da de alta (por defecto su sede
+  principal); el CIF se busca en el concesionario de esa sede y la empresa nueva se crea
+  a nombre del equipo de ese concesionario (si no se puede, a nombre de quien la crea).
 - **Comercial**: en el alta, si la sede tiene varios usuarios activos sale un
   desplegable (por defecto el conectado). Si se elige a otro y tiene
   `fl_systemuserid`, la oportunidad se le reasigna (`ownerid`) al final del
@@ -299,15 +330,17 @@ concesionarios es por `Basic`/ownership, no por BU).
 | **CRM Flotas B2B - Administrador** | CRUD completo, Global, en las 5 tablas | — |
 
 `fl_tarea`: Concesionario CRUD Basic, Equipo de Ventas Read Global, Administrador
-todo Global. `fl_empresa`: Concesionario Create/Read/Write **Global** (la
-comparten los comerciales del concesionario y la app filtra por
-concesionario; sin unidades de negocio por concesionario, un usuario con
-conocimientos técnicos podría leer empresas de otros), Equipo de Ventas Read
-Global. `fl_lineaoportunidad`: Concesionario CRUD Basic, Equipo de Ventas
+todo Global. `fl_empresa`: Concesionario Create/Read/Write/Assign **Basic** desde el
+30/10/2026 (antes Global): ve las suyas y las de los equipos de sus concesionarios,
+y ninguna de otros concesionarios aunque las pida directamente (protección real, no
+solo un filtro de la app). Equipo de Ventas Read Global. `fl_asignacion`: Read Global
+para Concesionario y Equipo de Ventas, Administrador todo Global. Concesionario tiene
+además Read Global en `Team`. `fl_lineaoportunidad`: Concesionario CRUD Basic, Equipo de Ventas
 Read Global. Concesionario tiene además `Assign` Basic en `fl_lead`,
 `fl_fasehistorico`, `fl_tarea` y `fl_lineaoportunidad` para reasignar al
-comercial elegido. `fl_objetivo`: Read Global para Concesionario y Equipo de Ventas,
-Administrador todo Global.
+comercial elegido. `fl_objetivo`: Read Global para Concesionario, Equipo de Ventas
+Create/Read/Write/Delete Global (`23-editar-objetivos-ventas.ps1`, para
+`/configuracion`), Administrador todo Global.
 
 `Append`/`AppendTo` concedido Global en las 5 tablas a los roles no-admin
 (imprescindible para los `@odata.bind` al crear/vincular registros). Sin
@@ -322,15 +355,17 @@ probar la vista de Concesionario/Equipo de Ventas sin otra cuenta.
 
 | Ruta | Para quién | Qué hace |
 |---|---|---|
-| `/nuevo-lead` | Concesionario | Alta en 2 pasos (secciones 1 y 2 del Excel). Pide primero el CIF y comprueba empresa existente / oportunidad en curso. Concesionario, instalación y area manager salen de la sede del usuario; comercial con desplegable si la sede tiene varios. Fase inicial fija en "1. Prospección". |
-| `/mis-leads` | Concesionario | Lista filtrada por `ownerid` vía seguridad Basic (no hace falta filtrar en la query). Vista Tabla o Pipeline. Filtros de varias opciones (fase, modelo del catálogo, empresa) y buscador que busca en todos los campos, tareas y notas (`src/lib/filtrosLeads.ts`). En el pipeline las tarjetas se arrastran a otra fase y se abre `CambioFaseDialog` con esa fase; los campos de las tarjetas los elige cada usuario ("Campos de tarjeta", guardado en su navegador, `camposTarjeta.ts`). Acepta `?fase=` en el enlace (lo usa el gráfico de Inicio). |
+| `/nuevo-lead` | Concesionario | Alta en 2 pasos (secciones 1 y 2 del Excel). Pide primero el CIF y comprueba empresa existente / oportunidad en curso. Quien lleva varias sedes elige la instalación (agrupadas por concesionario si lleva varios); concesionario y area manager salen de esa sede; comercial con desplegable si la sede la llevan varios. Fase inicial fija en "1. Prospección". |
+| `/mis-leads` | Concesionario | Lista filtrada por `ownerid` vía seguridad Basic (no hace falta filtrar en la query): cada comercial ve **solo las suyas**, aunque comparta sede. Quien lleva varias sedes tiene además filtro de Sede y la columna Concesionario (con la sede). Vista Tabla o Pipeline. Filtros de varias opciones (fase, modelo del catálogo, empresa) y buscador que busca en todos los campos, tareas y notas (`src/lib/filtrosLeads.ts`). En el pipeline las tarjetas se arrastran a otra fase y se abre `CambioFaseDialog` con esa fase; los campos de las tarjetas los elige cada usuario ("Campos de tarjeta", guardado en su navegador, `camposTarjeta.ts`). Acepta `?fase=` en el enlace (lo usa el gráfico de Inicio). |
 | `/lead/:id` (`DetalleLead`) | Concesionario (edición) / Equipo de Ventas (solo lectura) | Izquierda: datos en bloques compactos (`DatosLead.tsx`), todos editables en cualquier fase con el lápiz, salvo la fecha de primer contacto y lo que viene de la sede; razón social, CIF y contactos se guardan en `fl_empresa` (el CIF se comprueba contra las otras empresas del concesionario); el comercial se cambia entre los usuarios de la sede y la oportunidad se le reasigna. Derecha: historial de fases con las tareas de cada fase debajo (cada tarea se despliega con descripción, enlace, adjuntos y notas) y notas generales con adjuntos. Cambio de fase con ventana (`CambioFaseDialog`) que pide los datos de la fase destino, y aviso arriba de lo que falta en la fase actual con botón "Completar". Qué pide cada fase y qué es obligatorio está en `src/lib/camposFase.ts` (`REQUISITOS`). |
-| `/empresas` (`Empresas`) | Concesionario (las de su concesionario) / Equipo de Ventas (toda la red) | Lista de empresas con estado, oportunidad en curso, nº de oportunidades y ventas; filtros por texto, estado, concesionario y "con oportunidad en curso". |
+| `/empresas` (`Empresas`) | Concesionario (las de sus concesionarios, con filtro y columna de concesionario si lleva varios) / Equipo de Ventas (toda la red) | Lista de empresas con estado, oportunidad en curso, nº de oportunidades y ventas; filtros por texto, estado, concesionario y "con oportunidad en curso". |
 | `/empresa/:id` (`DetalleEmpresa`) | Todos | Datos de la empresa, estado (automático, solo lectura) y sus oportunidades; "Nueva oportunidad" si no tiene una en curso. |
-| `/mi-actividad` ("Inicio") | Concesionario | Pantalla de entrada del dealer. Tarjetas con filtro mes/año: leads activados (llegaron a Primer Contacto o más), ventas cerradas (llegaron a Cierre y no están Perdido), objetivo de leads (creados vs `fl_objetivo`), facturado (`fl_importeventa`). Últimas ventas, Tareas (cambio de estado, número de oportunidad y botón para abrirla; al cerrarla se pide una nota que no se muestra aquí; "Ver todas" con desplazamiento; calendario) y oportunidades por fase en columnas (`FaseColumnas`, cada columna abre Mis leads filtrado). Es `InicioPanel` en modo `concesionario`. Fechas de hito sacadas de `fl_fasehistorico` (`actividadService.ts`). |
+| `/mi-actividad` ("Inicio") | Concesionario | Pantalla de entrada del dealer. Tarjetas con filtro mes/año: leads activados (llegaron a Primer Contacto o más), ventas cerradas (llegaron a Cierre y no están Perdido), objetivo de leads (creados frente a la suma del objetivo de sus concesionarios, ver `fl_objetivo`) y tasa de conversión (la misma tarjeta que en el Inicio de ventas). Quien lleva varias sedes tiene filtro de Sede (filtra todas las cifras, el objetivo y las tareas). Últimas ventas (con el número de vehículos, no el importe), Tareas (cambio de estado, número de oportunidad y botón para abrirla; al cerrarla se pide una nota que no se muestra aquí; "Ver todas" con desplazamiento; calendario) y oportunidades por fase en columnas (`FaseColumnas`, cada columna abre Mis leads filtrado). Es `InicioPanel` en modo `concesionario`. Fechas de hito sacadas de `fl_fasehistorico` (`actividadService.ts`). |
 | `/seguimiento` (`SeguimientoLeads`) | Equipo de Ventas | Todos los leads en Tabla o Pipeline (de solo lectura, sin arrastrar). Filtros de varias opciones: concesionario, sede, fase, modelo, empresa; buscador en todo. Columnas reordenables y configurables, ordenable. |
-| `/panel-kpi` ("Inicio" del equipo de ventas) | Equipo de Ventas | Pantalla de entrada de ventas: las mismas cifras que el Inicio del concesionario pero de toda la red (`InicioPanel` en modo `red`), con filtros por concesionario, empresa y modelo y el mismo selector de mes/año. Objetivo de la red = suma del objetivo de cada concesionario (`objetivoDeRed`). Ventas por concesionario en lugar de tareas. Debajo, "Análisis del pipeline": indicadores del Excel "KPI Dashboard" (`kpiService.ts`, leads dados de alta en el periodo), tiempo medio por fase, conversión, leads por concesionario y en riesgo. |
-| `/info` | Equipo de Ventas | Árbol Concesionario → Ubicaciones → usuario asignado (directorio de solo lectura). |
+| `/panel-kpi` ("Inicio" del equipo de ventas) | Equipo de Ventas | Pantalla de entrada de ventas: `InicioPanel` en modo `red`, siempre de toda la red. Tarjetas: oportunidades activadas, ventas, objetivo (suma del de todos los concesionarios) y tasa de conversión (contactados que acaban en venta). Tabla de oportunidades por fase con dos niveles y subtotal (Vista: zona → concesionario, concesionario → sede, etc., o ranking de modelos) y periodo propio. Debajo, "Análisis del pipeline": indicadores del Excel "KPI Dashboard" (`kpiService.ts`), tiempo medio por fase, conversión y oportunidades por concesionario. |
+| `/info` | Equipo de Ventas | Árbol Concesionario → Ubicaciones → usuarios que la llevan (cada usuario sale en todas sus sedes; directorio de solo lectura). |
+| `/usuarios` ("Usuarios y accesos") | Administrador (no con "Ver como rol") | Lista de usuarios y editor: datos, tipo, activo, y "Lo que lleva" — árbol concesionario → sedes con casilla de concesionario entero, buscador y filtro de zona. Al guardar sincroniza equipos y rol de seguridad (`guardarUsuario`). Los objetivos no van aquí, sino en `/configuracion`. |
+| `/configuracion` ("Configuración") | Equipo de Ventas | Objetivo de oportunidades al mes por concesionario (o el general), buscable y filtrable por zona, con el trimestre y el año calculados. |
 
 ## Diseño
 

@@ -1,9 +1,10 @@
 import { listRecords, Tables } from './dataverseClient'
+import { cubreSede, fetchAsignaciones } from './asignacionesService'
 import type { Concesionario, Ubicacion, UsuarioApp } from './types'
 
 export async function fetchConcesionarios(): Promise<Concesionario[]> {
   return listRecords<Concesionario>(Tables.Concesionario, {
-    select: 'fl_concesionarioid,fl_nombre,fl_cif,fl_activo',
+    select: 'fl_concesionarioid,fl_nombre,fl_cif,fl_activo,_fl_equipo_value',
     filter: 'fl_activo eq true',
     orderby: 'fl_nombre asc',
   })
@@ -19,16 +20,7 @@ export async function fetchUbicaciones(): Promise<Ubicacion[]> {
 
 export async function fetchUsuariosApp(): Promise<UsuarioApp[]> {
   return listRecords<UsuarioApp>(Tables.UsuarioApp, {
-    select: 'fl_usuarioappid,fl_nombre,fl_correo,fl_rol,fl_telefono,fl_activo,_fl_ubicacion_value',
-    orderby: 'fl_nombre asc',
-  })
-}
-
-/** Usuarios activos asignados a una sede: los comerciales que pueden llevar sus oportunidades. */
-export async function fetchComercialesDeUbicacion(ubicacionId: string): Promise<UsuarioApp[]> {
-  return listRecords<UsuarioApp>(Tables.UsuarioApp, {
-    select: 'fl_usuarioappid,fl_nombre,fl_correo,fl_rol,fl_activo,_fl_ubicacion_value,_fl_systemuserid_value',
-    filter: `_fl_ubicacion_value eq ${ubicacionId} and fl_activo eq true`,
+    select: 'fl_usuarioappid,fl_nombre,fl_correo,fl_rol,fl_telefono,fl_activo,_fl_ubicacion_value,_fl_systemuserid_value',
     orderby: 'fl_nombre asc',
   })
 }
@@ -41,12 +33,13 @@ export interface NodoDirectorio {
   }[]
 }
 
-/** Arbol Concesionario -> Ubicaciones -> Usuarios asignados, para la pantalla Info. */
+/** Arbol Concesionario -> Ubicaciones -> Usuarios que las llevan, para la pantalla Info. */
 export async function fetchDirectorio(): Promise<{ arbol: NodoDirectorio[]; equipoVentas: UsuarioApp[] }> {
-  const [concesionarios, ubicaciones, usuarios] = await Promise.all([
+  const [concesionarios, ubicaciones, usuarios, asignaciones] = await Promise.all([
     fetchConcesionarios(),
     fetchUbicaciones(),
     fetchUsuariosApp(),
+    fetchAsignaciones(),
   ])
 
   const arbol: NodoDirectorio[] = concesionarios.map((c) => ({
@@ -55,11 +48,14 @@ export async function fetchDirectorio(): Promise<{ arbol: NodoDirectorio[]; equi
       .filter((u) => u._fl_concesionario_value === c.fl_concesionarioid)
       .map((u) => ({
         ubicacion: u,
-        usuarios: usuarios.filter((us) => us._fl_ubicacion_value === u.fl_ubicacionid),
+        // Un usuario sale en cada sede que lleva (o en todas las de su concesionario entero).
+        usuarios: usuarios.filter((us) =>
+          asignaciones.some((a) => a._fl_usuarioapp_value === us.fl_usuarioappid && cubreSede(a, u)),
+        ),
       })),
   }))
 
-  const equipoVentas = usuarios.filter((u) => !u._fl_ubicacion_value)
+  const equipoVentas = usuarios.filter((u) => !asignaciones.some((a) => a._fl_usuarioapp_value === u.fl_usuarioappid))
 
   return { arbol, equipoVentas }
 }

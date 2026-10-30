@@ -95,6 +95,8 @@ export interface Concesionario {
   fl_nombre: string
   fl_cif?: string
   fl_activo: boolean
+  /** Equipo propietario de sus empresas; sus miembros son los comerciales con alguna sede en él. */
+  _fl_equipo_value?: string
 }
 
 export interface Ubicacion {
@@ -226,6 +228,18 @@ export interface Tarea {
   fl_enlace?: string
   createdon: string
   _fl_lead_value: string
+}
+
+/**
+ * Qué lleva cada usuario: un concesionario entero (sin sede, incluidas las sedes que se abran
+ * después) o una sede concreta. Creado en scripts/dataverse/24-asignaciones-y-equipos.ps1.
+ */
+export interface Asignacion {
+  fl_asignacionid: string
+  fl_nombre: string
+  _fl_usuarioapp_value: string
+  _fl_concesionario_value: string
+  _fl_ubicacion_value?: string
 }
 
 export interface Objetivo {

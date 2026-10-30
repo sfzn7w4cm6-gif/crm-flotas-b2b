@@ -3,19 +3,17 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { Icon } from '../../components/Icon'
 import { FaseColumnas } from '../../components/charts/FaseColumnas'
-import { FiltroSimple } from '../../components/filtros/Filtros'
+import { FiltroMulti, FiltroSimple } from '../../components/filtros/Filtros'
 import { CalendarioTareas, FilaTarea } from '../../components/tareas/Tareas'
 import { fetchMisLeads, fetchTodosLosLeads } from '../../lib/leadsService'
-import { calcularHitos, fetchMiHistorico, formatoEuros, nombrePeriodo, periodoActual, rangoPeriodo, resumenPeriodo } from '../../lib/actividadService'
+import { calcularHitos, fetchMiHistorico, nombrePeriodo, periodoActual, rangoPeriodo, resumenPeriodo } from '../../lib/actividadService'
 import type { Periodo } from '../../lib/actividadService'
 import { fetchModelos } from '../../lib/catalogosService'
 import { coincideModelo } from '../../lib/filtrosLeads'
 import { crearNotaConAdjuntos } from '../../lib/notasService'
 import {
   cambiarEstadoTarea,
-  fetchImportesVenta,
   fetchMisTareas,
-  fetchObjetivoLeadsMes,
   fetchObjetivos,
   objetivoDeRed,
   tareaAbierta,
@@ -99,14 +97,14 @@ export function MiActividad() {
  */
 export function InicioPanel({ modo, debajo }: { modo: 'concesionario' | 'red'; debajo?: (d: DatosInicio) => ReactNode }) {
   const red = modo === 'red'
-  const { usuario, concesionario } = useAuth()
-  const [leads, setLeads] = useState<Lead[]>([])
+  const { usuario, concesionario, sedes, concesionarios: misConcesionarios } = useAuth()
+  const [todosLeads, setLeads] = useState<Lead[]>([])
   const [historico, setHistorico] = useState<FaseHistorico[]>([])
-  // null = la tabla/columna aun no existe en el entorno (ver 15-tareas-objetivos.ps1)
-  const [importes, setImportes] = useState<Map<string, number> | null>(null)
   const [tareas, setTareas] = useState<Tarea[] | null>(null)
-  const [objetivo, setObjetivo] = useState<number | null | undefined>(undefined)
+  // null = no se ha podido leer (la tabla aún no existe en el entorno).
   const [objetivos, setObjetivos] = useState<Objetivo[] | null>(null)
+  // Quien lleva varias sedes puede mirar solo algunas (vacío = todas).
+  const [filtroSede, setFiltroSede] = useState<string[]>([])
   const [concesionarios, setConcesionarios] = useState<Concesionario[]>([])
   const [ubicaciones, setUbicaciones] = useState<Ubicacion[]>([])
   const [zonas, setZonas] = useState<Zona[]>([])
@@ -131,17 +129,15 @@ export function InicioPanel({ modo, debajo }: { modo: 'concesionario' | 'red'; d
       Promise.all([
         fetchTodosLosLeads(),
         fetchMiHistorico(),
-        fetchImportesVenta(),
         fetchObjetivos().catch(() => null),
         fetchConcesionarios(),
         fetchUbicaciones(),
         fetchZonas(),
         fetchModelos().catch(() => []),
       ])
-        .then(([l, h, imp, obj, c, u, z, m]) => {
+        .then(([l, h, obj, c, u, z, m]) => {
           setLeads(l)
           setHistorico(h)
-          setImportes(imp)
           setObjetivos(obj)
           setConcesionarios(c)
           setUbicaciones(u)
@@ -154,19 +150,24 @@ export function InicioPanel({ modo, debajo }: { modo: 'concesionario' | 'red'; d
     Promise.all([
       fetchMisLeads(),
       fetchMiHistorico(),
-      fetchImportesVenta(),
       fetchMisTareas().catch(() => null),
-      fetchObjetivoLeadsMes(concesionario?.fl_concesionarioid).catch(() => undefined),
+      fetchObjetivos().catch(() => null),
     ])
-      .then(([l, h, imp, t, obj]) => {
+      .then(([l, h, t, obj]) => {
         setLeads(l)
         setHistorico(h)
-        setImportes(imp)
         setTareas(t)
-        setObjetivo(obj)
+        setObjetivos(obj)
       })
       .finally(() => setCargando(false))
-  }, [red, concesionario?.fl_concesionarioid])
+  }, [red])
+
+  const variasSedes = !red && sedes.length > 1
+  // Con filtro de sede, todas las cifras del comercial salen solo de esas sedes.
+  const leads = useMemo(
+    () => (red || !filtroSede.length ? todosLeads : todosLeads.filter((l) => filtroSede.includes(l._fl_ubicacion_value))),
+    [red, todosLeads, filtroSede],
+  )
 
   const nombreConc = useMemo(() => new Map(concesionarios.map((c) => [c.fl_concesionarioid, c.fl_nombre])), [concesionarios])
   const nombreUbic = useMemo(() => new Map(ubicaciones.map((u) => [u.fl_ubicacionid, u.fl_nombre])), [ubicaciones])
@@ -278,11 +279,6 @@ export function InicioPanel({ modo, debajo }: { modo: 'concesionario' | 'red'; d
     [hitos, leadPorId],
   )
   const eventosVentas = useMemo<Evento[]>(() => cierres.map((c) => ({ fecha: c.fecha, valor: 1 })), [cierres])
-  // Importe de cada venta en la fecha de cierre; null si la columna aun no existe.
-  const eventosFacturado = useMemo<Evento[] | null>(
-    () => (importes ? cierres.map((c) => ({ fecha: c.fecha, valor: importes.get(c.lead.fl_leadid) ?? 0 })) : null),
-    [cierres, importes],
-  )
   const eventosCreados = useMemo<Evento[]>(
     () => leads.filter((l) => l.fl_fechaprimercontacto).map((l) => ({ fecha: new Date(l.fl_fechaprimercontacto), valor: 1 })),
     [leads],
@@ -293,16 +289,23 @@ export function InicioPanel({ modo, debajo }: { modo: 'concesionario' | 'red'; d
     return Math.min(new Date().getFullYear() - 1, ...anios)
   }, [leads])
 
-  // En la red, el objetivo es la suma del de cada concesionario elegido (o de
-  // todos los que caen dentro de la zona filtrada, si no hay concesionario elegido).
-  const objetivoMes = red
-    ? objetivos === null
-      ? undefined
-      : objetivoDeRed(objetivos, concesionarios.map((c) => c.fl_concesionarioid))
-    : objetivo
+  // El objetivo es la suma del de cada concesionario (el suyo o, si no tiene, el general): en la
+  // red, de todos; para el comercial, de los suyos, o solo de los de las sedes que haya filtrado.
+  const idsObjetivo = useMemo(() => {
+    if (red) return concesionarios.map((c) => c.fl_concesionarioid)
+    if (filtroSede.length) return [...new Set(sedes.filter((u) => filtroSede.includes(u.fl_ubicacionid)).map((u) => u._fl_concesionario_value))]
+    if (misConcesionarios.length) return misConcesionarios.map((c) => c.fl_concesionarioid)
+    return concesionario ? [concesionario.fl_concesionarioid] : []
+  }, [red, concesionarios, filtroSede, sedes, misConcesionarios, concesionario])
+  const objetivoMes = objetivos == null ? undefined : objetivoDeRed(objetivos, idsObjetivo)
 
-  const tareasLista = useMemo(() => (tareas ?? []).filter((t) => tareaAbierta(t) || cambiadas.has(t.fl_tareaid)), [tareas, cambiadas])
-  const pendientes = (tareas ?? []).filter(tareaAbierta)
+  // Con filtro de sede, solo las tareas de oportunidades de esas sedes.
+  const tareasDeSede = useMemo(
+    () => (filtroSede.length ? (tareas ?? []).filter((t) => leadPorId.has(t._fl_lead_value)) : (tareas ?? [])),
+    [tareas, filtroSede, leadPorId],
+  )
+  const tareasLista = useMemo(() => tareasDeSede.filter((t) => tareaAbierta(t) || cambiadas.has(t.fl_tareaid)), [tareasDeSede, cambiadas])
+  const pendientes = tareasDeSede.filter(tareaAbierta)
   const vencidas = pendientes.filter(tareaVencida).length
 
   const cambiarEstado = async (tarea: Tarea, estado: EstadoTarea) => {
@@ -331,7 +334,7 @@ export function InicioPanel({ modo, debajo }: { modo: 'concesionario' | 'red'; d
         <div>
           <p className="inicio-fecha">
             {hoy.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
-            {red ? ' · Toda la red' : concesionario ? ` · ${concesionario.fl_nombre}` : ''}
+            {red ? ' · Toda la red' : variasSedes ? ` · ${sedes.length} sedes` : concesionario ? ` · ${concesionario.fl_nombre}` : ''}
           </p>
           <h1 className="inicio-saludo">Hola{usuario?.fl_nombre ? `, ${usuario.fl_nombre.split(' ')[0]}` : ''}</h1>
         </div>
@@ -345,26 +348,27 @@ export function InicioPanel({ modo, debajo }: { modo: 'concesionario' | 'red'; d
         </div>
       </header>
 
+      {variasSedes && (
+        <div className="lista-filtros inicio-filtros">
+          <FiltroMulti
+            etiqueta="Sede"
+            opciones={sedes.map((u) => ({ value: u.fl_ubicacionid, label: u.fl_nombre }))}
+            value={filtroSede}
+            onChange={setFiltroSede}
+          />
+          {filtroSede.length > 0 && (
+            <button type="button" className="lista-limpiar" onClick={() => setFiltroSede([])}>
+              Limpiar filtros
+            </button>
+          )}
+        </div>
+      )}
+
       <section className="inicio-resumen" aria-label={`Resumen de ${etiquetaPeriodo}`}>
         <Metrica titulo="Leads activados" ayuda="Leads con los que ya hubo al menos un primer contacto" eventos={eventosActivados} periodo={periodo} />
         <Metrica titulo="Ventas" ayuda="Leads que han llegado a la fase de cierre" eventos={eventosVentas} periodo={periodo} />
         <MetricaObjetivo objetivo={objetivoMes} eventos={eventosCreados} periodo={periodo} red={red} />
-        {red ? (
-          <MetricaConversion activados={eventosActivados} ventas={eventosVentas} periodo={periodo} />
-        ) : eventosFacturado ? (
-          <Metrica
-            titulo="Facturado"
-            ayuda="Suma del importe de venta de los leads cerrados, en la fecha de cierre"
-            eventos={eventosFacturado}
-            periodo={periodo}
-            formato={formatoEuros}
-          />
-        ) : (
-          <div className="inicio-metrica">
-            <span className="inicio-metrica-titulo">Facturado</span>
-            <span className="inicio-metrica-valor is-vacio">—</span>
-          </div>
-        )}
+        <MetricaConversion activados={eventosActivados} ventas={eventosVentas} periodo={periodo} />
       </section>
 
       {red ? (
@@ -463,11 +467,7 @@ export function InicioPanel({ modo, debajo }: { modo: 'concesionario' | 'red'; d
             ) : (
               <ul className="inicio-lista">
                 {cierres.slice(0, 5).map(({ lead, fecha }) => {
-                  const importe = importes?.get(lead.fl_leadid)
-                  const detalle = [
-                    lead.fl_modelosinteres,
-                    lead.fl_numvehiculosrenovarampliar ? `${lead.fl_numvehiculosrenovarampliar} vehículos` : '',
-                  ].filter(Boolean)
+                  const vehiculos = lead.fl_numvehiculosrenovarampliar
                   return (
                     <li key={lead.fl_leadid}>
                       <Link to={`/lead/${lead.fl_leadid}`} className="venta-fila">
@@ -475,10 +475,10 @@ export function InicioPanel({ modo, debajo }: { modo: 'concesionario' | 'red'; d
                           <span className="venta-empresa">{lead.fl_razonsocial}</span>
                           <span className="venta-meta">
                             {fecha.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }).replace('.', '')}
-                            {detalle.length > 0 && ` · ${detalle.join(' · ')}`}
+                            {lead.fl_modelosinteres && ` · ${lead.fl_modelosinteres}`}
                           </span>
                         </span>
-                        <span className="venta-importe">{importe != null ? formatoEuros(importe) : '—'}</span>
+                        <span className="venta-importe">{vehiculos ? `${vehiculos} vehículo${vehiculos === 1 ? '' : 's'}` : '—'}</span>
                       </Link>
                     </li>
                   )
@@ -630,8 +630,7 @@ function MetricaObjetivo({ objetivo, eventos, periodo, red }: { objetivo: number
 /** Tasa de conversion: de los leads que tuvieron primer contacto en el
  *  periodo, cuantos de ESOS MISMOS llegaron a venta (en cualquier momento,
  *  no solo dentro del periodo — un lead activado a final de mes puede
- *  cerrarse el mes siguiente). Sustituye a "Facturado" en el inicio del
- *  equipo de ventas. */
+ *  cerrarse el mes siguiente). Sustituye a "Facturado" en los dos inicios. */
 function MetricaConversion({ activados, ventas, periodo }: { activados: Evento[]; ventas: Evento[]; periodo: Periodo }) {
   const { desde, hasta } = rangoPeriodo(periodo)
   const activadosPeriodo = activados.filter((e) => e.fecha >= desde && e.fecha < hasta).length

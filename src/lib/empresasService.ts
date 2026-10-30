@@ -21,11 +21,11 @@ export async function buscarEmpresaPorCif(concesionarioId: string, cif: string):
   return filas[0] ?? null
 }
 
-/** Empresas de un concesionario, o de toda la red si no se indica (equipo de ventas). */
-export async function fetchEmpresas(concesionarioId?: string): Promise<Empresa[]> {
+/** Empresas de unos concesionarios, o de toda la red si no se indican (equipo de ventas). */
+export async function fetchEmpresas(concesionarioIds?: string[]): Promise<Empresa[]> {
   return listRecords<Empresa>(Tables.Empresa, {
     select: EMPRESA_SELECT,
-    filter: concesionarioId ? `_fl_concesionario_value eq ${concesionarioId}` : undefined,
+    filter: concesionarioIds ? concesionarioIds.map((id) => `_fl_concesionario_value eq ${id}`).join(' or ') || 'false' : undefined,
     orderby: 'fl_razonsocial asc',
   })
 }

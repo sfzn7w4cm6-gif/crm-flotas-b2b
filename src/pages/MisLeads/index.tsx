@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Icon } from '../../components/Icon'
+import { useAuth } from '../../context/AuthContext'
 import { Buscador, FiltroMulti, FiltroSimple } from '../../components/filtros/Filtros'
 import { fetchMisLeads } from '../../lib/leadsService'
 import { fetchMiHistorico } from '../../lib/actividadService'
@@ -47,14 +48,22 @@ function leerVista(): Vista {
 type SortDir = 'asc' | 'desc'
 
 // El concesionario es siempre el propio: esa columna solo está en Seguimiento.
-const COLUMNAS = TODAS.filter((c) => c.key !== 'concesionario')
-// Sin concesionarios ni sedes que nombrar: la columna que los usa no está en esta pantalla.
-const CTX: CtxColumnas = { nombreConcesionario: new Map(), nombreUbicacion: new Map() }
-const ORDEN_INICIAL: ColKey[] = COLUMNAS.map((c) => c.key)
+// La columna de concesionario y sede solo hace falta a quien lleva más de una sede.
+const UNA_SEDE = TODAS.filter((c) => c.key !== 'concesionario')
 const COLUMNAS_POR_DEFECTO: ColKey[] = ['numero', 'empresa', 'fase', 'vehiculos', 'proximaAccion', 'fechaProximaAccion']
 
 export function MisLeads() {
   const [params] = useSearchParams()
+  const { sedes, concesionarios } = useAuth()
+  const variasSedes = sedes.length > 1
+  const COLUMNAS = variasSedes ? TODAS : UNA_SEDE
+  const ctx: CtxColumnas = useMemo(
+    () => ({
+      nombreConcesionario: new Map(concesionarios.map((c) => [c.fl_concesionarioid, c.fl_nombre])),
+      nombreUbicacion: new Map(sedes.map((s) => [s.fl_ubicacionid, s.fl_nombre])),
+    }),
+    [concesionarios, sedes],
+  )
   const [leads, setLeads] = useState<Lead[]>([])
   const [modelos, setModelos] = useState<Modelo[]>([])
   const [extras, setExtras] = useState<Map<string, string>>(new Map())
@@ -62,16 +71,19 @@ export function MisLeads() {
   const [busqueda, setBusqueda] = useState('')
   const [sortBy, setSortBy] = useState<ColKey | null>(null)
   const [sortDir, setSortDir] = useState<SortDir>('asc')
-  const [columnOrder, setColumnOrder] = useState<ColKey[]>(ORDEN_INICIAL)
+  const [columnOrder, setColumnOrder] = useState<ColKey[]>(() => COLUMNAS.map((c) => c.key))
   const [draggedKey, setDraggedKey] = useState<ColKey | null>(null)
   const [dragOverKey, setDragOverKey] = useState<ColKey | null>(null)
-  const [visibleColumns, setVisibleColumns] = useState<Set<ColKey>>(new Set(COLUMNAS_POR_DEFECTO))
+  const [visibleColumns, setVisibleColumns] = useState<Set<ColKey>>(
+    () => new Set<ColKey>(variasSedes ? [...COLUMNAS_POR_DEFECTO, 'concesionario'] : COLUMNAS_POR_DEFECTO),
+  )
   const [editandoVista, setEditandoVista] = useState(false)
   const [vista, setVistaState] = useState<Vista>(leerVista)
   const [campos, setCamposState] = useState<CampoTarjeta[]>(leerCamposTarjeta)
   const [fases, setFases] = useState<Fase[]>(() => fasesDeUrl(params))
   const [modelosSel, setModelosSel] = useState<string[]>([])
   const [empresasSel, setEmpresasSel] = useState<string[]>([])
+  const [sedesSel, setSedesSel] = useState<string[]>([])
   const [alta, setAlta] = useState<FiltroAlta>('todas')
   const [accion, setAccion] = useState<FiltroAccion>('todas')
   const [enFaseDesde, setEnFaseDesde] = useState<Map<string, Date>>(new Map())
@@ -144,6 +156,7 @@ export function MisLeads() {
       if (busqueda.trim() && !coincideBusqueda(indice.get(l.fl_leadid) ?? '', busqueda)) return false
       if (fases.length && !fases.includes(l.fl_faseactual)) return false
       if (empresasSel.length && !(l._fl_empresa_value && empresasSel.includes(l._fl_empresa_value))) return false
+      if (sedesSel.length && !sedesSel.includes(l._fl_ubicacion_value)) return false
       if (mods.length && !coincideModelo(l, mods)) return false
       if (desdeAlta) {
         const f = parseFecha(l.fl_fechaprimercontacto)
@@ -158,14 +171,21 @@ export function MisLeads() {
       }
       return true
     })
-  }, [leads, indice, modelos, busqueda, fases, empresasSel, modelosSel, alta, accion, ahora])
+  }, [leads, indice, modelos, busqueda, fases, empresasSel, sedesSel, modelosSel, alta, accion, ahora])
 
   const hayFiltros =
-    busqueda.trim() !== '' || fases.length > 0 || empresasSel.length > 0 || modelosSel.length > 0 || alta !== 'todas' || accion !== 'todas'
+    busqueda.trim() !== '' ||
+    fases.length > 0 ||
+    empresasSel.length > 0 ||
+    sedesSel.length > 0 ||
+    modelosSel.length > 0 ||
+    alta !== 'todas' ||
+    accion !== 'todas'
   const limpiarFiltros = () => {
     setBusqueda('')
     setFases([])
     setEmpresasSel([])
+    setSedesSel([])
     setModelosSel([])
     setAlta('todas')
     setAccion('todas')
@@ -176,13 +196,13 @@ export function MisLeads() {
     const col = COLUMNAS.find((c) => c.key === sortBy)!
     const copia = [...filtrados]
     copia.sort((a, b) => {
-      const va = col.valor(a, CTX)
-      const vb = col.valor(b, CTX)
+      const va = col.valor(a, ctx)
+      const vb = col.valor(b, ctx)
       const cmp = typeof va === 'number' && typeof vb === 'number' ? va - vb : String(va).localeCompare(String(vb))
       return sortDir === 'asc' ? cmp : -cmp
     })
     return copia
-  }, [filtrados, sortBy, sortDir])
+  }, [filtrados, sortBy, sortDir, COLUMNAS, ctx])
 
   const toggleSort = (key: ColKey) => {
     if (sortBy === key) {
@@ -244,6 +264,14 @@ export function MisLeads() {
       <div className="lista-barra">
         <div className="lista-filtros">
           <Buscador value={busqueda} onChange={setBusqueda} />
+          {variasSedes && (
+            <FiltroMulti
+              etiqueta="Sede"
+              opciones={sedes.map((x) => ({ value: x.fl_ubicacionid, label: x.fl_nombre }))}
+              value={sedesSel}
+              onChange={setSedesSel}
+            />
+          )}
           <FiltroMulti etiqueta="Fase" opciones={OPCIONES_FASE} value={fases} onChange={setFases} />
           <FiltroMulti etiqueta="Modelo" opciones={modelos.map((m) => ({ value: m.fl_modeloid, label: m.fl_nombre }))} value={modelosSel} onChange={setModelosSel} />
           {opcionesEmpresa.length > 1 && <FiltroMulti etiqueta="Empresa" opciones={opcionesEmpresa} value={empresasSel} onChange={setEmpresasSel} />}
@@ -320,7 +348,7 @@ export function MisLeads() {
               descargarExcel(
                 'Mis leads',
                 columnasOrdenadas.map((c) => c.label),
-                ordenados.map((l) => columnasOrdenadas.map((c) => c.exportar(l, CTX))),
+                ordenados.map((l) => columnasOrdenadas.map((c) => c.exportar(l, ctx))),
               )
             }
           >
@@ -398,7 +426,7 @@ export function MisLeads() {
                 <tr key={l.fl_leadid} className="row-clickable" onClick={() => (window.location.hash = `#/lead/${l.fl_leadid}`)}>
                   {columnasOrdenadas.map((col, i) => (
                     <td key={col.key} className={i === 0 ? 'cell-strong' : undefined}>
-                      {col.render(l, CTX)}
+                      {col.render(l, ctx)}
                     </td>
                   ))}
                 </tr>

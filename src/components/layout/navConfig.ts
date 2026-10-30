@@ -19,4 +19,6 @@ export const NAV_ITEMS: NavItem[] = [
   { to: '/seguimiento', label: 'Seguimiento de Leads', icon: 'list', roles: [RolApp.EquipoVentas] },
   { to: '/info', label: 'Info', icon: 'building', roles: [RolApp.EquipoVentas] },
   { to: '/configuracion', label: 'Configuración', icon: 'settings', roles: [RolApp.EquipoVentas] },
+  // Quién entra y qué sedes lleva cada uno, con su objetivo.
+  { to: '/usuarios', label: 'Usuarios y accesos', icon: 'people', roles: [RolApp.Administrador] },
 ]

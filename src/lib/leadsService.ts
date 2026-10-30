@@ -10,7 +10,7 @@ import {
   type ActualizarEmpresaInput,
 } from './empresasService'
 import { EstadoEmpresa, Fase } from './types'
-import type { Empresa, FaseHistorico, Lead, UsuarioApp } from './types'
+import type { Empresa, FaseHistorico, Lead, Ubicacion, UsuarioApp } from './types'
 
 /** Una oportunidad está abierta mientras no ha llegado a Cierre ni se ha perdido. Solo puede haber una por empresa. */
 export function esFaseAbierta(fase: Fase): boolean {
@@ -38,7 +38,7 @@ export interface NuevaOportunidadInput {
   nombreResponsable: string
   telefonoCorporativo: string
   emailCorporativo: string
-  /** Comercial que llevará la oportunidad: el usuario conectado u otro de su misma sede. */
+  /** Comercial que llevará la oportunidad: el usuario conectado u otro que lleve la misma sede. */
   comercial: UsuarioApp
 }
 
@@ -50,17 +50,11 @@ export interface NuevaOportunidadInput {
 export async function crearOportunidad(
   input: NuevaOportunidadInput,
   usuario: UsuarioApp,
+  sede: Ubicacion,
+  /** Equipo del concesionario de la sede: dueño de las empresas nuevas. */
+  equipoId?: string,
 ): Promise<{ leadId: string; numero: string; asignadaA?: string }> {
-  if (!usuario._fl_ubicacion_value) {
-    throw new Error('Tu perfil no tiene una ubicación asignada; no puedes crear leads.')
-  }
-  const ubicacion = await getRecord<{ _fl_concesionario_value: string }>(
-    Tables.Ubicacion,
-    usuario._fl_ubicacion_value,
-    '_fl_concesionario_value',
-  )
-  if (!ubicacion) throw new Error('No se pudo resolver tu ubicación.')
-  const concesionarioId = ubicacion._fl_concesionario_value
+  const concesionarioId = sede._fl_concesionario_value
   const cif = normalizarCif(input.cif)
 
   // Se vuelve a buscar justo antes de crear, por si un compañero la ha dado de alta mientras tanto.
@@ -77,7 +71,7 @@ export async function crearOportunidad(
       emailCorporativo: input.emailCorporativo,
     })
   } else {
-    empresaId = await createRecord(Tables.Empresa, {
+    const empresa = {
       fl_razonsocial: input.razonSocial,
       fl_cif: cif,
       fl_nombreresponsable: input.nombreResponsable,
@@ -85,7 +79,14 @@ export async function crearOportunidad(
       fl_emailcorporativo: input.emailCorporativo,
       fl_estado: EstadoEmpresa.ClientePotencial,
       'fl_concesionario@odata.bind': `/${Tables.Concesionario}(${concesionarioId})`,
-    })
+    }
+    // La empresa es del equipo del concesionario, para que la vean todos sus comerciales y
+    // ninguno de otro concesionario. Si no se puede, queda a nombre de quien la da de alta.
+    empresaId = equipoId
+      ? await createRecord(Tables.Empresa, { ...empresa, 'ownerid@odata.bind': `/teams(${equipoId})` }).catch(() =>
+          createRecord(Tables.Empresa, empresa),
+        )
+      : await createRecord(Tables.Empresa, empresa)
   }
 
   const hoy = new Date().toISOString().slice(0, 10)
@@ -102,7 +103,7 @@ export async function crearOportunidad(
     fl_comercialresponsable: input.comercial.fl_nombre,
     'fl_empresa@odata.bind': `/${Tables.Empresa}(${empresaId})`,
     'fl_comercial@odata.bind': `/${Tables.UsuarioApp}(${input.comercial.fl_usuarioappid})`,
-    'fl_ubicacion@odata.bind': `/${Tables.Ubicacion}(${usuario._fl_ubicacion_value})`,
+    'fl_ubicacion@odata.bind': `/${Tables.Ubicacion}(${sede.fl_ubicacionid})`,
     'fl_concesionario@odata.bind': `/${Tables.Concesionario}(${concesionarioId})`,
     'fl_creadopor@odata.bind': `/${Tables.UsuarioApp}(${usuario.fl_usuarioappid})`,
   })

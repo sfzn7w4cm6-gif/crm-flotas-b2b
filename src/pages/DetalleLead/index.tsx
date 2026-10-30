@@ -9,7 +9,7 @@ import { actualizarLead, cambiarComercial, cifEnOtraEmpresa, fetchHistoricoDeFas
 import { fetchAdjuntos, subirAdjuntos } from '../../lib/adjuntosService'
 import { borrarNota, crearNotaConAdjuntos, fetchNotas } from '../../lib/notasService'
 import { cambiarEstadoTarea, crearTarea, fetchImportesVenta, fetchTareasDeLead, tareaAbierta } from '../../lib/tareasService'
-import { fetchComercialesDeUbicacion } from '../../lib/usuariosService'
+import { fetchComercialesDeSede } from '../../lib/asignacionesService'
 import { fechaLarga } from '../../lib/formato'
 import { faltantes, requisitosHasta } from '../../lib/camposFase'
 import { Fase, RolApp } from '../../lib/types'
@@ -318,7 +318,7 @@ function Comercial({
   const abrir = async () => {
     setError(null)
     try {
-      const lista = await fetchComercialesDeUbicacion(lead._fl_ubicacion_value)
+      const lista = await fetchComercialesDeSede(lead._fl_ubicacion_value, lead._fl_concesionario_value)
       setOpciones(lista)
       setElegido(lead._fl_comercial_value ?? '')
     } catch (e) {

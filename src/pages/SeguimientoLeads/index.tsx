@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { TablaDesplazable } from '../../components/TablaDesplazable'
 import { Icon } from '../../components/Icon'
 import { Buscador, FiltroMulti } from '../../components/filtros/Filtros'
 import { fetchTodosLosLeads } from '../../lib/leadsService'
@@ -352,7 +353,7 @@ export function SeguimientoLeads() {
       )}
 
       {!cargando && ordenados.length > 0 && vista === 'tabla' && (
-        <div className="table-wrap">
+        <TablaDesplazable>
           <table className="data-table">
             <thead>
               <tr>
@@ -404,7 +405,7 @@ export function SeguimientoLeads() {
               ))}
             </tbody>
           </table>
-        </div>
+        </TablaDesplazable>
       )}
     </div>
   )

@@ -67,7 +67,7 @@ export function AppShell() {
         title={sidebarHidden ? 'Mostrar panel lateral' : 'Ocultar panel lateral'}
         onClick={toggleSidebar}
       >
-        <Icon name={sidebarHidden ? 'chevronRight' : 'chevronLeft'} size={14} />
+        <Icon name={sidebarHidden ? 'chevronRight' : 'chevronLeft'} size={12} />
       </button>
 
       <nav className={`shell-sidebar ${mobileOpen ? 'is-open' : ''} ${sidebarHidden ? 'is-hidden' : ''}`} aria-label="Navegación principal">

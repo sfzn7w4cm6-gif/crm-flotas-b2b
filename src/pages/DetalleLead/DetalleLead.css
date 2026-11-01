@@ -546,3 +546,20 @@
   margin-right: auto;
 }
 
+/* Aviso de datos sin rellenar: no impide guardar. */
+.fase-dialog-aviso {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 22px;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
+  font-size: 13px;
+  line-height: 1.4;
+  flex-shrink: 0;
+}
+.fase-dialog-aviso svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}

@@ -23,9 +23,10 @@ function Home() {
 }
 
 /** Pantallas de administración: solo para el administrador (y no mientras "ve como" otro rol). */
-function SoloAdmin({ children }: { children: ReactNode }) {
-  const { isAdmin, viewAsRole } = useAuth()
-  if (!isAdmin || viewAsRole !== null) return <Navigate to="/" replace />
+/** Equipo de ventas y administración (sin "Ver como" otro rol). */
+function SoloGestion({ children }: { children: ReactNode }) {
+  const { isAdmin, viewAsRole, effectiveRol } = useAuth()
+  if (effectiveRol !== RolApp.EquipoVentas && !(isAdmin && viewAsRole === null)) return <Navigate to="/" replace />
   return children
 }
 
@@ -62,7 +63,7 @@ function App() {
         <Route path="/panel-kpi" element={<PanelKPI />} />
         <Route path="/info" element={<Info />} />
         <Route path="/configuracion" element={<Configuracion />} />
-        <Route path="/usuarios" element={<SoloAdmin><Usuarios /></SoloAdmin>} />
+        <Route path="/usuarios" element={<SoloGestion><Usuarios /></SoloGestion>} />
       </Route>
     </Routes>
   )

@@ -21,7 +21,7 @@ import './Usuarios.css'
  * sueltas). Los objetivos van por concesionario, en Configuración.
  */
 export function Usuarios() {
-  const { usuario: yo, reload } = useAuth()
+  const { usuario: yo, reload, isAdmin } = useAuth()
   const [usuarios, setUsuarios] = useState<UsuarioApp[]>([])
   const [asignaciones, setAsignaciones] = useState<Asignacion[]>([])
   const [concesionarios, setConcesionarios] = useState<Concesionario[]>([])
@@ -72,11 +72,13 @@ export function Usuarios() {
     [asignacionesDe, nombreConc, nombreSede],
   )
 
+  // El equipo de ventas no ve ni toca las cuentas de administración.
+  const visibles = useMemo(() => (isAdmin ? usuarios : usuarios.filter((u) => u.fl_rol !== RolApp.Administrador)), [isAdmin, usuarios])
   const filtrados = useMemo(() => {
     const q = busqueda.trim()
-    if (!q) return usuarios
-    return usuarios.filter((u) => coincideBusqueda(normalizarTexto([u.fl_nombre, u.fl_correo, RolAppLabel[u.fl_rol], resumen(u.fl_usuarioappid)].join(' ')), q))
-  }, [usuarios, busqueda, resumen])
+    if (!q) return visibles
+    return visibles.filter((u) => coincideBusqueda(normalizarTexto([u.fl_nombre, u.fl_correo, RolAppLabel[u.fl_rol], resumen(u.fl_usuarioappid)].join(' ')), q))
+  }, [visibles, busqueda, resumen])
 
   if (cargando) return <p className="wizard-loading">Cargando…</p>
   if (error) return <p className="wizard-error">{error}</p>
@@ -142,6 +144,7 @@ export function Usuarios() {
               ubicaciones={ubicaciones}
               zonas={zonas}
               esYo={usuarioAbierto?.fl_usuarioappid === yo?.fl_usuarioappid}
+              puedeHacerAdmin={isAdmin}
               onGuardado={async (id, avs) => {
                 setAvisos(avs)
                 await cargar()
@@ -169,6 +172,7 @@ function EditorUsuario({
   ubicaciones,
   zonas,
   esYo,
+  puedeHacerAdmin,
   onGuardado,
 }: {
   usuario: UsuarioApp | null
@@ -178,6 +182,8 @@ function EditorUsuario({
   ubicaciones: Ubicacion[]
   zonas: Zona[]
   esYo: boolean
+  /** Solo administración puede dar el tipo Administrador. */
+  puedeHacerAdmin: boolean
   onGuardado: (usuarioId: string, avisos: string[]) => Promise<void>
 }) {
   const [nombre, setNombre] = useState(usuario?.fl_nombre ?? '')
@@ -300,7 +306,7 @@ function EditorUsuario({
         <div className="field">
           <label htmlFor="u-rol">Tipo de usuario</label>
           <select id="u-rol" value={rol} disabled={esYo} onChange={(e) => setRol(Number(e.target.value) as RolApp)}>
-            {Object.entries(RolAppLabel).map(([v, l]) => (
+            {Object.entries(RolAppLabel).filter(([v]) => puedeHacerAdmin || v !== String(RolApp.Administrador)).map(([v, l]) => (
               <option key={v} value={v}>
                 {v === String(RolApp.Concesionario) ? 'Comercial (concesionario)' : l}
               </option>

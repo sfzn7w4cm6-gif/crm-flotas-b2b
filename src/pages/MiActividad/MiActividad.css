@@ -509,3 +509,66 @@
   min-width: 18px;
   text-align: right;
 }
+
+/* Diálogo de vista personal de la tabla de oportunidades */
+.vista-dialogo {
+  width: min(560px, calc(100vw - 32px));
+}
+.vista-dialogo-cuerpo {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.vista-dialogo-fila {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+@media (max-width: 520px) {
+  .vista-dialogo-fila {
+    grid-template-columns: 1fr;
+  }
+}
+.vista-dialogo-filtros {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.vista-dialogo-columnas {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 12px;
+  margin: 0;
+  padding: 10px 12px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+.vista-dialogo-columnas legend {
+  padding: 0 4px;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.vista-dialogo-columnas label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+.vista-dialogo-pie {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 22px;
+  border-top: 1px solid var(--color-border);
+}
+.vista-dialogo-borrar {
+  margin-right: auto;
+  color: var(--color-danger);
+}
+.tabla-grupos-vista {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}

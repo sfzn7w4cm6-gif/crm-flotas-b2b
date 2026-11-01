@@ -24,12 +24,16 @@ import { fetchZonas } from '../../lib/catalogosService'
 import { FASES_ACTIVAS, Fase, FaseLabel } from '../../lib/types'
 import type { Concesionario, EstadoTarea, FaseHistorico, Lead, Modelo, Objetivo, Tarea, Ubicacion, Zona } from '../../lib/types'
 import { PeriodoFiltro } from './PeriodoFiltro'
+import { DialogoVista } from './VistaPersonal'
+import { guardarVistas, leerVistas, type VistaPersonal } from './vistasPersonales'
 import './MiActividad.css'
 
 const TAREAS_VISIBLES = 5
 
 type VistaTabla = 'zona' | 'concesionario' | 'ubicacion' | 'modelo'
 type VistaId = 'zona-concesionario' | 'concesionario-sede' | 'zona' | 'concesionario' | 'sede' | 'modelo'
+// Opción del desplegable que abre el diálogo de vista nueva (no es una vista).
+const NUEVA_VISTA = 'nueva'
 // Vistas ya armadas (como un desplegable de informes, no dos selectores
 // sueltos que hay que combinar): cada una trae ya decidido que va de fila
 // principal y que va anidado debajo, o si es la vista especial de Modelo
@@ -119,10 +123,37 @@ export function InicioPanel({ modo, debajo }: { modo: 'concesionario' | 'red'; d
   const [calendario, setCalendario] = useState(false)
   // Tareas cerradas desde esta pantalla: se siguen mostrando (tachadas) hasta recargar.
   const [cambiadas, setCambiadas] = useState<Set<string>>(new Set())
-  const [vista, setVista] = useState<VistaId>('zona-concesionario')
-  const vistaDef = VISTAS.find((v) => v.value === vista)!
+  // Vista de la tabla: una de las ya armadas o una personal (su id), que cada usuario se crea.
+  const [vista, setVista] = useState<string>('zona-concesionario')
+  const [personales, setPersonales] = useState<VistaPersonal[]>(() => leerVistas())
+  // null = cerrado; 'nueva' o el id de la vista personal que se edita.
+  const [editandoVista, setEditandoVista] = useState<string | null>(null)
+  const personal = useMemo(() => personales.find((v) => v.id === vista), [personales, vista])
+  const vistaDef = personal ?? VISTAS.find((v) => v.value === vista) ?? VISTAS[0]
   const agruparPor = vistaDef.principal
   const luegoPor = vistaDef.hijo
+  const fasesTabla = personal ? personal.fases : FASES_ACTIVAS
+  const conPerdidos = personal ? personal.perdidos : true
+  const opcionesVista = [
+    ...VISTAS,
+    ...personales.map((v) => ({ value: v.id, label: v.nombre })),
+    { value: NUEVA_VISTA, label: '+ Nueva vista…' },
+  ]
+  const elegirVista = (v: string) => (v === NUEVA_VISTA ? setEditandoVista(NUEVA_VISTA) : setVista(v))
+  const guardarPersonal = (v: VistaPersonal) => {
+    const lista = personales.some((x) => x.id === v.id) ? personales.map((x) => (x.id === v.id ? v : x)) : [...personales, v]
+    setPersonales(lista)
+    guardarVistas(lista)
+    setVista(v.id)
+    setEditandoVista(null)
+  }
+  const borrarPersonal = (id: string) => {
+    const lista = personales.filter((x) => x.id !== id)
+    setPersonales(lista)
+    guardarVistas(lista)
+    setVista('zona-concesionario')
+    setEditandoVista(null)
+  }
 
   useEffect(() => {
     if (red) {
@@ -174,21 +205,28 @@ export function InicioPanel({ modo, debajo }: { modo: 'concesionario' | 'red'; d
   const idsFiltrados = useMemo(() => new Set(leads.map((l) => l.fl_leadid)), [leads])
   const historicoFiltrado = useMemo(() => historico.filter((h) => idsFiltrados.has(h._fl_lead_value)), [historico, idsFiltrados])
 
+  const ubicacionPorId = useMemo(() => new Map(ubicaciones.map((u) => [u.fl_ubicacionid, u])), [ubicaciones])
+
   // Tabla general (solo red): todos los leads, acotados a la fecha de alta
   // dentro de SU PROPIO periodo (periodoTabla) — independiente del periodo
   // de las 4 tarjetas de arriba.
   const leadsTabla = useMemo(() => {
     if (!red) return []
     const { desde, hasta } = rangoPeriodo(periodoTabla)
+    // Una vista personal puede quedarse solo con unas zonas o unos concesionarios.
+    const zonasVista = personal?.zonas ?? []
+    const concVista = personal?.concesionarios ?? []
     return leads.filter((l) => {
       if (!l.fl_fechaprimercontacto) return false
       const f = new Date(l.fl_fechaprimercontacto)
-      return f >= desde && f < hasta
+      if (f < desde || f >= hasta) return false
+      if (concVista.length && !concVista.includes(l._fl_concesionario_value)) return false
+      if (zonasVista.length && !zonasVista.includes(ubicacionPorId.get(l._fl_ubicacion_value)?._fl_zona_value ?? '')) return false
+      return true
     })
-  }, [red, leads, periodoTabla])
+  }, [red, leads, periodoTabla, personal, ubicacionPorId])
 
   const nombreZona = useMemo(() => new Map(zonas.map((z) => [z.fl_zonaid, z.fl_nombre])), [zonas])
-  const ubicacionPorId = useMemo(() => new Map(ubicaciones.map((u) => [u.fl_ubicacionid, u])), [ubicaciones])
 
   // Valores de UNA dimension para un lead. Zona/Concesionario/Sede dan siempre
   // un unico valor; Modelo puede dar varios (o ninguno) porque un lead puede
@@ -388,10 +426,15 @@ export function InicioPanel({ modo, debajo }: { modo: 'concesionario' | 'red'; d
               Periodo
               <PeriodoFiltro value={periodoTabla} onChange={setPeriodoTabla} primerAnio={primerAnio} etiqueta={etiquetaPeriodoTabla} />
             </label>
-            <label className="tabla-grupos-control">
+            <div className="tabla-grupos-control">
               Vista
-              <FiltroSimple opciones={VISTAS} value={vista} porDefecto={vista} onChange={setVista} />
-            </label>
+              <FiltroSimple opciones={opcionesVista} value={vista} porDefecto={vista} onChange={elegirVista} />
+              {personal && (
+                <button type="button" className="inicio-icono-btn" onClick={() => setEditandoVista(personal.id)} title="Editar esta vista" aria-label="Editar esta vista">
+                  <Icon name="pencil" size={14} />
+                </button>
+              )}
+            </div>
           </div>
 
           {vista === 'modelo' ? (
@@ -438,17 +481,17 @@ export function InicioPanel({ modo, debajo }: { modo: 'concesionario' | 'red'; d
                   <tr>
                     <th>{COLUMNA_PRINCIPAL[agruparPor]}</th>
                     <th>Total</th>
-                    {FASES_ACTIVAS.map((f) => (
+                    {fasesTabla.map((f) => (
                       <th key={f} className="col-fase" title={FaseLabel[f]} style={{ background: FASE_TINT[f] }}>
                         {FASE_LABEL_CORTO[f]}
                       </th>
                     ))}
-                    <th className="col-fase">Perdido</th>
+                    {conPerdidos && <th className="col-fase">Perdido</th>}
                   </tr>
                 </thead>
                 <tbody>
                   {gruposAnidados.map((g) => (
-                    <FragmentoGrupo key={g.id} grupo={g} />
+                    <FragmentoGrupo key={g.id} grupo={g} fases={fasesTabla} conPerdidos={conPerdidos} />
                   ))}
                 </tbody>
               </table>
@@ -546,6 +589,18 @@ export function InicioPanel({ modo, debajo }: { modo: 'concesionario' | 'red'; d
       </section>
 
       {debajo?.({ leads, historico: historicoFiltrado, periodo, concesionarios })}
+
+      {editandoVista && (
+        <DialogoVista
+          inicial={personales.find((v) => v.id === editandoVista) ?? null}
+          zonas={zonas}
+          concesionarios={concesionarios}
+          ubicaciones={ubicaciones}
+          onGuardar={guardarPersonal}
+          onBorrar={editandoVista !== NUEVA_VISTA ? () => borrarPersonal(editandoVista) : undefined}
+          onCerrar={() => setEditandoVista(null)}
+        />
+      )}
 
       {calendario && tareas && (
         <CalendarioTareas tareas={tareas} infoLead={infoLead} onCambiarEstado={cambiarEstado} onGuardarNota={guardarNota} onClose={() => setCalendario(false)} />
@@ -656,28 +711,28 @@ function MetricaConversion({ activados, ventas, periodo }: { activados: Evento[]
 
 /** Fila de grupo (con subtotal, en negrita) y, debajo, sus filas hijas
  *  indentadas si hay un segundo nivel de agrupacion ("luego por"). */
-function FragmentoGrupo({ grupo }: { grupo: FilaPrincipal }) {
+function FragmentoGrupo({ grupo, fases, conPerdidos }: { grupo: FilaPrincipal; fases: Fase[]; conPerdidos: boolean }) {
   return (
     <>
-      <FilaTablaGrupos fila={grupo} esPrincipal />
+      <FilaTablaGrupos fila={grupo} fases={fases} conPerdidos={conPerdidos} esPrincipal />
       {grupo.hijos.map((h) => (
-        <FilaTablaGrupos key={h.id} fila={h} />
+        <FilaTablaGrupos key={h.id} fila={h} fases={fases} conPerdidos={conPerdidos} />
       ))}
     </>
   )
 }
 
-function FilaTablaGrupos({ fila, esPrincipal }: { fila: FilaDetalle; esPrincipal?: boolean }) {
+function FilaTablaGrupos({ fila, fases, conPerdidos, esPrincipal }: { fila: FilaDetalle; fases: Fase[]; conPerdidos: boolean; esPrincipal?: boolean }) {
   return (
     <tr className={esPrincipal ? 'fila-grupo-principal' : 'fila-grupo-hija'}>
       <td className={esPrincipal ? 'cell-strong' : undefined}>{fila.nombre}</td>
       <td className="grupo-total-cifra">{fila.total}</td>
-      {FASES_ACTIVAS.map((f) => (
+      {fases.map((f) => (
         <td key={f} className="col-fase">
           {fila.porFase[f] ?? ''}
         </td>
       ))}
-      <td className={`col-fase${fila.perdidos > 0 ? ' col-fase-perdido' : ''}`}>{fila.perdidos || ''}</td>
+      {conPerdidos && <td className={`col-fase${fila.perdidos > 0 ? ' col-fase-perdido' : ''}`}>{fila.perdidos || ''}</td>}
     </tr>
   )
 }

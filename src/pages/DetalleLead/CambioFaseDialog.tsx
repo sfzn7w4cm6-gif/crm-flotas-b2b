@@ -11,8 +11,8 @@ import { LineasOportunidad } from './LineasOportunidad'
 
 /**
  * Ventana para cambiar de fase pidiendo los datos de la fase destino, o (sin cambiar de fase)
- * para completar lo que falta de la fase actual. Los obligatorios impiden guardar; el resto se
- * puede dejar en blanco. Los modelos se guardan en cuanto se añaden, como en la ficha.
+ * para completar lo que falta de la fase actual. Ningún campo impide guardar: si faltan los
+ * necesarios para la fase, se avisa en amarillo y se puede seguir igualmente. Los modelos se guardan en cuanto se añaden, como en la ficha.
  */
 export function CambioFaseDialog({
   lead,
@@ -58,7 +58,8 @@ export function CambioFaseDialog({
   const relleno = (campo: CampoFase) =>
     campo === 'modelos' ? numLineas > 0 || !!lead.fl_modelosinteres : (valores[campo] ?? '').trim() !== ''
   const faltan = campos.filter((c) => c.obligatorio && !relleno(c.campo))
-  const puedeGuardar = fase !== '' && !guardando && faltan.length === 0 && (fase !== Fase.Perdido || motivoPerdida.trim() !== '')
+  const faltaMotivo = fase === Fase.Perdido && motivoPerdida.trim() === ''
+  const puedeGuardar = fase !== '' && !guardando
 
   const set = (campo: CampoFase, v: string) => setValores((x) => ({ ...x, [campo]: v }))
 
@@ -82,7 +83,7 @@ export function CambioFaseDialog({
         await guardarImporteVenta(lead.fl_leadid, Number(importeNuevo))
       }
       if (fase !== lead.fl_faseactual) {
-        await cambiarFaseLead(lead.fl_leadid, lead.fl_numero, fase, fase === Fase.Perdido ? motivoPerdida.trim() : undefined, lead._fl_empresa_value)
+        await cambiarFaseLead(lead.fl_leadid, lead.fl_numero, fase, fase === Fase.Perdido ? motivoPerdida.trim() || undefined : undefined, lead._fl_empresa_value)
       }
       onHecho()
     } catch (e) {
@@ -156,8 +157,17 @@ export function CambioFaseDialog({
           {error && <p className="wizard-error">{error}</p>}
         </div>
 
+        {(faltan.length > 0 || faltaMotivo) && (
+          <div className="fase-dialog-aviso" role="status">
+            <Icon name="warning" size={15} />
+            <span>
+              Debes rellenar {faltaMotivo && faltan.length === 0 ? 'el motivo de la pérdida' : `los datos marcados con * (faltan ${faltan.length + (faltaMotivo ? 1 : 0)})`}. Puedes
+              guardar igualmente y completarlos más tarde.
+            </span>
+          </div>
+        )}
+
         <div className="fase-dialog-footer">
-          {faltan.length > 0 && <span className="flow-meta">Faltan {faltan.length} campos obligatorios</span>}
           <button type="button" className="btn-secondary" onClick={onCerrar}>
             Cancelar
           </button>

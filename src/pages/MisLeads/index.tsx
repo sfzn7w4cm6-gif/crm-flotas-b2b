@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
+import { TablaDesplazable } from '../../components/TablaDesplazable'
 import { Icon } from '../../components/Icon'
 import { useAuth } from '../../context/AuthContext'
 import { Buscador, FiltroMulti, FiltroSimple } from '../../components/filtros/Filtros'
@@ -381,7 +382,7 @@ export function MisLeads() {
       )}
 
       {!cargando && ordenados.length > 0 && vista === 'tabla' && (
-        <div className="table-wrap">
+        <TablaDesplazable>
           <table className="data-table">
             <thead>
               <tr>
@@ -433,7 +434,7 @@ export function MisLeads() {
               ))}
             </tbody>
           </table>
-        </div>
+        </TablaDesplazable>
       )}
 
       {moviendo && (

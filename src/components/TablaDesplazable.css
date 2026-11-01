@@ -1,0 +1,46 @@
+.tabla-desplazable {
+  position: relative;
+}
+
+/* Franja en el borde con un degradado que indica que hay más columnas; la flecha se queda
+   a media pantalla mientras se baja por la tabla. */
+.tabla-desplazable-borde {
+  position: absolute;
+  top: 1px;
+  bottom: 12px;
+  width: 48px;
+  display: flex;
+  justify-content: center;
+  padding-top: 8px;
+  pointer-events: none;
+}
+.tabla-desplazable-borde.is-derecha {
+  right: 1px;
+  background: linear-gradient(to right, transparent, var(--color-surface) 70%);
+  border-radius: 0 var(--radius-md) 0 0;
+}
+.tabla-desplazable-borde.is-izquierda {
+  left: 1px;
+  background: linear-gradient(to left, transparent, var(--color-surface) 70%);
+  border-radius: var(--radius-md) 0 0 0;
+}
+
+.tabla-desplazable-btn {
+  position: sticky;
+  top: 45vh;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  pointer-events: auto;
+}
+.tabla-desplazable-btn:hover {
+  background: var(--color-surface-alt);
+}

@@ -16,9 +16,9 @@ export const NAV_ITEMS: NavItem[] = [
   { to: '/mis-leads', label: 'Mis oportunidades', icon: 'list', roles: [RolApp.Concesionario] },
   { to: '/nuevo-lead', label: 'Nueva oportunidad', icon: 'add', roles: [RolApp.Concesionario] },
   { to: '/empresas', label: 'Empresas', icon: 'building', roles: [RolApp.Concesionario, RolApp.EquipoVentas] },
-  { to: '/seguimiento', label: 'Seguimiento de oportunidades', icon: 'list', roles: [RolApp.EquipoVentas] },
+  { to: '/seguimiento', label: 'Oportunidades', icon: 'list', roles: [RolApp.EquipoVentas] },
   { to: '/info', label: 'Info', icon: 'building', roles: [RolApp.EquipoVentas] },
   { to: '/configuracion', label: 'Configuración', icon: 'settings', roles: [RolApp.EquipoVentas] },
   // Quién entra y qué sedes lleva cada uno.
-  { to: '/usuarios', label: 'Usuarios y accesos', icon: 'people', roles: [RolApp.Administrador] },
+  { to: '/usuarios', label: 'Usuarios y accesos', icon: 'people', roles: [RolApp.EquipoVentas] },
 ]

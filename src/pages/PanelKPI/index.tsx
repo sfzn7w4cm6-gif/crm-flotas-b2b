@@ -39,7 +39,7 @@ function Analisis({ leads, historico, periodo, concesionarios }: DatosInicio) {
   const obj = (k: keyof typeof OBJETIVOS_KPI) => OBJETIVOS_KPI[k][periodo.tipo === 'mes' ? 30 : 0]
 
   const indicadores: { label: string; valor: number; sufijo?: string; meta?: number }[] = [
-    { label: 'Leads captados', valor: resumen.leadsNuevos, meta: obj('leadsNuevos') },
+    { label: 'Oportunidades captadas', valor: resumen.leadsNuevos, meta: obj('leadsNuevos') },
     { label: 'Reuniones de diagnóstico', valor: resumen.reunionesDiagnostico, meta: obj('reunionesDiagnostico') },
     { label: 'Propuestas enviadas', valor: resumen.propuestasEnviadas, meta: obj('propuestasEnviadas') },
     { label: 'Pedidos cerrados', valor: resumen.cierres, meta: obj('cierres') },
@@ -58,7 +58,7 @@ function Analisis({ leads, historico, periodo, concesionarios }: DatosInicio) {
       <section className="inicio-bloque">
         <div className="inicio-bloque-cabecera">
           <h2>Indicadores del plan comercial</h2>
-          <span className="inicio-bloque-nota">Leads dados de alta en el periodo</span>
+          <span className="inicio-bloque-nota">Oportunidades dadas de alta en el periodo</span>
         </div>
         <div className="indicadores">
           {indicadores.map((i) => (
@@ -96,9 +96,9 @@ function Analisis({ leads, historico, periodo, concesionarios }: DatosInicio) {
         </div>
 
         <div className="chart-card">
-          <div className="chart-card-title">Leads por concesionario</div>
+          <div className="chart-card-title">Oportunidades por concesionario</div>
           <BarChart data={porConcesionario.map((c) => ({ label: c.nombre, value: c.cantidad }))} flatColor="var(--color-text)" maxBars={8} />
-          <TableTwin titulo="Leads por concesionario" headers={['Concesionario', 'Leads']} rows={porConcesionario.map((c) => [c.nombre, c.cantidad])} />
+          <TableTwin titulo="Oportunidades por concesionario" headers={['Concesionario', 'Oportunidades']} rows={porConcesionario.map((c) => [c.nombre, c.cantidad])} />
         </div>
       </div>
     </>

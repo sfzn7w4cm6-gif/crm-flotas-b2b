@@ -83,7 +83,7 @@ export function VistaPipeline({
             </header>
             <div className="pipeline-tarjetas">
               {enColumna.length === 0 ? (
-                <p className="pipeline-vacio">{destino ? 'Suelta aquí' : 'Sin leads'}</p>
+                <p className="pipeline-vacio">{destino ? 'Suelta aquí' : 'Sin oportunidades'}</p>
               ) : (
                 enColumna.map((l) => {
                   const desde = enFaseDesde.get(l.fl_leadid) ?? parseFecha(l.fl_fechaprimercontacto || l.createdon) ?? new Date(ahora)

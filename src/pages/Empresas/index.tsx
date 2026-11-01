@@ -160,7 +160,7 @@ export function Empresas() {
       {!cargando && filtradas.length === 0 && (
         <div className="empty-state">
           <Icon name="building" size={28} />
-          <p>{hayFiltros ? 'Ninguna empresa coincide con los filtros.' : 'Todavía no hay empresas. Se crean al dar de alta un lead.'}</p>
+          <p>{hayFiltros ? 'Ninguna empresa coincide con los filtros.' : 'Todavía no hay empresas. Se crean al dar de alta una oportunidad.'}</p>
         </div>
       )}
 

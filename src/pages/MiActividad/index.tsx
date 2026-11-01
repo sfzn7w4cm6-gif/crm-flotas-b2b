@@ -342,7 +342,7 @@ export function InicioPanel({ modo, debajo }: { modo: 'concesionario' | 'red'; d
           <PeriodoFiltro value={periodo} onChange={setPeriodo} primerAnio={primerAnio} etiqueta={etiquetaPeriodo} />
           {!red && (
             <Link to="/nuevo-lead" className="btn-primary inicio-nuevo">
-              <Icon name="add" size={15} /> Nuevo lead
+              <Icon name="add" size={15} /> Nueva oportunidad
             </Link>
           )}
         </div>
@@ -365,8 +365,8 @@ export function InicioPanel({ modo, debajo }: { modo: 'concesionario' | 'red'; d
       )}
 
       <section className="inicio-resumen" aria-label={`Resumen de ${etiquetaPeriodo}`}>
-        <Metrica titulo="Leads activados" ayuda="Leads con los que ya hubo al menos un primer contacto" eventos={eventosActivados} periodo={periodo} />
-        <Metrica titulo="Ventas" ayuda="Leads que han llegado a la fase de cierre" eventos={eventosVentas} periodo={periodo} />
+        <Metrica titulo="Oportunidades activadas" ayuda="Oportunidades con las que ya hubo al menos un primer contacto" eventos={eventosActivados} periodo={periodo} />
+        <Metrica titulo="Ventas" ayuda="Oportunidades que han llegado a la fase de cierre" eventos={eventosVentas} periodo={periodo} />
         <MetricaObjetivo objetivo={objetivoMes} eventos={eventosCreados} periodo={periodo} red={red} />
         <MetricaConversion activados={eventosActivados} ventas={eventosVentas} periodo={periodo} />
       </section>
@@ -374,11 +374,11 @@ export function InicioPanel({ modo, debajo }: { modo: 'concesionario' | 'red'; d
       {red ? (
         <section className="inicio-bloque">
           <div className="inicio-bloque-cabecera">
-            <h2>Leads</h2>
+            <h2>Oportunidades</h2>
             <span className="inicio-bloque-nota">
               {leadsTabla.length} de {etiquetaPeriodoTabla}
             </span>
-            <Link to="/seguimiento" className="inicio-icono-btn" title="Ver el listado completo en Seguimiento de Leads" aria-label="Ver el listado completo en Seguimiento de Leads">
+            <Link to="/seguimiento" className="inicio-icono-btn" title="Ver el listado completo en Seguimiento de oportunidades" aria-label="Ver el listado completo en Seguimiento de oportunidades">
               <Icon name="expand" size={15} />
             </Link>
           </div>
@@ -396,9 +396,9 @@ export function InicioPanel({ modo, debajo }: { modo: 'concesionario' | 'red'; d
 
           {vista === 'modelo' ? (
             <>
-              <p className="tabla-grupos-nota">Un lead interesado en varios modelos cuenta una vez en cada uno.</p>
+              <p className="tabla-grupos-nota">Una oportunidad interesada en varios modelos cuenta una vez en cada uno.</p>
               {rankingModelos.length === 0 ? (
-                <p className="inicio-vacio">No hay leads que coincidan con el periodo y los filtros elegidos.</p>
+                <p className="inicio-vacio">No hay oportunidades que coincidan con el periodo y los filtros elegidos.</p>
               ) : (
                 <div className="table-wrap">
                   <table className="data-table tabla-ranking">
@@ -406,7 +406,7 @@ export function InicioPanel({ modo, debajo }: { modo: 'concesionario' | 'red'; d
                       <tr>
                         <th>Posición</th>
                         <th>Modelo</th>
-                        <th>Leads</th>
+                        <th>Oportunidades</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -430,7 +430,7 @@ export function InicioPanel({ modo, debajo }: { modo: 'concesionario' | 'red'; d
               )}
             </>
           ) : gruposAnidados.length === 0 ? (
-            <p className="inicio-vacio">No hay leads que coincidan con el periodo y los filtros elegidos.</p>
+            <p className="inicio-vacio">No hay oportunidades que coincidan con el periodo y los filtros elegidos.</p>
           ) : (
             <div className="table-wrap">
               <table className="data-table tabla-grupos">
@@ -510,7 +510,7 @@ export function InicioPanel({ modo, debajo }: { modo: 'concesionario' | 'red'; d
             {tareas === null ? (
               <p className="inicio-vacio">Las tareas aún no están activadas en la base de datos.</p>
             ) : tareasLista.length === 0 ? (
-              <p className="inicio-vacio">Nada pendiente. Las tareas se crean desde la ficha de cada lead.</p>
+              <p className="inicio-vacio">Nada pendiente. Las tareas se crean desde la ficha de cada oportunidad.</p>
             ) : (
               <>
                 <ul className={`tarea-lista${verTodas ? ' is-desplazable' : ''}`}>
@@ -597,7 +597,7 @@ function MetricaObjetivo({ objetivo, eventos, periodo, red }: { objetivo: number
   if (!objetivo) {
     return (
       <div className="inicio-metrica">
-        <span className="inicio-metrica-titulo">Objetivo de leads</span>
+        <span className="inicio-metrica-titulo">Objetivo de oportunidades</span>
         {red && <span className="inicio-metrica-ayuda">Suma de los objetivos de todos los concesionarios</span>}
         <span className="inicio-metrica-valor is-vacio">—</span>
         <span className="inicio-metrica-nota">
@@ -613,7 +613,7 @@ function MetricaObjetivo({ objetivo, eventos, periodo, red }: { objetivo: number
 
   return (
     <div className="inicio-metrica">
-      <span className="inicio-metrica-titulo">Objetivo de leads</span>
+      <span className="inicio-metrica-titulo">Objetivo de oportunidades</span>
       {red && <span className="inicio-metrica-ayuda">Suma de los objetivos de todos los concesionarios</span>}
       <span className="inicio-metrica-valor">
         {creados}
@@ -648,7 +648,7 @@ function MetricaConversion({ activados, ventas, periodo }: { activados: Evento[]
         </div>
       )}
       <span className="inicio-metrica-nota">
-        {activadosPeriodo === 0 ? 'Sin leads activados en el periodo' : `${ventasPeriodo} de ${activadosPeriodo} contactados se convirtieron en venta`}
+        {activadosPeriodo === 0 ? 'Sin oportunidades activadas en el periodo' : `${ventasPeriodo} de ${activadosPeriodo} contactados se convirtieron en venta`}
       </span>
     </div>
   )

@@ -254,7 +254,7 @@ export function MisLeads() {
   return (
     <div>
       <div className="page-header">
-        <h1>Mis leads</h1>
+        <h1>Mis oportunidades</h1>
         <Link to="/nuevo-lead" className="btn-primary">
           <Icon name="add" size={16} />
           Nuevo lead
@@ -295,7 +295,7 @@ export function MisLeads() {
         </div>
 
         <div className="lista-acciones">
-          <span className="lista-cuenta">{hayFiltros ? `${filtrados.length} de ${leads.length} leads` : `${leads.length} leads`}</span>
+          <span className="lista-cuenta">{hayFiltros ? `${filtrados.length} de ${leads.length} oportunidades` : `${leads.length} oportunidades`}</span>
 
           <div className="vista-toggle" role="group" aria-label="Tipo de vista">
             <button type="button" className={vista === 'tabla' ? 'is-activo' : ''} onClick={() => setVista('tabla')}>
@@ -346,7 +346,7 @@ export function MisLeads() {
             title="Descargar en Excel lo que se ve en la lista"
             onClick={() =>
               descargarExcel(
-                'Mis leads',
+                'Mis oportunidades',
                 columnasOrdenadas.map((c) => c.label),
                 ordenados.map((l) => columnasOrdenadas.map((c) => c.exportar(l, ctx))),
               )
@@ -363,7 +363,7 @@ export function MisLeads() {
       {!cargando && ordenados.length === 0 && (
         <div className="empty-state">
           <Icon name="car" size={28} />
-          <p>{hayFiltros ? 'Ningún lead coincide con los filtros.' : 'Todavía no tienes leads.'}</p>
+          <p>{hayFiltros ? 'Ninguna oportunidad coincide con los filtros.' : 'Todavía no tienes oportunidades.'}</p>
           {hayFiltros ? (
             <button type="button" className="btn-secondary" onClick={limpiarFiltros}>
               Limpiar filtros

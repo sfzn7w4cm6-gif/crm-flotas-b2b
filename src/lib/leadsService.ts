@@ -99,7 +99,7 @@ export async function crearOportunidad(
     fl_emailcorporativo: input.emailCorporativo,
     fl_fechaprimercontacto: hoy,
     fl_faseactual: Fase.Prospeccion,
-    fl_ultimaaccionrealizada: 'Alta del lead',
+    fl_ultimaaccionrealizada: 'Alta de la oportunidad',
     fl_comercialresponsable: input.comercial.fl_nombre,
     'fl_empresa@odata.bind': `/${Tables.Empresa}(${empresaId})`,
     'fl_comercial@odata.bind': `/${Tables.UsuarioApp}(${input.comercial.fl_usuarioappid})`,

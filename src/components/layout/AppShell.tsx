@@ -74,7 +74,7 @@ export function AppShell() {
         <div className="shell-brand">
           <img src={ebroLogo} alt="EBRO" className="shell-brand-logo" />
           <span className="shell-brand-divider" />
-          <span className="shell-brand-label">CRM Flotas</span>
+          <span className="shell-brand-label">Business</span>
         </div>
 
         <ul className="shell-navlist">

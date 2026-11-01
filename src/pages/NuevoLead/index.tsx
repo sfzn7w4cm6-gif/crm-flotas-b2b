@@ -150,7 +150,7 @@ export function NuevoLead() {
         setBusqueda({ estado: 'duplicada', empresa: { fl_razonsocial: form.razonSocial } as Empresa, leadId: e.leadId, numero: e.numero, puedeVerla: !!visible })
         setPaso(0)
       } else {
-        setErrorEnvio(e instanceof Error ? e.message : 'No se pudo crear el lead.')
+        setErrorEnvio(e instanceof Error ? e.message : 'No se pudo crear la oportunidad.')
       }
     } finally {
       setEnviando(false)
@@ -163,13 +163,13 @@ export function NuevoLead() {
         <div className="wizard-done-icon">
           <Icon name="check" size={28} />
         </div>
-        <h1>Lead creado</h1>
+        <h1>Oportunidad creada</h1>
         <p>
           El lead <strong>{resultado.numero}</strong> se creó correctamente en fase <strong>1. Prospección</strong>.
         </p>
         {resultado.asignadaA && (
           <p>
-            Se ha asignado a <strong>{resultado.asignadaA}</strong>: aparecerá en sus leads, no en los tuyos.
+            Se ha asignado a <strong>{resultado.asignadaA}</strong>: aparecerá en sus oportunidades, no en las tuyas.
           </p>
         )}
         <div className="wizard-done-actions">
@@ -192,7 +192,7 @@ export function NuevoLead() {
 
   return (
     <div className="wizard">
-      <h1 className="wizard-title">Nuevo lead</h1>
+      <h1 className="wizard-title">Nueva oportunidad</h1>
 
       <ol className="wizard-steps">
         {PASOS.map((p, i) => (
@@ -328,7 +328,7 @@ export function NuevoLead() {
         )}
         {paso === ULTIMO_PASO && (
           <button type="button" className="btn-primary" disabled={faltanPaso || enviando} onClick={enviar}>
-            {enviando ? 'Guardando…' : 'Crear lead'}
+            {enviando ? 'Guardando…' : 'Crear oportunidad'}
           </button>
         )}
       </div>

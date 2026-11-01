@@ -6,6 +6,12 @@ a empresas. Es un **Power Apps Code App** (React + TypeScript + Vite), no un
 Canvas App ni un Model-Driven App — toda la interfaz es código propio, y solo
 se apoya en Dataverse como base de datos.
 
+**Nombre visible: "Ebro Business"** (desde el 01/11/2026; en la barra lateral, logo
+EBRO + "Business"). El código, el repositorio, la solución y los roles siguen
+llamándose CRM Flotas B2B. **En pantalla no se dice "lead" sino "oportunidad"**
+(Mis oportunidades, Nueva oportunidad, Seguimiento de oportunidades); las tablas,
+rutas (`/mis-leads`, `/nuevo-lead`) y nombres en el código siguen con `lead`.
+
 ## Repositorio y despliegue
 
 - **GitHub**: https://github.com/sfzn7w4cm6-gif/crm-flotas-b2b (privado). Rama

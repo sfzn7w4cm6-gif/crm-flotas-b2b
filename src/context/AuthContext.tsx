@@ -80,7 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (cancelled) return
         if (usuarios.length === 0) {
           setError(
-            `Tu usuario (${correo}) no está registrado en CRM Flotas B2B. Contacta a un administrador para que te dé de alta.`,
+            `Tu usuario (${correo}) no está registrado en Ebro Business. Contacta a un administrador para que te dé de alta.`,
           )
           setLoading(false)
           return

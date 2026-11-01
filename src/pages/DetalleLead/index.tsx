@@ -101,7 +101,7 @@ export function DetalleLead() {
   useEffect(cargar, [id])
 
   if (cargando) return <p className="wizard-loading">Cargando…</p>
-  if (!lead) return <p className="wizard-error">No se encontró el lead.</p>
+  if (!lead) return <p className="wizard-error">No se encontró la oportunidad.</p>
 
   const guardarDatos = async (cambios: ActualizarLeadInput) => {
     if (Object.keys(cambios).length === 0) return

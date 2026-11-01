@@ -150,7 +150,7 @@ export function Configuracion() {
     const texto = valorDe(fila)
     const n = Number(texto)
     if (texto === '' || Number.isNaN(n) || n < 0) {
-      setError('Pon un número de leads válido (0 o más).')
+      setError('Pon un número válido de oportunidades (0 o más).')
       return
     }
     setError(null)
@@ -191,7 +191,7 @@ export function Configuracion() {
         </h1>
       </div>
       <p className="config-subtitulo">
-        Objetivo de leads al mes por concesionario. Si uno no tiene objetivo propio, se usa el <strong>general</strong>. El mismo número
+        Objetivo de oportunidades nuevas al mes por concesionario. Si uno no tiene objetivo propio, se usa el <strong>general</strong>. El mismo número
         se multiplica automáticamente para el trimestre (×3) y el año (×12).
       </p>
 
@@ -270,7 +270,7 @@ export function Configuracion() {
                         placeholder={!fila.esGeneral && fila.heredaDe != null ? String(fila.heredaDe) : '—'}
                         onChange={(e) => cambiarValor(fila.id, e.target.value)}
                       />
-                      <span className="flow-meta">leads</span>
+                      <span className="flow-meta">oportunidades</span>
                     </div>
                     {!fila.esGeneral && fila.valorActual == null && (
                       <p className="config-hereda">Hereda del general{fila.heredaDe != null ? ` (${fila.heredaDe})` : ''}</p>

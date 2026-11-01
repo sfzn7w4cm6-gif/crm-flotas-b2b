@@ -224,7 +224,7 @@ export function SeguimientoLeads() {
   return (
     <div>
       <div className="page-header">
-        <h1>Seguimiento de leads</h1>
+        <h1>Seguimiento de oportunidades</h1>
       </div>
 
       <div className="lista-barra">
@@ -268,7 +268,7 @@ export function SeguimientoLeads() {
         </div>
 
         <div className="lista-acciones">
-          <span className="lista-cuenta">{hayFiltros ? `${filtrados.length} de ${leads.length} leads` : `${leads.length} leads`}</span>
+          <span className="lista-cuenta">{hayFiltros ? `${filtrados.length} de ${leads.length} oportunidades` : `${leads.length} oportunidades`}</span>
 
           <div className="vista-toggle" role="group" aria-label="Tipo de vista">
             <button type="button" className={vista === 'tabla' ? 'is-activo' : ''} onClick={() => setVista('tabla')}>
@@ -319,7 +319,7 @@ export function SeguimientoLeads() {
             title="Descargar en Excel lo que se ve en la lista"
             onClick={() =>
               descargarExcel(
-                'Seguimiento de leads',
+                'Seguimiento de oportunidades',
                 columnasOrdenadas.map((c) => c.label),
                 ordenados.map((l) => columnasOrdenadas.map((c) => c.exportar(l, ctx))),
               )
@@ -336,7 +336,7 @@ export function SeguimientoLeads() {
       {!cargando && ordenados.length === 0 && (
         <div className="empty-state">
           <Icon name="filter" size={26} />
-          <p>No hay leads que coincidan con estos filtros.</p>
+          <p>No hay oportunidades que coincidan con estos filtros.</p>
         </div>
       )}
 

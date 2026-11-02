@@ -434,4 +434,5 @@ de Ventas). Reglas en `src/lib/descuento.ts`:
   y en las filas de Mis oportunidades / Seguimiento (columna "Descuento").
 - Si el comercial cambia su porcentaje, `actualizarLead` borra el de ventas para que lo revise.
 - Ventas ve el letrero `AvisoDescuentos` en Inicio (enlaza a `/seguimiento?descuento=pendiente`)
-  y en Seguimiento, con el filtro "Falta descuento de ventas". Solo dentro de la app, sin correo.
+  y en Seguimiento, con el filtro "Pendientes de descuento de marca". En pantalla se llama "descuento de marca"
+  (la columna de Dataverse conserva el nombre "Descuento de ventas (%)"). Solo dentro de la app, sin correo.

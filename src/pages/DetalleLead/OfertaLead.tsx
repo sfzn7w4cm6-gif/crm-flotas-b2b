@@ -46,12 +46,12 @@ export function OfertaLead({
     for (const k of ['descuentoConcesionario', 'descuentoVentas'] as const) {
       const n = pct(k)
       if (n !== null && (Number.isNaN(n) || n < 0 || n > 100)) {
-        setError('Los descuentos deben estar entre 0 y 100 %.')
+        setError('Cada descuento debe estar entre el 0 % y el 100 %.')
         return
       }
     }
     if ((pct('descuentoConcesionario') ?? 0) + (pct('descuentoVentas') ?? 0) > 100) {
-      setError('Entre los dos descuentos no pueden pasar del 100 %.')
+      setError('La suma de ambos descuentos no puede superar el 100 %.')
       return
     }
     const cambios: ActualizarLeadInput = {}
@@ -113,7 +113,7 @@ export function OfertaLead({
               />
             </div>
             <div className="field">
-              <label htmlFor="dto-ventas">Descuento de ventas (%)</label>
+              <label htmlFor="dto-ventas">Descuento de marca (%)</label>
               <input
                 id="dto-ventas"
                 type="number"
@@ -122,7 +122,7 @@ export function OfertaLead({
                 step={0.01}
                 value={valores.descuentoVentas}
                 disabled={!editaVentas}
-                placeholder={editaVentas ? '' : 'Lo pone el equipo de ventas'}
+                placeholder={editaVentas ? '' : 'Pendiente de asignar por la marca'}
                 onChange={(e) => set('descuentoVentas', e.target.value)}
               />
             </div>
@@ -133,7 +133,7 @@ export function OfertaLead({
               </div>
             )}
           </div>
-          {borraraVentas && <p className="field-ayuda oferta-aviso">Al cambiar tu descuento, el equipo de ventas tendrá que volver a poner el suyo.</p>}
+          {borraraVentas && <p className="field-ayuda oferta-aviso">Al modificar este descuento, el descuento de marca deberá revisarse de nuevo.</p>}
           {error && <p className="wizard-error">{error}</p>}
           <div className="bloque-datos-acciones">
             <button type="button" className="btn-link" onClick={() => setValores(null)} disabled={guardando}>
@@ -147,7 +147,7 @@ export function OfertaLead({
       ) : (
         <dl className="datos-grid">
           <Dato label="Descuento del concesionario" valor={formatoPorcentaje(lead.fl_descuentoconcesionario)} />
-          <Dato label="Descuento de ventas" valor={pendiente ? <span className="oferta-pendiente">Pendiente</span> : formatoPorcentaje(lead.fl_descuentoventas)} />
+          <Dato label="Descuento de marca" valor={pendiente ? <span className="oferta-pendiente">Pendiente</span> : formatoPorcentaje(lead.fl_descuentoventas)} />
           <Dato label="Descuento total" valor={descuentoTotal(lead) == null ? '' : <strong>{formatoPorcentaje(descuentoTotal(lead))}</strong>} />
           <Dato label="Condiciones" valor={lead.fl_ofertacondiciones} ancho />
         </dl>

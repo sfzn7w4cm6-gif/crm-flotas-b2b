@@ -133,9 +133,9 @@ export function FaseSelect({
 /** Etiqueta naranja de las oportunidades a la espera del descuento de ventas. */
 export function DescuentoPendienteBadge({ corto }: { corto?: boolean }) {
   return (
-    <span className="descuento-pendiente-badge" title="El concesionario ya ha puesto su descuento; falta el del equipo de ventas">
+    <span className="descuento-pendiente-badge" title="El concesionario ha indicado su descuento. Falta el descuento de marca.">
       <Icon name="warning" size={12} />
-      {corto ? 'Falta ventas' : 'Falta descuento de ventas'}
+      {corto ? 'Pendiente de marca' : 'Pendiente de descuento de marca'}
     </span>
   )
 }

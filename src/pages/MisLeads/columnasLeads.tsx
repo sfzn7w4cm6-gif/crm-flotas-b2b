@@ -148,7 +148,7 @@ export const COLUMNAS: ColumnDef[] = [
       </span>
     ),
     valor: (l) => descuentoTotal(l) ?? -1,
-    exportar: (l) => `${formatoPorcentaje(descuentoTotal(l))}${descuentoPendiente(l) ? ' (falta ventas)' : ''}`,
+    exportar: (l) => `${formatoPorcentaje(descuentoTotal(l))}${descuentoPendiente(l) ? ' (pendiente de marca)' : ''}`,
   },
   texto('oferta', 'Condiciones de la oferta', (l) => l.fl_ofertacondiciones),
 ]

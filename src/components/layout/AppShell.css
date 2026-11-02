@@ -266,3 +266,26 @@
     padding: 64px 20px 24px;
   }
 }
+
+/* Foto de la trasera de un EBRO detrás de todo el panel, a poco aumento y oscurecida para que
+   el menú se siga leyendo. La segunda capa tiene el mismo tamaño y posición que la foto y funde
+   sus bordes de arriba y abajo con el negro del panel. Marca, menú y pie quedan por encima. */
+.shell-brand,
+.shell-navlist,
+.shell-footer {
+  position: relative;
+  z-index: 1;
+}
+.shell-foto {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-repeat: no-repeat;
+  background-image:
+    linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)),
+    linear-gradient(to bottom, var(--sidebar-bg), transparent 28%, transparent 72%, var(--sidebar-bg)),
+    var(--foto-sidebar);
+  background-size: auto, 560px 374px, 560px 374px;
+  background-position: 0 0, 30% 62%, 30% 62%;
+}

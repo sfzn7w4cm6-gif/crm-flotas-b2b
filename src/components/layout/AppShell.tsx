@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useState, type CSSProperties } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { Icon } from '../Icon'
 import { NAV_ITEMS } from './navConfig'
 import { useAuth } from '../../context/AuthContext'
 import { RolApp, RolAppLabel } from '../../lib/types'
 import ebroLogo from '../../assets/ebro-logo.png'
+import fotoEbro from '../../assets/ebro-trasera.jpg'
 import './AppShell.css'
 
 const SIDEBAR_HIDDEN_KEY = 'crmflotas.sidebarHidden'
@@ -70,7 +71,12 @@ export function AppShell() {
         <Icon name={sidebarHidden ? 'chevronRight' : 'chevronLeft'} size={12} />
       </button>
 
-      <nav className={`shell-sidebar ${mobileOpen ? 'is-open' : ''} ${sidebarHidden ? 'is-hidden' : ''}`} aria-label="Navegación principal">
+      <nav
+        className={`shell-sidebar ${mobileOpen ? 'is-open' : ''} ${sidebarHidden ? 'is-hidden' : ''}`}
+        style={{ '--foto-sidebar': `url(${fotoEbro})` } as CSSProperties}
+        aria-label="Navegación principal"
+      >
+        <div className="shell-foto" aria-hidden="true" />
         <div className="shell-brand">
           <img src={ebroLogo} alt="EBRO" className="shell-brand-logo" />
           <span className="shell-brand-divider" />

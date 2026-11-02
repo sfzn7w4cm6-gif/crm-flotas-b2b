@@ -74,23 +74,28 @@ B2B. **Nunca editar sus tablas (`hr_*`) ni su código desde este proyecto.**
 
 ## Modelo de datos (Dataverse, prefijo de publisher `fl`, solución `CRMFlotasB2B`)
 
-Auditado directamente contra el entorno real (no son solo los scripts de
-creación): la solución contiene **5 tablas + 3 roles de seguridad + la propia
-app** (10 componentes en total). Las relaciones (lookups) no aparecen como
+Auditado directamente contra el entorno real, no solo contra los scripts de
+creación — última vez el 03/11/2026 (`scripts/dataverse/27-auditoria-migracion.ps1`,
+de solo lectura, se puede relanzar cuando haga falta): la solución contiene
+**13 tablas `fl_*` + 3 roles de seguridad + la propia app** (19 componentes en
+total; los otros 2 componentes de tipo Entidad son `systemuser`/`team`, que
+entraron solos por los lookups que apuntan a ellos). Las 13 tablas son
+`fl_concesionario`, `fl_ubicacion`, `fl_usuarioapp`, `fl_lead`,
+`fl_fasehistorico`, `fl_tarea`, `fl_objetivo`, `fl_zona`, `fl_modelo`,
+`fl_empresa`, `fl_lineaoportunidad`, `fl_nota` y `fl_asignacion` — **todas**
+confirmadas dentro de la solución. Las relaciones (lookups) no aparecen como
 componentes aparte porque en Dataverse viajan automáticamente con la tabla
 que las contiene — no hay que añadirlas a mano.
 
-**Corrección hecha durante esta auditoría**: la app (registro `canvasapp`,
-nombre interno `crda2_crmflotasb2b_19a41`, id
-`033039d0-63b6-4df9-91a1-14fec80dffba`, el mismo que el "App id" de
-`power.config.json`) ya existía en Dataverse, pero **no estaba incluida en la
-solución `CRMFlotasB2B`** — vivía solo en la solución por defecto y en una
-solución de pruebas antigua y sin relación con este proyecto (`crmprueba`,
-ignorar). Se añadió explícitamente a `CRMFlotasB2B` con
-`AddSolutionComponent` (`ComponentType=300`) para que ahora viaje junto con
-las tablas al exportar. Si en el futuro se publica una nueva versión con
-`pac code push`, comprobar tras el siguiente export que la app sigue
-apareciendo como componente (debería, pero conviene verificarlo una vez).
+Esto se mantiene así sin esfuerzo extra porque `lib.ps1` pasa
+`-WithSolution` en cada creación (tabla, columna, rol, relación): todo lo que
+se crea con estos scripts entra solo en `CRMFlotasB2B`. La única vez que algo
+quedó fuera fue el registro de la app (`canvasapp`, nombre interno
+`crda2_crmflotasb2b_19a41`, id `033039d0-63b6-4df9-91a1-14fec80dffba`, el
+mismo que el "App id" de `power.config.json`), porque se creó con `pac code
+push` antes de que existiera este flujo — se corrigió una vez con
+`AddSolutionComponent` (`ComponentType=300`) y la auditoría del 03/11/2026
+confirma que sigue ahí tras las publicaciones posteriores.
 
 ### `fl_concesionario` — el grupo/marca del dealer (padre)
 
@@ -394,11 +399,12 @@ Dos cosas viajan por caminos **distintos** — no asumir que una trae la otra:
 
 1. **Esquema (tablas, columnas, relaciones, roles de seguridad, y el registro
    de la app)**: exportar la solución `CRMFlotasB2B` como solución no
-   administrada e importarla en el entorno nuevo. Ya está completa (5 tablas +
-   3 roles + la app; las relaciones viajan solas). Tras importar, hay que
-   volver a asignar los roles a los usuarios reales del entorno nuevo (los
-   scripts `04-assign-admin.ps1`/`05-seed-data.ps1` sirven de referencia, pero
-   los IDs de usuario son distintos en cada entorno).
+   administrada e importarla en el entorno nuevo. Ya está completa (13 tablas +
+   3 roles + la app, confirmado contra el entorno real el 03/11/2026 con
+   `27-auditoria-migracion.ps1`; las relaciones viajan solas). Tras importar,
+   hay que volver a asignar los roles a los usuarios reales del entorno nuevo
+   (los scripts `04-assign-admin.ps1`/`05-seed-data.ps1` sirven de referencia,
+   pero los IDs de usuario son distintos en cada entorno).
 2. **La conexión a Dataverse de la app**: aunque el registro de la app ahora
    viaja con la solución, su conexión a Dataverse (`commondataserviceforapps`)
    es específica del entorno de origen y no se reconecta sola. Tras importar,
@@ -407,11 +413,22 @@ Dos cosas viajan por caminos **distintos** — no asumir que una trae la otra:
    nueva en ese entorno (`pac code add-data-source` con el `--connection-id`
    de la conexión del entorno nuevo) para que la app importada quede
    funcional.
-3. **Los datos de demo** (concesionarios/ubicaciones de ejemplo, los ~42 leads
-   de prueba de `07-seed-leads-demo.ps1`): tampoco viajan con la solución — una
-   solución lleva esquema, no filas. Si se quieren en el entorno nuevo, hay
-   que re-ejecutar los scripts de seed ahí, o hacer una exportación/importación
-   de datos aparte.
+3. **Los datos — ojo, esto incluye la red comercial real, no solo la demo**:
+   una solución lleva esquema, no filas, así que el entorno nuevo arranca con
+   las 13 tablas **vacías**. Eso incluye tanto los datos de demo
+   (concesionarios/ubicaciones de ejemplo, los ~42 leads de prueba de
+   `07-seed-leads-demo.ps1`, que no se deben llevar) como **las 7 zonas, 42
+   concesionarios, 108 sedes y 13 modelos reales** cargados con
+   `16-red-ebro-y-modelos.ps1` — esos sí hacen falta en el entorno nuevo desde
+   el primer día, o la app arranca sin ningún concesionario. Para llevarlos,
+   re-ejecutar `16-red-ebro-y-modelos.ps1` en el entorno nuevo (es idempotente),
+   dejando fuera los scripts de datos de demo.
+4. **Usuarios reales de los concesionarios — esto no es parte de la migración
+   técnica, pero bloquea igual el ir a producción de verdad**: los dealers son
+   externos, así que cada uno necesita una invitación como invitado Entra ID
+   B2B al tenant antes de poder entrar, y después su fila en `fl_usuarioapp`
+   (correo + rol + sede) para que la app lo reconozca. Ya se habló de esto,
+   solo falta hacerlo.
 
 ## Errores ya resueltos (para no repetirlos)
 

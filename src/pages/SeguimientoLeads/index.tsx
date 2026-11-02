@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { TablaDesplazable } from '../../components/TablaDesplazable'
 import { Icon } from '../../components/Icon'
+import { AvisoDescuentos, FiltroDescuentoPendiente } from '../../components/AvisoDescuentos'
+import { descuentoPendiente } from '../../lib/descuento'
 import { Buscador, FiltroMulti } from '../../components/filtros/Filtros'
 import { fetchTodosLosLeads } from '../../lib/leadsService'
 import { fetchMiHistorico } from '../../lib/actividadService'
@@ -31,7 +33,7 @@ function leerVista(): Vista {
 type SortDir = 'asc' | 'desc'
 
 const ORDEN_INICIAL: ColKey[] = COLUMNAS.map((c) => c.key)
-const COLUMNAS_VISIBLES_POR_DEFECTO: ColKey[] = ['numero', 'empresa', 'concesionario', 'comercial', 'fase', 'vehiculos', 'proximaAccion', 'fechaProximaAccion']
+const COLUMNAS_VISIBLES_POR_DEFECTO: ColKey[] = ['numero', 'empresa', 'concesionario', 'comercial', 'fase', 'vehiculos', 'descuento', 'proximaAccion', 'fechaProximaAccion']
 
 export function SeguimientoLeads() {
   const [params] = useSearchParams()
@@ -52,6 +54,8 @@ export function SeguimientoLeads() {
   const [modelosSel, setModelosSel] = useState<string[]>([])
   const [empresasSel, setEmpresasSel] = useState<string[]>([])
   const [busqueda, setBusqueda] = useState('')
+  // Desde el aviso de Inicio se llega con ?descuento=pendiente.
+  const [soloSinDescuento, setSoloSinDescuento] = useState(() => params.get('descuento') === 'pendiente')
   const [sortBy, setSortBy] = useState<ColKey | null>(null)
   const [sortDir, setSortDir] = useState<SortDir>('asc')
   const [columnOrder, setColumnOrder] = useState<ColKey[]>(ORDEN_INICIAL)
@@ -149,13 +153,15 @@ export function SeguimientoLeads() {
       if (fases.length && !fases.includes(l.fl_faseactual)) return false
       if (empresasSel.length && !(l._fl_empresa_value && empresasSel.includes(l._fl_empresa_value))) return false
       if (mods.length && !coincideModelo(l, mods)) return false
+      if (soloSinDescuento && !descuentoPendiente(l)) return false
       if (busqueda.trim() && !coincideBusqueda(indice.get(l.fl_leadid) ?? '', busqueda)) return false
       return true
     })
-  }, [leads, indice, modelos, zonasSel, ubicacionIdsDeZona, concesionariosSel, ubicacionesSel, fases, empresasSel, modelosSel, busqueda])
+  }, [leads, indice, modelos, zonasSel, ubicacionIdsDeZona, concesionariosSel, ubicacionesSel, fases, empresasSel, modelosSel, busqueda, soloSinDescuento])
 
   const hayFiltros =
     busqueda.trim() !== '' ||
+    soloSinDescuento ||
     zonasSel.length + concesionariosSel.length + ubicacionesSel.length + fases.length + modelosSel.length + empresasSel.length > 0
   const limpiarFiltros = () => {
     setBusqueda('')
@@ -165,7 +171,9 @@ export function SeguimientoLeads() {
     setFases([])
     setModelosSel([])
     setEmpresasSel([])
+    setSoloSinDescuento(false)
   }
+  const sinDescuento = useMemo(() => leads.filter(descuentoPendiente).length, [leads])
 
   const ordenados = useMemo(() => {
     if (!sortBy) return filtrados
@@ -228,6 +236,8 @@ export function SeguimientoLeads() {
         <h1>Seguimiento de oportunidades</h1>
       </div>
 
+      <AvisoDescuentos n={sinDescuento} onVer={soloSinDescuento ? undefined : () => setSoloSinDescuento(true)} />
+
       <div className="lista-barra">
         <div className="lista-filtros">
           <Buscador value={busqueda} onChange={setBusqueda} />
@@ -261,6 +271,7 @@ export function SeguimientoLeads() {
           <FiltroMulti etiqueta="Fase" opciones={OPCIONES_FASE} value={fases} onChange={setFases} />
           <FiltroMulti etiqueta="Modelo" opciones={modelos.map((m) => ({ value: m.fl_modeloid, label: m.fl_nombre }))} value={modelosSel} onChange={setModelosSel} />
           <FiltroMulti etiqueta="Empresa" opciones={opcionesEmpresa} value={empresasSel} onChange={setEmpresasSel} />
+          <FiltroDescuentoPendiente activo={soloSinDescuento} onChange={setSoloSinDescuento} />
           {hayFiltros && (
             <button type="button" className="lista-limpiar" onClick={limpiarFiltros}>
               Limpiar filtros
@@ -395,7 +406,7 @@ export function SeguimientoLeads() {
             </thead>
             <tbody>
               {ordenados.map((l) => (
-                <tr key={l.fl_leadid} className="row-clickable" onClick={() => (window.location.hash = `#/lead/${l.fl_leadid}`)}>
+                <tr key={l.fl_leadid} className={`row-clickable${descuentoPendiente(l) ? ' is-pendiente-descuento' : ''}`} onClick={() => (window.location.hash = `#/lead/${l.fl_leadid}`)}>
                   {columnasOrdenadas.map((col, i) => (
                     <td key={col.key} className={i === 0 ? 'cell-strong' : undefined}>
                       {col.render(l, ctx)}

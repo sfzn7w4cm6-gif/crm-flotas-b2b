@@ -88,3 +88,16 @@
 .fase-badge-punto {
   gap: 7px;
 }
+
+.descuento-pendiente-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--color-naranja-bg);
+  color: var(--color-naranja);
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}

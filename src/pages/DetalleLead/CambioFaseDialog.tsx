@@ -75,7 +75,7 @@ export function CambioFaseDialog({
         const v = (valores[campo] ?? '').trim()
         if (v === '' || v === iniciales[campo]) continue
         const tipo = CAMPOS[campo]?.tipo
-        cambios[campo] = tipo === 'numero' || tipo === 'euros' || tipo === 'financiacion' || tipo === 'plazo' ? Number(v) : v
+        cambios[campo] = tipo === 'numero' || tipo === 'euros' || tipo === 'porcentaje' || tipo === 'financiacion' || tipo === 'plazo' ? Number(v) : v
       }
       await actualizarLead(lead.fl_leadid, cambios as ActualizarLeadInput, lead._fl_empresa_value)
       const importeNuevo = (valores.importeVenta ?? '').trim()
@@ -203,6 +203,8 @@ function CampoInput({
     case 'numero':
     case 'euros':
       return <input type="number" min={0} value={valor} onChange={(e) => onChange(e.target.value)} />
+    case 'porcentaje':
+      return <input type="number" min={0} max={100} step={0.01} value={valor} onChange={(e) => onChange(e.target.value)} />
     case 'fecha':
       return <input type="date" value={valor} onChange={(e) => onChange(e.target.value)} />
     case 'financiacion':

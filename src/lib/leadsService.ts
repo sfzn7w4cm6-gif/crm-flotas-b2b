@@ -201,7 +201,7 @@ const LEAD_SELECT =
   'fl_leadid,fl_numero,fl_razonsocial,fl_cif,fl_nombreresponsable,fl_telefonocorporativo,fl_emailcorporativo,' +
   'fl_numvehiculosactuales,fl_marcasactuales,fl_actividadeconomica,fl_modofinanciacionactual,fl_vencimientocontratosactuales,' +
   'fl_cuotasobjetivo,fl_modelosinteres,fl_numvehiculosrenovarampliar,fl_plazoestimadodecision,fl_competidoresdetectados,' +
-  'fl_requisitos,fl_kmtiempo,fl_fechaprimercontacto,fl_faseactual,fl_ofertacondiciones,fl_ultimaaccionrealizada,fl_proximaaccion,' +
+  'fl_requisitos,fl_kmtiempo,fl_fechaprimercontacto,fl_faseactual,fl_ofertacondiciones,fl_descuentoconcesionario,fl_descuentoventas,fl_ultimaaccionrealizada,fl_proximaaccion,' +
   'fl_fechaproximaaccion,fl_comercialresponsable,fl_observaciones,fl_motivoperdida,createdon,' +
   '_fl_ubicacion_value,_fl_concesionario_value,_fl_creadopor_value,_ownerid_value,_fl_empresa_value,_fl_comercial_value'
 
@@ -299,6 +299,8 @@ export interface ActualizarLeadInput {
   fechaProximaAccion?: string
   observaciones?: string
   ofertaCondiciones?: string
+  descuentoConcesionario?: number | null
+  descuentoVentas?: number | null
   motivoPerdida?: string
   importeVenta?: number
 }
@@ -326,6 +328,8 @@ const CAMPO_MAP: Record<keyof ActualizarLeadInput, string> = {
   fechaProximaAccion: 'fl_fechaproximaaccion',
   observaciones: 'fl_observaciones',
   ofertaCondiciones: 'fl_ofertacondiciones',
+  descuentoConcesionario: 'fl_descuentoconcesionario',
+  descuentoVentas: 'fl_descuentoventas',
   motivoPerdida: 'fl_motivoperdida',
   importeVenta: 'fl_importeventa',
 }
@@ -346,6 +350,9 @@ export async function actualizarLead(leadId: string, input: ActualizarLeadInput,
     if (empresaId && (CAMPOS_EMPRESA.has(k) || CAMPOS_EMPRESA_Y_LEAD.has(k))) empresa[k] = v
     if (!empresaId || !CAMPOS_EMPRESA.has(k)) fields[CAMPO_MAP[k]] = v
   }
+  // Si cambia el descuento del concesionario, el de ventas se borra para que ventas lo revise
+  // (salvo que se guarden los dos a la vez, como hace el administrador).
+  if (input.descuentoConcesionario !== undefined && input.descuentoVentas === undefined) fields.fl_descuentoventas = null
   if (empresaId) await actualizarEmpresa(empresaId, empresa as ActualizarEmpresaInput)
   if (Object.keys(fields).length === 0) return
   await updateRecord(Tables.Lead, leadId, fields)

@@ -20,6 +20,7 @@ import { NotasLead } from './NotasLead'
 import { LineasOportunidad } from './LineasOportunidad'
 import { CambioFaseDialog } from './CambioFaseDialog'
 import { AvisoFase } from './AvisoFase'
+import { OfertaLead } from './OfertaLead'
 import './DetalleLead.css'
 
 const EMPRESA: DefDato[] = [
@@ -48,14 +49,15 @@ const SEGUIMIENTO: DefDato[] = [
   { clave: 'fechaProximaAccion', label: 'Fecha próxima acción', tipo: 'fecha' },
   { clave: 'ultimaAccionRealizada', label: 'Última acción realizada', tipo: 'textoLargo', ancho: true },
   { clave: 'observaciones', label: 'Observaciones', tipo: 'textoLargo', ancho: true },
-  { clave: 'ofertaCondiciones', label: 'Oferta (descuento / condiciones)', tipo: 'textoLargo', ancho: true },
 ]
 
 export function DetalleLead() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { effectiveRol, usuario } = useAuth()
+  const { effectiveRol, usuario, isAdmin, viewAsRole } = useAuth()
   const soloLectura = effectiveRol === RolApp.EquipoVentas
+  // En la oferta, ventas sí pone su parte del descuento (y el administrador, las dos).
+  const editaDescuentoVentas = effectiveRol === RolApp.EquipoVentas || (isAdmin && viewAsRole === null)
 
   const [lead, setLead] = useState<Lead | null>(null)
   const [historico, setHistorico] = useState<FaseHistorico[]>([])
@@ -214,6 +216,7 @@ export function DetalleLead() {
             onGuardar={guardarDatos}
             antes={<LineasOportunidad leadId={lead.fl_leadid} textoAnterior={lead.fl_modelosinteres} soloLectura={soloLectura} onLineas={setNumLineas} />}
           />
+          <OfertaLead lead={lead} editaConcesionario={!soloLectura} editaVentas={editaDescuentoVentas} onGuardar={guardarDatos} />
           <BloqueDatos
             titulo="Seguimiento"
             defs={[

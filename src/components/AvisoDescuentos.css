@@ -1,0 +1,51 @@
+.aviso-descuentos {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+  padding: 11px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--color-naranja-bg);
+  color: var(--color-naranja);
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: inset 3px 0 0 var(--color-naranja);
+}
+.aviso-descuentos > svg {
+  flex-shrink: 0;
+}
+.aviso-descuentos-accion {
+  margin-left: auto;
+  padding: 5px 12px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 12.5px;
+  text-decoration: none;
+  cursor: pointer;
+}
+.aviso-descuentos-accion:hover {
+  background: var(--color-surface);
+}
+
+.filtro-chip.filtro-descuento.is-activo {
+  border-color: var(--color-naranja);
+  background: var(--color-naranja-bg);
+  color: var(--color-naranja);
+}
+
+/* Filas de las tablas a la espera del descuento de ventas. */
+.data-table tr.is-pendiente-descuento > td {
+  background: var(--color-naranja-bg);
+}
+.data-table tr.is-pendiente-descuento > td:first-child {
+  box-shadow: inset 3px 0 0 var(--color-naranja);
+}
+.celda-descuento {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}

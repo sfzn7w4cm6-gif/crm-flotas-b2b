@@ -136,7 +136,7 @@ estructurales:
 | 2. Contactos | `fl_nombreresponsable`, `fl_telefonocorporativo`, `fl_emailcorporativo` |
 | 3. Situación flota | `fl_numvehiculosactuales`, `fl_marcasactuales`, `fl_actividadeconomica`, `fl_modofinanciacionactual` (choice), `fl_vencimientocontratosactuales` (fecha) |
 | 4. Necesidad | `fl_cuotasobjetivo` (money), `fl_modelosinteres`, `fl_numvehiculosrenovarampliar`, `fl_plazoestimadodecision` (choice), `fl_competidoresdetectados`, `fl_requisitos`, `fl_kmtiempo` |
-| 5. Histórico | `fl_fechaprimercontacto`, `fl_faseactual` (choice, no editable directamente — ver más abajo), `fl_ofertacondiciones` (texto largo, añadido cuando se actualizó la plantilla Excel), `fl_ultimaaccionrealizada`, `fl_proximaaccion`, `fl_fechaproximaaccion`, `fl_comercialresponsable`, `fl_observaciones`, `fl_motivoperdida` (solo si fase = Perdido) |
+| 5. Histórico | `fl_fechaprimercontacto`, `fl_faseactual` (choice, no editable directamente — ver más abajo), `fl_ofertacondiciones` (texto largo, añadido cuando se actualizó la plantilla Excel; en pantalla "Condiciones de la oferta"), `fl_descuentoconcesionario` y `fl_descuentoventas` (decimal %, `26-descuentos-oferta.ps1`, 02/11/2026; ver "Descuento en dos partes"), `fl_ultimaaccionrealizada`, `fl_proximaaccion`, `fl_fechaproximaaccion`, `fl_comercialresponsable`, `fl_observaciones`, `fl_motivoperdida` (solo si fase = Perdido) |
 
 `fl_faseactual` / `fl_fasehistorico.fl_fase` comparten el mismo choice: **1.
 Prospección → 2. Primer Contacto → 3. Cualificación → 4. Propuesta → 5.
@@ -345,7 +345,8 @@ en `Team`. **Equipo de Ventas gestiona usuarios** (`25-ventas-gestiona-usuarios.
 01/11/2026): `fl_usuarioapp` Create/Write Global, `fl_asignacion` CRUD Global, leer
 cuentas/equipos/roles, escribir y enlazar equipos, `Assign Role`, y los mismos permisos
 Basic que el rol Concesionario (Dataverse no deja dar un rol con permisos que no tiene
-quien lo da; sin ellos no podría poner el rol Concesionario). `fl_lineaoportunidad`: Concesionario CRUD Basic, Equipo de Ventas
+quien lo da; sin ellos no podría poner el rol Concesionario). Desde el 02/11/2026 (`26-descuentos-oferta.ps1`) Equipo de Ventas tiene
+Write Global en `fl_lead` para guardar su descuento; la app solo le deja tocar ese campo. `fl_lineaoportunidad`: Concesionario CRUD Basic, Equipo de Ventas
 Read Global. Concesionario tiene además `Assign` Basic en `fl_lead`,
 `fl_fasehistorico`, `fl_tarea` y `fl_lineaoportunidad` para reasignar al
 comercial elegido. `fl_objetivo`: Read Global para Concesionario, Equipo de Ventas
@@ -422,3 +423,15 @@ Dos cosas viajan por caminos **distintos** — no asumir que una trae la otra:
   mismo día, no distingue nada entre periodos).
 - `pac code add-data-source` necesita `--connection-id` explícito; sacarlo con
   `pac connection list --environment <id>`.
+
+## Descuento en dos partes (02/11/2026)
+
+El descuento de la oferta son dos porcentajes que se suman: `fl_descuentoconcesionario` (lo pone
+el comercial; es el obligatorio de la fase Propuesta) y `fl_descuentoventas` (lo pone el Equipo
+de Ventas). Reglas en `src/lib/descuento.ts`:
+- **Pendiente** = hay descuento del concesionario, falta el de ventas y la fase no es Cierre,
+  Entrega ni Perdido. Se marca en naranja (`--color-naranja*`) en la ficha (bloque `OfertaLead`)
+  y en las filas de Mis oportunidades / Seguimiento (columna "Descuento").
+- Si el comercial cambia su porcentaje, `actualizarLead` borra el de ventas para que lo revise.
+- Ventas ve el letrero `AvisoDescuentos` en Inicio (enlaza a `/seguimiento?descuento=pendiente`)
+  y en Seguimiento, con el filtro "Falta descuento de ventas". Solo dentro de la app, sin correo.

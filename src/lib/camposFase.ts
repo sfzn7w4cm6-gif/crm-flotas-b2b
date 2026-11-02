@@ -10,7 +10,7 @@ import type { ActualizarLeadInput } from './leadsService'
 
 export type CampoFase = keyof ActualizarLeadInput | 'modelos'
 
-export type TipoCampo = 'texto' | 'textoLargo' | 'numero' | 'euros' | 'fecha' | 'financiacion' | 'plazo' | 'modelos'
+export type TipoCampo = 'texto' | 'textoLargo' | 'numero' | 'euros' | 'porcentaje' | 'fecha' | 'financiacion' | 'plazo' | 'modelos'
 
 export const CAMPOS: Partial<Record<CampoFase, { label: string; tipo: TipoCampo; seccion: string; leadField?: keyof Lead }>> = {
   numVehiculosActuales: { label: 'Nº vehículos actuales', tipo: 'numero', seccion: 'Situación actual de flota', leadField: 'fl_numvehiculosactuales' },
@@ -28,7 +28,8 @@ export const CAMPOS: Partial<Record<CampoFase, { label: string; tipo: TipoCampo;
   proximaAccion: { label: 'Próxima acción', tipo: 'texto', seccion: 'Histórico y seguimiento', leadField: 'fl_proximaaccion' },
   fechaProximaAccion: { label: 'Fecha próxima acción', tipo: 'fecha', seccion: 'Histórico y seguimiento', leadField: 'fl_fechaproximaaccion' },
   observaciones: { label: 'Observaciones / notas clave', tipo: 'textoLargo', seccion: 'Histórico y seguimiento', leadField: 'fl_observaciones' },
-  ofertaCondiciones: { label: 'Oferta (Descuento/Condiciones)', tipo: 'textoLargo', seccion: 'Oferta', leadField: 'fl_ofertacondiciones' },
+  descuentoConcesionario: { label: 'Descuento del concesionario (%)', tipo: 'porcentaje', seccion: 'Oferta', leadField: 'fl_descuentoconcesionario' },
+  ofertaCondiciones: { label: 'Condiciones de la oferta', tipo: 'textoLargo', seccion: 'Oferta', leadField: 'fl_ofertacondiciones' },
   importeVenta: { label: 'Importe de la venta (€)', tipo: 'euros', seccion: 'Venta' },
 }
 
@@ -59,7 +60,7 @@ const REQUISITOS: Partial<Record<Fase, Requisito[]>> = {
     obligatorio('fechaProximaAccion'),
     opcional('observaciones'),
   ],
-  [Fase.Propuesta]: [obligatorio('ofertaCondiciones')],
+  [Fase.Propuesta]: [obligatorio('descuentoConcesionario'), opcional('ofertaCondiciones')],
   [Fase.Cierre]: [obligatorio('importeVenta')],
 }
 

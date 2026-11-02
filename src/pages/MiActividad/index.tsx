@@ -24,6 +24,8 @@ import { fetchZonas } from '../../lib/catalogosService'
 import { FASES_ACTIVAS, Fase, FaseLabel } from '../../lib/types'
 import type { Concesionario, EstadoTarea, FaseHistorico, Lead, Modelo, Objetivo, Tarea, Ubicacion, Zona } from '../../lib/types'
 import { PeriodoFiltro } from './PeriodoFiltro'
+import { AvisoDescuentos } from '../../components/AvisoDescuentos'
+import { descuentoPendiente } from '../../lib/descuento'
 import { DialogoVista } from './VistaPersonal'
 import { guardarVistas, leerVistas, type VistaPersonal } from './vistasPersonales'
 import './MiActividad.css'
@@ -401,6 +403,8 @@ export function InicioPanel({ modo, debajo }: { modo: 'concesionario' | 'red'; d
           )}
         </div>
       )}
+
+      {red && <AvisoDescuentos n={leads.filter(descuentoPendiente).length} enlace="/seguimiento?descuento=pendiente" />}
 
       <section className="inicio-resumen" aria-label={`Resumen de ${etiquetaPeriodo}`}>
         <Metrica titulo="Oportunidades activadas" ayuda="Oportunidades con las que ya hubo al menos un primer contacto" eventos={eventosActivados} periodo={periodo} />

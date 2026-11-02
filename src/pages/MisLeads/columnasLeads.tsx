@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { EnlaceEmpresa } from '../../components/EnlaceEmpresa'
-import { FaseBadge } from '../../components/StatusBadge'
+import { DescuentoPendienteBadge, FaseBadge } from '../../components/StatusBadge'
+import { descuentoPendiente, descuentoTotal, formatoPorcentaje } from '../../lib/descuento'
 import { formatoEuros } from '../../lib/actividadService'
 import { fechaCorta } from '../../lib/formato'
 import { FaseLabel, ModoFinanciacionLabel, PlazoDecisionLabel } from '../../lib/types'
@@ -41,6 +42,7 @@ export type ColKey =
   | 'proximaAccion'
   | 'fechaProximaAccion'
   | 'observaciones'
+  | 'descuento'
   | 'oferta'
 
 export interface ColumnDef {
@@ -134,5 +136,19 @@ export const COLUMNAS: ColumnDef[] = [
   texto('proximaAccion', 'Próxima acción', (l) => l.fl_proximaaccion),
   fecha('fechaProximaAccion', 'Fecha próxima acción', (l) => l.fl_fechaproximaaccion),
   texto('observaciones', 'Observaciones', (l) => l.fl_observaciones),
-  texto('oferta', 'Oferta (descuento / condiciones)', (l) => l.fl_ofertacondiciones),
+  // Oferta
+  {
+    key: 'descuento',
+    label: 'Descuento',
+    sortable: true,
+    render: (l) => (
+      <span className="celda-descuento">
+        {formatoPorcentaje(descuentoTotal(l))}
+        {descuentoPendiente(l) && <DescuentoPendienteBadge corto />}
+      </span>
+    ),
+    valor: (l) => descuentoTotal(l) ?? -1,
+    exportar: (l) => `${formatoPorcentaje(descuentoTotal(l))}${descuentoPendiente(l) ? ' (falta ventas)' : ''}`,
+  },
+  texto('oferta', 'Condiciones de la oferta', (l) => l.fl_ofertacondiciones),
 ]

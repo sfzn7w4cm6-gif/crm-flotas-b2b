@@ -153,6 +153,9 @@ export interface Lead {
   fl_fechaprimercontacto: string
   fl_faseactual: Fase
   fl_ofertacondiciones?: string
+  // Descuento de la oferta en %: el del concesionario y el de ventas se suman (lib/descuento.ts).
+  fl_descuentoconcesionario?: number | null
+  fl_descuentoventas?: number | null
   fl_ultimaaccionrealizada: string
   fl_proximaaccion: string
   fl_fechaproximaaccion: string

@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
+import { descuentoPendiente } from '../../lib/descuento'
+import '../../components/AvisoDescuentos.css'
 import { TablaDesplazable } from '../../components/TablaDesplazable'
 import { Icon } from '../../components/Icon'
 import { useAuth } from '../../context/AuthContext'
@@ -51,7 +53,7 @@ type SortDir = 'asc' | 'desc'
 // El concesionario es siempre el propio: esa columna solo está en Seguimiento.
 // La columna de concesionario y sede solo hace falta a quien lleva más de una sede.
 const UNA_SEDE = TODAS.filter((c) => c.key !== 'concesionario')
-const COLUMNAS_POR_DEFECTO: ColKey[] = ['numero', 'empresa', 'fase', 'vehiculos', 'proximaAccion', 'fechaProximaAccion']
+const COLUMNAS_POR_DEFECTO: ColKey[] = ['numero', 'empresa', 'fase', 'vehiculos', 'descuento', 'proximaAccion', 'fechaProximaAccion']
 
 export function MisLeads() {
   const [params] = useSearchParams()
@@ -424,7 +426,7 @@ export function MisLeads() {
             </thead>
             <tbody>
               {ordenados.map((l) => (
-                <tr key={l.fl_leadid} className="row-clickable" onClick={() => (window.location.hash = `#/lead/${l.fl_leadid}`)}>
+                <tr key={l.fl_leadid} className={`row-clickable${descuentoPendiente(l) ? ' is-pendiente-descuento' : ''}`} onClick={() => (window.location.hash = `#/lead/${l.fl_leadid}`)}>
                   {columnasOrdenadas.map((col, i) => (
                     <td key={col.key} className={i === 0 ? 'cell-strong' : undefined}>
                       {col.render(l, ctx)}

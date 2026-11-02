@@ -563,3 +563,25 @@
   flex-shrink: 0;
   margin-top: 1px;
 }
+
+/* Bloque Oferta: en naranja mientras falta el descuento de ventas. */
+.bloque-datos-cabecera-derecha {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.bloque-datos.is-pendiente-descuento {
+  margin: 0 -14px;
+  padding-left: 14px;
+  padding-right: 14px;
+  border-radius: var(--radius-sm);
+  background: var(--color-naranja-bg);
+  box-shadow: inset 3px 0 0 var(--color-naranja);
+}
+.oferta-pendiente {
+  color: var(--color-naranja);
+  font-weight: 600;
+}
+.oferta-aviso {
+  color: var(--color-naranja);
+}

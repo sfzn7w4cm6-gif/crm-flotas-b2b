@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { getContext } from '@microsoft/power-apps/app'
 import type { IContext } from '@microsoft/power-apps/app'
-import { listRecords, Tables } from '../lib/dataverseClient'
+import { diagnosticoConexion, listRecords, Tables } from '../lib/dataverseClient'
 import { fetchAsignaciones, sedesDeAsignaciones } from '../lib/asignacionesService'
 import type { Asignacion, UsuarioApp, Ubicacion, Concesionario } from '../lib/types'
 import { RolApp } from '../lib/types'
@@ -138,8 +138,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         setLoading(false)
       } catch (e) {
+        const diag = await diagnosticoConexion()
         if (cancelled) return
-        setError(e instanceof Error ? e.message : 'Error desconocido al cargar tu perfil.')
+        setError(`${e instanceof Error ? e.message : 'Error desconocido al cargar tu perfil.'}\n\n${diag}`)
         setLoading(false)
       }
     }

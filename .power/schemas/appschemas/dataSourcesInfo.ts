@@ -3774,5 +3774,110 @@ export const dataSourcesInfo = {
         }
       }
     }
+  },
+  "fl_asignacions": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "fl_asignacionid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "fl_concesionarios": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "fl_concesionarioid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "fl_empresas": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "fl_empresaid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "fl_fasehistoricos": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "fl_fasehistoricoid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "fl_leads": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "fl_leadid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "fl_lineaoportunidads": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "fl_lineaoportunidadid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "fl_modelos": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "fl_modeloid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "annotations": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "annotationid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "fl_notificacions": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "fl_notificacionid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "fl_objetivos": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "fl_objetivoid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "fl_tareas": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "fl_tareaid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "fl_ubicacions": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "fl_ubicacionid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "fl_usuarioapps": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "fl_usuarioappid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "fl_zonas": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "fl_zonaid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
+  },
+  "fl_notas": {
+    "tableId": "",
+    "version": "",
+    "primaryKey": "fl_notaid",
+    "dataSourceType": "Dataverse",
+    "apis": {}
   }
 };

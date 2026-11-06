@@ -35,6 +35,35 @@ function resolverOrganizacion(): Promise<string> {
   return organizacionPromise
 }
 
+/** Texto para la pantalla de error: a que Dataverse se llama y con que identidad. */
+export async function diagnosticoConexion(): Promise<string> {
+  try {
+    const ctx = await getContext()
+    const org = await resolverOrganizacion().catch(() => '(sin resolver)')
+    let orgsConexion: string
+    try {
+      const r = await dv.executeAsync<Record<string, unknown>, unknown>({
+        connectorOperation: { tableName: DATASOURCE, operationName: 'GetOrganizations', parameters: {} },
+      })
+      orgsConexion = r.success ? JSON.stringify(r.data).slice(0, 600) : `error: ${describeError(r.error)}`
+    } catch (e) {
+      orgsConexion = `excepción: ${e instanceof Error ? e.message : String(e)}`
+    }
+    return [
+      `Entornos que ve la conexión: ${orgsConexion}`,
+      `Dataverse usado: ${org}`,
+      `dataverseOrgUrl del host: ${ctx.app.dataverseOrgUrl || '(vacío)'}`,
+      `Entorno: ${ctx.app.environmentId}`,
+      `Usuario: ${ctx.user.userPrincipalName || '(vacío)'}`,
+      `systemUserId: ${ctx.user.systemUserId || '(vacío)'}`,
+      `objectId: ${ctx.user.objectId || '(vacío)'}`,
+      `tenantId: ${ctx.user.tenantId || '(vacío)'}`,
+    ].join('\n')
+  } catch (e) {
+    return `Sin diagnóstico: ${e instanceof Error ? e.message : String(e)}`
+  }
+}
+
 // Nombres de coleccion OData (logicalname + "s") de las tablas de CRM Flotas B2B.
 export const Tables = {
   Concesionario: 'fl_concesionarios',
@@ -74,8 +103,30 @@ function unwrap<T>(items: EntityItem[] | undefined): T[] {
   return (items ?? []).map((i) => ({ ...(i as unknown as Record<string, unknown>), ...(i.dynamicProperties ?? {}) }) as T)
 }
 
+// Tablas dadas de alta como origen nativo de Dataverse ('pac code add-data-source -a dataverse'):
+// van directas al Dataverse del entorno con la identidad del usuario, sin pasar por el
+// conector. El conector rechaza a los invitados B2B con 0x80072560 aunque esten bien dados de alta.
+function esNativa(entityName: string): boolean {
+  const info = (dataSourcesInfo as Record<string, { dataSourceType?: string }>)[entityName]
+  return info?.dataSourceType === 'Dataverse'
+}
+
+function lista(valor?: string): string[] | undefined {
+  return valor ? valor.split(',').map((s) => s.trim()).filter(Boolean) : undefined
+}
+
 /** Lista filas de una tabla (entityName = coleccion OData, ej. 'fl_leads'). */
 export async function listRecords<T>(entityName: string, options: ListOptions = {}): Promise<T[]> {
+  if (esNativa(entityName) && !options.expand) {
+    const r = await dv.retrieveMultipleRecordsAsync<T>(entityName, {
+      select: lista(options.select),
+      filter: options.filter,
+      orderBy: lista(options.orderby),
+      top: options.top,
+    })
+    if (!r.success) throw new Error(describeError(r.error))
+    return r.data ?? []
+  }
   const organization = await resolverOrganizacion()
   const result = await dv.executeAsync<Record<string, unknown>, EntityItemList>({
     connectorOperation: {
@@ -102,6 +153,14 @@ export async function listRecords<T>(entityName: string, options: ListOptions = 
 
 /** Obtiene una fila por id. Devuelve null si no existe. */
 export async function getRecord<T>(entityName: string, id: string, select?: string): Promise<T | null> {
+  if (esNativa(entityName)) {
+    const r = await dv.retrieveRecordAsync<T>(entityName, id, { select: lista(select) })
+    if (!r.success) {
+      if (isNotFound(r.error)) return null
+      throw new Error(describeError(r.error))
+    }
+    return r.data ?? null
+  }
   const organization = await resolverOrganizacion()
   const result = await dv.executeAsync<Record<string, unknown>, Record<string, unknown>>({
     connectorOperation: {
@@ -126,6 +185,14 @@ export async function getRecord<T>(entityName: string, id: string, select?: stri
 
 /** Crea una fila. Devuelve el id de la fila creada. */
 export async function createRecord(entityName: string, item: Record<string, unknown>): Promise<string> {
+  if (esNativa(entityName)) {
+    const r = await dv.createRecordAsync<Record<string, unknown>, Record<string, unknown>>(entityName, item)
+    if (!r.success) throw new Error(describeError(r.error))
+    const pk = (dataSourcesInfo as Record<string, { primaryKey?: string }>)[entityName]?.primaryKey ?? ''
+    const id = (r.data?.[pk] as string | undefined) ?? findGuidLike(r.data)
+    if (!id) throw new Error(`No se pudo determinar el id de la fila creada en ${entityName}.`)
+    return id
+  }
   const organization = await resolverOrganizacion()
   const result = await dv.executeAsync<Record<string, unknown>, Record<string, unknown>>({
     connectorOperation: {
@@ -156,6 +223,11 @@ export async function updateRecord(
   id: string,
   item: Record<string, unknown>,
 ): Promise<void> {
+  if (esNativa(entityName)) {
+    const r = await dv.updateRecordAsync<Record<string, unknown>, unknown>(entityName, id, item)
+    if (!r.success) throw new Error(describeError(r.error))
+    return
+  }
   const organization = await resolverOrganizacion()
   const result = await dv.executeAsync<Record<string, unknown>, unknown>({
     connectorOperation: {
@@ -178,6 +250,11 @@ export async function updateRecord(
 
 /** Elimina una fila. */
 export async function deleteRecord(entityName: string, id: string): Promise<void> {
+  if (esNativa(entityName)) {
+    const r = await dv.deleteRecordAsync(entityName, id)
+    if (!r.success) throw new Error(describeError(r.error))
+    return
+  }
   const organization = await resolverOrganizacion()
   const result = await dv.executeAsync<Record<string, unknown>, unknown>({
     connectorOperation: {

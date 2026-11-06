@@ -20,5 +20,71 @@
       "dataSets": {}
     }
   },
-  "databaseReferences": {}
+  "databaseReferences": {
+    "default.cds": {
+      "dataSources": {
+        "usuariosdelaapp": {
+          "entitySetName": "fl_usuarioapps",
+          "logicalName": "fl_usuarioapp"
+        },
+        "concesionarios": {
+          "entitySetName": "fl_concesionarios",
+          "logicalName": "fl_concesionario"
+        },
+        "ubicaciones": {
+          "entitySetName": "fl_ubicacions",
+          "logicalName": "fl_ubicacion"
+        },
+        "leads": {
+          "entitySetName": "fl_leads",
+          "logicalName": "fl_lead"
+        },
+        "historicosdefase": {
+          "entitySetName": "fl_fasehistoricos",
+          "logicalName": "fl_fasehistorico"
+        },
+        "tareas": {
+          "entitySetName": "fl_tareas",
+          "logicalName": "fl_tarea"
+        },
+        "objetivos": {
+          "entitySetName": "fl_objetivos",
+          "logicalName": "fl_objetivo"
+        },
+        "zonas": {
+          "entitySetName": "fl_zonas",
+          "logicalName": "fl_zona"
+        },
+        "modelos": {
+          "entitySetName": "fl_modelos",
+          "logicalName": "fl_modelo"
+        },
+        "empresas": {
+          "entitySetName": "fl_empresas",
+          "logicalName": "fl_empresa"
+        },
+        "lineasdeoportunidad": {
+          "entitySetName": "fl_lineaoportunidads",
+          "logicalName": "fl_lineaoportunidad"
+        },
+        "notas": {
+          "entitySetName": "annotations",
+          "logicalName": "annotation"
+        },
+        "notasdelead": {
+          "entitySetName": "fl_notas",
+          "logicalName": "fl_nota"
+        },
+        "asignaciones": {
+          "entitySetName": "fl_asignacions",
+          "logicalName": "fl_asignacion"
+        },
+        "notificaciones": {
+          "entitySetName": "fl_notificacions",
+          "logicalName": "fl_notificacion"
+        }
+      },
+      "environmentVariableName": ""
+    }
+  }
 }

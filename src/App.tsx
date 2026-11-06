@@ -44,7 +44,7 @@ function App() {
   if (error) {
     return (
       <div className="app-status">
-        <p className="app-status-error">{error}</p>
+        <p className="app-status-error" style={{ whiteSpace: 'pre-wrap', userSelect: 'text' }}>{error}</p>
       </div>
     )
   }

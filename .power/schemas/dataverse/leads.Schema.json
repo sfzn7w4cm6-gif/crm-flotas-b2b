@@ -1,0 +1,843 @@
+{
+  "name": "fl_lead",
+  "title": "Leads",
+  "schema": {
+    "type": "array",
+    "items": {
+      "type": "object",
+      "x-ms-dataverse-entity": true,
+      "x-ms-dataverse-entityset": "fl_leads",
+      "x-ms-dataverse-primary-id": "fl_leadid",
+      "x-ms-dataverse-primary-name": "fl_numero",
+      "properties": {
+        "createdby": {
+          "type": "string",
+          "title": "Autor",
+          "x-ms-dataverse-attribute": "createdby",
+          "x-ms-dataverse-type": "LookupType",
+          "x-ms-schema-name": "CreatedBy",
+          "x-ms-read-only": true
+        },
+        "createdbyname": {
+          "type": "string",
+          "title": "createdbyname",
+          "x-ms-dataverse-attribute": "createdbyname",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "CreatedByName",
+          "x-ms-read-only": true,
+          "maxLength": 100
+        },
+        "createdbyyominame": {
+          "type": "string",
+          "title": "createdbyyominame",
+          "x-ms-dataverse-attribute": "createdbyyominame",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "CreatedByYomiName",
+          "x-ms-read-only": true,
+          "required": true,
+          "maxLength": 100
+        },
+        "createdon": {
+          "type": "string",
+          "title": "Fecha de creación",
+          "x-ms-dataverse-attribute": "createdon",
+          "x-ms-dataverse-type": "DateTimeType",
+          "x-ms-schema-name": "CreatedOn",
+          "x-ms-read-only": true
+        },
+        "createdonbehalfby": {
+          "type": "string",
+          "title": "Autor (delegado)",
+          "x-ms-dataverse-attribute": "createdonbehalfby",
+          "x-ms-dataverse-type": "LookupType",
+          "x-ms-schema-name": "CreatedOnBehalfBy",
+          "x-ms-read-only": true
+        },
+        "createdonbehalfbyname": {
+          "type": "string",
+          "title": "createdonbehalfbyname",
+          "x-ms-dataverse-attribute": "createdonbehalfbyname",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "CreatedOnBehalfByName",
+          "x-ms-read-only": true,
+          "maxLength": 100
+        },
+        "createdonbehalfbyyominame": {
+          "type": "string",
+          "title": "createdonbehalfbyyominame",
+          "x-ms-dataverse-attribute": "createdonbehalfbyyominame",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "CreatedOnBehalfByYomiName",
+          "x-ms-read-only": true,
+          "required": true,
+          "maxLength": 100
+        },
+        "exchangerate": {
+          "type": "string",
+          "title": "Tipo de cambio",
+          "x-ms-dataverse-attribute": "exchangerate",
+          "x-ms-dataverse-type": "DecimalType",
+          "x-ms-schema-name": "ExchangeRate",
+          "x-ms-read-only": true
+        },
+        "fl_actividadeconomica": {
+          "type": "string",
+          "title": "Actividad economica (Sector CNAE)",
+          "x-ms-dataverse-attribute": "fl_actividadeconomica",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "fl_actividadeconomica",
+          "required": true,
+          "maxLength": 150
+        },
+        "fl_cif": {
+          "type": "string",
+          "title": "CIF / NIF",
+          "x-ms-dataverse-attribute": "fl_cif",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "fl_cif",
+          "required": true,
+          "maxLength": 20
+        },
+        "fl_comercial": {
+          "type": "string",
+          "title": "Comercial",
+          "x-ms-dataverse-attribute": "fl_comercial",
+          "x-ms-dataverse-type": "LookupType",
+          "x-ms-schema-name": "fl_comercial"
+        },
+        "fl_comercialname": {
+          "type": "string",
+          "title": "fl_comercialname",
+          "x-ms-dataverse-attribute": "fl_comercialname",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "fl_comercialName",
+          "x-ms-read-only": true,
+          "maxLength": 850
+        },
+        "fl_comercialresponsable": {
+          "type": "string",
+          "title": "Comercial responsable",
+          "x-ms-dataverse-attribute": "fl_comercialresponsable",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "fl_comercialresponsable",
+          "required": true,
+          "maxLength": 200
+        },
+        "fl_competidoresdetectados": {
+          "type": "string",
+          "title": "Competidores detectados",
+          "x-ms-dataverse-attribute": "fl_competidoresdetectados",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "fl_competidoresdetectados",
+          "required": true,
+          "maxLength": 300
+        },
+        "fl_concesionario": {
+          "type": "string",
+          "title": "Concesionario",
+          "x-ms-dataverse-attribute": "fl_concesionario",
+          "x-ms-dataverse-type": "LookupType",
+          "x-ms-schema-name": "fl_concesionario",
+          "required": true
+        },
+        "fl_concesionarioname": {
+          "type": "string",
+          "title": "fl_concesionarioname",
+          "x-ms-dataverse-attribute": "fl_concesionarioname",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "fl_concesionarioName",
+          "x-ms-read-only": true,
+          "maxLength": 850
+        },
+        "fl_creadopor": {
+          "type": "string",
+          "title": "Creado por",
+          "x-ms-dataverse-attribute": "fl_creadopor",
+          "x-ms-dataverse-type": "LookupType",
+          "x-ms-schema-name": "fl_creadopor",
+          "required": true
+        },
+        "fl_creadoporname": {
+          "type": "string",
+          "title": "fl_creadoporname",
+          "x-ms-dataverse-attribute": "fl_creadoporname",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "fl_creadoporName",
+          "x-ms-read-only": true,
+          "maxLength": 850
+        },
+        "fl_cuotasobjetivo": {
+          "type": "string",
+          "title": "Cuotas objetivo",
+          "x-ms-dataverse-attribute": "fl_cuotasobjetivo",
+          "x-ms-dataverse-type": "MoneyType",
+          "x-ms-schema-name": "fl_cuotasobjetivo",
+          "required": true
+        },
+        "fl_cuotasobjetivo_base": {
+          "type": "string",
+          "title": "Cuotas objetivo (base)",
+          "x-ms-dataverse-attribute": "fl_cuotasobjetivo_base",
+          "x-ms-dataverse-type": "MoneyType",
+          "x-ms-schema-name": "fl_cuotasobjetivo_Base",
+          "x-ms-read-only": true
+        },
+        "fl_descuentoconcesionario": {
+          "type": "string",
+          "title": "Descuento del concesionario (%)",
+          "x-ms-dataverse-attribute": "fl_descuentoconcesionario",
+          "x-ms-dataverse-type": "DecimalType",
+          "x-ms-schema-name": "fl_descuentoconcesionario"
+        },
+        "fl_descuentoventas": {
+          "type": "string",
+          "title": "Descuento de ventas (%)",
+          "x-ms-dataverse-attribute": "fl_descuentoventas",
+          "x-ms-dataverse-type": "DecimalType",
+          "x-ms-schema-name": "fl_descuentoventas"
+        },
+        "fl_emailcorporativo": {
+          "type": "string",
+          "title": "E-mail corporativo",
+          "x-ms-dataverse-attribute": "fl_emailcorporativo",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "fl_emailcorporativo",
+          "required": true,
+          "maxLength": 200
+        },
+        "fl_empresa": {
+          "type": "string",
+          "title": "Empresa",
+          "x-ms-dataverse-attribute": "fl_empresa",
+          "x-ms-dataverse-type": "LookupType",
+          "x-ms-schema-name": "fl_empresa"
+        },
+        "fl_empresaname": {
+          "type": "string",
+          "title": "fl_empresaname",
+          "x-ms-dataverse-attribute": "fl_empresaname",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "fl_empresaName",
+          "x-ms-read-only": true,
+          "maxLength": 850
+        },
+        "fl_faseactual": {
+          "type": "string",
+          "title": "Fase actual",
+          "x-ms-dataverse-attribute": "fl_faseactual",
+          "x-ms-dataverse-type": "PicklistType",
+          "x-ms-schema-name": "fl_faseactual",
+          "required": true,
+          "enum": [
+            "1. Prospeccion",
+            "2. Primer Contacto",
+            "3. Cualificacion",
+            "4. Propuesta",
+            "5. Negociacion",
+            "6. Cierre",
+            "7. Entrega",
+            "8. Fidelizacion",
+            "Perdido"
+          ],
+          "x-ms-enum-values": [
+            101000000,
+            101000001,
+            101000002,
+            101000003,
+            101000004,
+            101000005,
+            101000006,
+            101000007,
+            101000008
+          ],
+          "Color": [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          "x-ms-optionsetmetadataid": "65bd820c-c2d6-f111-a05b-000d3a4b38aa",
+          "x-ms-isGlobal": false,
+          "x-ms-optionsetdisplayname": "Fase actual",
+          "x-ms-optionSetType": "Picklist"
+        },
+        "fl_faseactualname": {
+          "type": "string",
+          "title": "fl_faseactualname",
+          "x-ms-dataverse-attribute": "fl_faseactualname",
+          "x-ms-dataverse-type": "VirtualType",
+          "x-ms-schema-name": "fl_faseactualName",
+          "x-ms-read-only": true
+        },
+        "fl_fechaprimercontacto": {
+          "type": "string",
+          "title": "Fecha primer contacto",
+          "x-ms-dataverse-attribute": "fl_fechaprimercontacto",
+          "x-ms-dataverse-type": "DateTimeType",
+          "x-ms-schema-name": "fl_fechaprimercontacto",
+          "required": true
+        },
+        "fl_fechaproximaaccion": {
+          "type": "string",
+          "title": "Fecha proxima accion",
+          "x-ms-dataverse-attribute": "fl_fechaproximaaccion",
+          "x-ms-dataverse-type": "DateTimeType",
+          "x-ms-schema-name": "fl_fechaproximaaccion",
+          "required": true
+        },
+        "fl_importeventa": {
+          "type": "string",
+          "title": "Importe de venta",
+          "x-ms-dataverse-attribute": "fl_importeventa",
+          "x-ms-dataverse-type": "MoneyType",
+          "x-ms-schema-name": "fl_importeventa"
+        },
+        "fl_importeventa_base": {
+          "type": "string",
+          "title": "Importe de venta (base)",
+          "x-ms-dataverse-attribute": "fl_importeventa_base",
+          "x-ms-dataverse-type": "MoneyType",
+          "x-ms-schema-name": "fl_importeventa_Base",
+          "x-ms-read-only": true
+        },
+        "fl_kmtiempo": {
+          "type": "string",
+          "title": "Km / tiempo",
+          "x-ms-dataverse-attribute": "fl_kmtiempo",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "fl_kmtiempo",
+          "required": true,
+          "maxLength": 100
+        },
+        "fl_leadid": {
+          "type": "string",
+          "title": "Lead",
+          "x-ms-dataverse-attribute": "fl_leadid",
+          "x-ms-dataverse-type": "UniqueidentifierType",
+          "x-ms-schema-name": "fl_leadId",
+          "x-ms-dataverse-primary-id": true,
+          "required": true,
+          "x-ms-keyType": "primary"
+        },
+        "fl_marcasactuales": {
+          "type": "string",
+          "title": "Marcas actuales",
+          "x-ms-dataverse-attribute": "fl_marcasactuales",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "fl_marcasactuales",
+          "required": true,
+          "maxLength": 300
+        },
+        "fl_modelosinteres": {
+          "type": "string",
+          "title": "Modelos de interes",
+          "x-ms-dataverse-attribute": "fl_modelosinteres",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "fl_modelosinteres",
+          "required": true,
+          "maxLength": 300
+        },
+        "fl_modofinanciacionactual": {
+          "type": "string",
+          "title": "Modo de financiacion actual",
+          "x-ms-dataverse-attribute": "fl_modofinanciacionactual",
+          "x-ms-dataverse-type": "PicklistType",
+          "x-ms-schema-name": "fl_modofinanciacionactual",
+          "required": true,
+          "enum": [
+            "Renting",
+            "Leasing",
+            "Compra financiada",
+            "Compra al contado",
+            "Otro"
+          ],
+          "x-ms-enum-values": [
+            101000000,
+            101000001,
+            101000002,
+            101000003,
+            101000004
+          ],
+          "Color": [
+            null,
+            null,
+            null,
+            null,
+            null
+          ],
+          "x-ms-optionsetmetadataid": "6bbd820c-c2d6-f111-a05b-000d3a4b38aa",
+          "x-ms-isGlobal": false,
+          "x-ms-optionsetdisplayname": "Modo de financiacion actual",
+          "x-ms-optionSetType": "Picklist"
+        },
+        "fl_modofinanciacionactualname": {
+          "type": "string",
+          "title": "fl_modofinanciacionactualname",
+          "x-ms-dataverse-attribute": "fl_modofinanciacionactualname",
+          "x-ms-dataverse-type": "VirtualType",
+          "x-ms-schema-name": "fl_modofinanciacionactualName",
+          "x-ms-read-only": true
+        },
+        "fl_motivoperdida": {
+          "type": "string",
+          "title": "Motivo de perdida",
+          "x-ms-dataverse-attribute": "fl_motivoperdida",
+          "x-ms-dataverse-type": "MemoType",
+          "x-ms-schema-name": "fl_motivoperdida",
+          "maxLength": 2000
+        },
+        "fl_nombreresponsable": {
+          "type": "string",
+          "title": "Nombre responsable empresa",
+          "x-ms-dataverse-attribute": "fl_nombreresponsable",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "fl_nombreresponsable",
+          "required": true,
+          "maxLength": 200
+        },
+        "fl_numero": {
+          "type": "string",
+          "title": "Numero",
+          "x-ms-dataverse-attribute": "fl_numero",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "fl_numero",
+          "x-ms-dataverse-primary-name": true,
+          "maxLength": 200
+        },
+        "fl_numvehiculosactuales": {
+          "type": "string",
+          "title": "Nº vehiculos actuales",
+          "x-ms-dataverse-attribute": "fl_numvehiculosactuales",
+          "x-ms-dataverse-type": "IntegerType",
+          "x-ms-schema-name": "fl_numvehiculosactuales",
+          "required": true
+        },
+        "fl_numvehiculosrenovarampliar": {
+          "type": "string",
+          "title": "Nº vehiculos a renovar/ampliar",
+          "x-ms-dataverse-attribute": "fl_numvehiculosrenovarampliar",
+          "x-ms-dataverse-type": "IntegerType",
+          "x-ms-schema-name": "fl_numvehiculosrenovarampliar",
+          "required": true
+        },
+        "fl_observaciones": {
+          "type": "string",
+          "title": "Observaciones / notas clave",
+          "x-ms-dataverse-attribute": "fl_observaciones",
+          "x-ms-dataverse-type": "MemoType",
+          "x-ms-schema-name": "fl_observaciones",
+          "required": true,
+          "maxLength": 4000
+        },
+        "fl_ofertacondiciones": {
+          "type": "string",
+          "title": "Oferta (Descuento/Condiciones)",
+          "x-ms-dataverse-attribute": "fl_ofertacondiciones",
+          "x-ms-dataverse-type": "MemoType",
+          "x-ms-schema-name": "fl_ofertacondiciones",
+          "maxLength": 2000
+        },
+        "fl_plazoestimadodecision": {
+          "type": "string",
+          "title": "Plazo estimado de decision",
+          "x-ms-dataverse-attribute": "fl_plazoestimadodecision",
+          "x-ms-dataverse-type": "PicklistType",
+          "x-ms-schema-name": "fl_plazoestimadodecision",
+          "required": true,
+          "enum": [
+            "Menos de 1 mes",
+            "1-3 meses",
+            "3-6 meses",
+            "Mas de 6 meses"
+          ],
+          "x-ms-enum-values": [
+            101000000,
+            101000001,
+            101000002,
+            101000003
+          ],
+          "Color": [
+            null,
+            null,
+            null,
+            null
+          ],
+          "x-ms-optionsetmetadataid": "6dbd820c-c2d6-f111-a05b-000d3a4b38aa",
+          "x-ms-isGlobal": false,
+          "x-ms-optionsetdisplayname": "Plazo estimado de decision",
+          "x-ms-optionSetType": "Picklist"
+        },
+        "fl_plazoestimadodecisionname": {
+          "type": "string",
+          "title": "fl_plazoestimadodecisionname",
+          "x-ms-dataverse-attribute": "fl_plazoestimadodecisionname",
+          "x-ms-dataverse-type": "VirtualType",
+          "x-ms-schema-name": "fl_plazoestimadodecisionName",
+          "x-ms-read-only": true
+        },
+        "fl_proximaaccion": {
+          "type": "string",
+          "title": "Proxima accion",
+          "x-ms-dataverse-attribute": "fl_proximaaccion",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "fl_proximaaccion",
+          "required": true,
+          "maxLength": 300
+        },
+        "fl_razonsocial": {
+          "type": "string",
+          "title": "Razon Social / Nombre comercial",
+          "x-ms-dataverse-attribute": "fl_razonsocial",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "fl_razonsocial",
+          "required": true,
+          "maxLength": 200
+        },
+        "fl_requisitos": {
+          "type": "string",
+          "title": "Requisitos (etiquetas, tecnologia, politica de flotas)",
+          "x-ms-dataverse-attribute": "fl_requisitos",
+          "x-ms-dataverse-type": "MemoType",
+          "x-ms-schema-name": "fl_requisitos",
+          "required": true,
+          "maxLength": 2000
+        },
+        "fl_telefonocorporativo": {
+          "type": "string",
+          "title": "Telefono corporativo",
+          "x-ms-dataverse-attribute": "fl_telefonocorporativo",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "fl_telefonocorporativo",
+          "required": true,
+          "maxLength": 30
+        },
+        "fl_ubicacion": {
+          "type": "string",
+          "title": "Ubicacion",
+          "x-ms-dataverse-attribute": "fl_ubicacion",
+          "x-ms-dataverse-type": "LookupType",
+          "x-ms-schema-name": "fl_ubicacion",
+          "required": true
+        },
+        "fl_ubicacionname": {
+          "type": "string",
+          "title": "fl_ubicacionname",
+          "x-ms-dataverse-attribute": "fl_ubicacionname",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "fl_ubicacionName",
+          "x-ms-read-only": true,
+          "maxLength": 850
+        },
+        "fl_ultimaaccionrealizada": {
+          "type": "string",
+          "title": "Ultima accion realizada",
+          "x-ms-dataverse-attribute": "fl_ultimaaccionrealizada",
+          "x-ms-dataverse-type": "MemoType",
+          "x-ms-schema-name": "fl_ultimaaccionrealizada",
+          "required": true,
+          "maxLength": 2000
+        },
+        "fl_vencimientocontratosactuales": {
+          "type": "string",
+          "title": "Vencimiento contratos actuales",
+          "x-ms-dataverse-attribute": "fl_vencimientocontratosactuales",
+          "x-ms-dataverse-type": "DateTimeType",
+          "x-ms-schema-name": "fl_vencimientocontratosactuales",
+          "required": true
+        },
+        "importsequencenumber": {
+          "type": "string",
+          "title": "Número de secuencia de importación",
+          "x-ms-dataverse-attribute": "importsequencenumber",
+          "x-ms-dataverse-type": "IntegerType",
+          "x-ms-schema-name": "ImportSequenceNumber"
+        },
+        "modifiedby": {
+          "type": "string",
+          "title": "Modificado por",
+          "x-ms-dataverse-attribute": "modifiedby",
+          "x-ms-dataverse-type": "LookupType",
+          "x-ms-schema-name": "ModifiedBy",
+          "x-ms-read-only": true
+        },
+        "modifiedbyname": {
+          "type": "string",
+          "title": "modifiedbyname",
+          "x-ms-dataverse-attribute": "modifiedbyname",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "ModifiedByName",
+          "x-ms-read-only": true,
+          "maxLength": 100
+        },
+        "modifiedbyyominame": {
+          "type": "string",
+          "title": "modifiedbyyominame",
+          "x-ms-dataverse-attribute": "modifiedbyyominame",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "ModifiedByYomiName",
+          "x-ms-read-only": true,
+          "required": true,
+          "maxLength": 100
+        },
+        "modifiedon": {
+          "type": "string",
+          "title": "Fecha de modificación",
+          "x-ms-dataverse-attribute": "modifiedon",
+          "x-ms-dataverse-type": "DateTimeType",
+          "x-ms-schema-name": "ModifiedOn",
+          "x-ms-read-only": true
+        },
+        "modifiedonbehalfby": {
+          "type": "string",
+          "title": "Modificado por (delegado)",
+          "x-ms-dataverse-attribute": "modifiedonbehalfby",
+          "x-ms-dataverse-type": "LookupType",
+          "x-ms-schema-name": "ModifiedOnBehalfBy",
+          "x-ms-read-only": true
+        },
+        "modifiedonbehalfbyname": {
+          "type": "string",
+          "title": "modifiedonbehalfbyname",
+          "x-ms-dataverse-attribute": "modifiedonbehalfbyname",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "ModifiedOnBehalfByName",
+          "x-ms-read-only": true,
+          "maxLength": 100
+        },
+        "modifiedonbehalfbyyominame": {
+          "type": "string",
+          "title": "modifiedonbehalfbyyominame",
+          "x-ms-dataverse-attribute": "modifiedonbehalfbyyominame",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "ModifiedOnBehalfByYomiName",
+          "x-ms-read-only": true,
+          "required": true,
+          "maxLength": 100
+        },
+        "overriddencreatedon": {
+          "type": "string",
+          "title": "Fecha de creación del registro",
+          "x-ms-dataverse-attribute": "overriddencreatedon",
+          "x-ms-dataverse-type": "DateTimeType",
+          "x-ms-schema-name": "OverriddenCreatedOn"
+        },
+        "ownerid": {
+          "type": "string",
+          "title": "Propietario",
+          "x-ms-dataverse-attribute": "ownerid",
+          "x-ms-dataverse-type": "OwnerType",
+          "x-ms-schema-name": "OwnerId",
+          "required": true
+        },
+        "owneridname": {
+          "type": "string",
+          "title": "owneridname",
+          "x-ms-dataverse-attribute": "owneridname",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "OwnerIdName",
+          "x-ms-read-only": true,
+          "required": true,
+          "maxLength": 100
+        },
+        "owneridtype": {
+          "type": "string",
+          "title": "owneridtype",
+          "x-ms-dataverse-attribute": "owneridtype",
+          "x-ms-dataverse-type": "EntityNameType",
+          "x-ms-schema-name": "OwnerIdType",
+          "required": true
+        },
+        "owneridyominame": {
+          "type": "string",
+          "title": "owneridyominame",
+          "x-ms-dataverse-attribute": "owneridyominame",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "OwnerIdYomiName",
+          "x-ms-read-only": true,
+          "required": true,
+          "maxLength": 100
+        },
+        "owningbusinessunit": {
+          "type": "string",
+          "title": "Unidad de negocio propietaria",
+          "x-ms-dataverse-attribute": "owningbusinessunit",
+          "x-ms-dataverse-type": "LookupType",
+          "x-ms-schema-name": "OwningBusinessUnit",
+          "x-ms-read-only": true
+        },
+        "owningbusinessunitname": {
+          "type": "string",
+          "title": "owningbusinessunitname",
+          "x-ms-dataverse-attribute": "owningbusinessunitname",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "OwningBusinessUnitName",
+          "x-ms-read-only": true,
+          "required": true,
+          "maxLength": 100
+        },
+        "owningteam": {
+          "type": "string",
+          "title": "Equipo propietario",
+          "x-ms-dataverse-attribute": "owningteam",
+          "x-ms-dataverse-type": "LookupType",
+          "x-ms-schema-name": "OwningTeam",
+          "x-ms-read-only": true
+        },
+        "owninguser": {
+          "type": "string",
+          "title": "Usuario propietario",
+          "x-ms-dataverse-attribute": "owninguser",
+          "x-ms-dataverse-type": "LookupType",
+          "x-ms-schema-name": "OwningUser",
+          "x-ms-read-only": true
+        },
+        "statecode": {
+          "type": "string",
+          "title": "Estado",
+          "x-ms-dataverse-attribute": "statecode",
+          "x-ms-dataverse-type": "StateType",
+          "x-ms-schema-name": "statecode",
+          "required": true,
+          "enum": [
+            "Activo",
+            "Inactivo"
+          ],
+          "x-ms-enum-values": [
+            0,
+            1
+          ],
+          "Color": [
+            null,
+            null
+          ],
+          "x-ms-optionsetmetadataid": "26bd820c-c2d6-f111-a05b-000d3a4b38aa",
+          "x-ms-isGlobal": false,
+          "x-ms-optionsetdisplayname": "Estado",
+          "x-ms-optionSetType": "State"
+        },
+        "statecodename": {
+          "type": "string",
+          "title": "statecodename",
+          "x-ms-dataverse-attribute": "statecodename",
+          "x-ms-dataverse-type": "VirtualType",
+          "x-ms-schema-name": "statecodeName",
+          "x-ms-read-only": true
+        },
+        "statuscode": {
+          "type": "string",
+          "title": "Razón para el estado",
+          "x-ms-dataverse-attribute": "statuscode",
+          "x-ms-dataverse-type": "StatusType",
+          "x-ms-schema-name": "statuscode",
+          "enum": [
+            "Activo",
+            "Inactivo"
+          ],
+          "x-ms-enum-values": [
+            1,
+            2
+          ],
+          "Color": [
+            null,
+            null
+          ],
+          "x-ms-optionsetmetadataid": "30bd820c-c2d6-f111-a05b-000d3a4b38aa",
+          "x-ms-isGlobal": false,
+          "x-ms-optionsetdisplayname": "Razón para el estado",
+          "x-ms-optionSetType": "Status"
+        },
+        "statuscodename": {
+          "type": "string",
+          "title": "statuscodename",
+          "x-ms-dataverse-attribute": "statuscodename",
+          "x-ms-dataverse-type": "VirtualType",
+          "x-ms-schema-name": "statuscodeName",
+          "x-ms-read-only": true
+        },
+        "timezoneruleversionnumber": {
+          "type": "string",
+          "title": "Número de versión de regla de zona horaria",
+          "x-ms-dataverse-attribute": "timezoneruleversionnumber",
+          "x-ms-dataverse-type": "IntegerType",
+          "x-ms-schema-name": "TimeZoneRuleVersionNumber"
+        },
+        "transactioncurrencyid": {
+          "type": "string",
+          "title": "Divisa",
+          "x-ms-dataverse-attribute": "transactioncurrencyid",
+          "x-ms-dataverse-type": "LookupType",
+          "x-ms-schema-name": "TransactionCurrencyId"
+        },
+        "transactioncurrencyidname": {
+          "type": "string",
+          "title": "transactioncurrencyidname",
+          "x-ms-dataverse-attribute": "transactioncurrencyidname",
+          "x-ms-dataverse-type": "StringType",
+          "x-ms-schema-name": "TransactionCurrencyIdName",
+          "x-ms-read-only": true,
+          "maxLength": 100
+        },
+        "utcconversiontimezonecode": {
+          "type": "string",
+          "title": "Código de zona horaria de conversión UTC",
+          "x-ms-dataverse-attribute": "utcconversiontimezonecode",
+          "x-ms-dataverse-type": "IntegerType",
+          "x-ms-schema-name": "UTCConversionTimeZoneCode"
+        },
+        "versionnumber": {
+          "type": "string",
+          "title": "Número de versión",
+          "x-ms-dataverse-attribute": "versionnumber",
+          "x-ms-dataverse-type": "BigIntType",
+          "x-ms-schema-name": "VersionNumber",
+          "x-ms-read-only": true
+        }
+      },
+      "required": [
+        "createdbyyominame",
+        "createdonbehalfbyyominame",
+        "fl_actividadeconomica",
+        "fl_cif",
+        "fl_comercialresponsable",
+        "fl_competidoresdetectados",
+        "fl_concesionario",
+        "fl_creadopor",
+        "fl_cuotasobjetivo",
+        "fl_emailcorporativo",
+        "fl_faseactual",
+        "fl_fechaprimercontacto",
+        "fl_fechaproximaaccion",
+        "fl_kmtiempo",
+        "fl_leadid",
+        "fl_marcasactuales",
+        "fl_modelosinteres",
+        "fl_modofinanciacionactual",
+        "fl_nombreresponsable",
+        "fl_numvehiculosactuales",
+        "fl_numvehiculosrenovarampliar",
+        "fl_observaciones",
+        "fl_plazoestimadodecision",
+        "fl_proximaaccion",
+        "fl_razonsocial",
+        "fl_requisitos",
+        "fl_telefonocorporativo",
+        "fl_ubicacion",
+        "fl_ultimaaccionrealizada",
+        "fl_vencimientocontratosactuales",
+        "modifiedbyyominame",
+        "modifiedonbehalfbyyominame",
+        "ownerid",
+        "owneridname",
+        "owneridtype",
+        "owneridyominame",
+        "owningbusinessunitname",
+        "statecode"
+      ]
+    }
+  }
+}

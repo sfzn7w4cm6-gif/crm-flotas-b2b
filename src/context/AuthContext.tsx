@@ -32,19 +32,6 @@ interface AuthState {
 
 const AuthContext = createContext<AuthState | null>(null)
 
-/**
- * Correos con los que puede estar dado de alta quien inicia sesión. Las cuentas invitadas de otra
- * organización entran con un nombre del tipo "ana_empresa.com#EXT#@ebro.onmicrosoft.com" en lugar
- * de su correo: en ese caso se busca también por el correo real ("ana@empresa.com"), que va el último.
- */
-function correosDeInicioSesion(upn: string): string[] {
-  const i = upn.toUpperCase().indexOf('#EXT#')
-  if (i < 0) return [upn]
-  const local = upn.slice(0, i)
-  const j = local.lastIndexOf('_')
-  return j < 0 ? [upn] : [upn, `${local.slice(0, j)}@${local.slice(j + 1)}`]
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -86,22 +73,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return
         }
 
-        // Primero por la cuenta de Dataverse vinculada (la pone "Usuarios y accesos"); si no, por el correo.
-        const systemUserId = ctx.user.systemUserId
-        let usuarios = systemUserId
-          ? await listRecords<UsuarioApp>(Tables.UsuarioApp, { filter: `_fl_systemuserid_value eq ${systemUserId}`, top: 1 })
-          : []
-        const correos = correosDeInicioSesion(correo)
-        if (usuarios.length === 0) {
-          usuarios = await listRecords<UsuarioApp>(Tables.UsuarioApp, {
-            filter: correos.map((c) => `fl_correo eq '${c.replace(/'/g, "''")}'`).join(' or '),
-            top: 1,
-          })
-        }
+        const usuarios = await listRecords<UsuarioApp>(Tables.UsuarioApp, {
+          filter: `fl_correo eq '${correo}'`,
+          top: 1,
+        })
         if (cancelled) return
         if (usuarios.length === 0) {
           setError(
-            `Tu usuario (${correos[correos.length - 1]}) no está registrado en Ebro Business. Contacta a un administrador para que te dé de alta.`,
+            `Tu usuario (${correo}) no está registrado en Ebro Business. Contacta a un administrador para que te dé de alta.`,
           )
           setLoading(false)
           return

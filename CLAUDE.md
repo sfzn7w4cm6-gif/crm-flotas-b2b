@@ -395,6 +395,16 @@ coloreado se renderiza mal en el navegador, por eso no se usa.
 
 ## Migrar a otro entorno
 
+**Base de datos de la app (corregido el 06/11/2026).** Hasta esa fecha la URL de Dataverse estaba
+fija en `src/lib/dataverseClient.ts` (la de desarrollo, org642a1b00), así que la app publicada en
+producción leía y escribía en desarrollo; los invitados B2B, que no existen allí, veían
+`0x80072560 The user is not a member of the organization`. Ahora `organizacion()` la toma de
+Power Apps (`getContext().app.dataverseOrgUrl`) y, si no viene, de `ORGANIZACION_POR_ENTORNO`
+(id de entorno → URL). **Al publicar en un entorno nuevo, añadir su línea a esa lista** como
+respaldo. El login (`AuthContext`) busca la fila de `fl_usuarioapp` por la cuenta de Dataverse
+vinculada (`_fl_systemuserid_value`) y, si no, por correo, reconociendo el nombre de inicio de
+sesión de los invitados (`ana_empresa.com#EXT#@...` → `ana@empresa.com`).
+
 Dos cosas viajan por caminos **distintos** — no asumir que una trae la otra:
 
 1. **Esquema (tablas, columnas, relaciones, roles de seguridad, y el registro

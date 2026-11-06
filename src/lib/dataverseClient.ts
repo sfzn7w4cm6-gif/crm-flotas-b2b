@@ -1,3 +1,4 @@
+import { getContext } from '@microsoft/power-apps/app'
 import { getClient } from '@microsoft/power-apps/data'
 import { dataSourcesInfo } from '../../.power/schemas/appschemas/dataSourcesInfo'
 
@@ -7,7 +8,30 @@ export const dv = getClient(dataSourcesInfo)
 // (un unico conector Dataverse multi-tabla; la tabla concreta se indica en cada
 // llamada via el parametro 'entityName'). Mismo patron que PeopleFlow.
 const DATASOURCE = 'commondataserviceforapps'
-const ORGANIZATION = 'https://org642a1b00.crm4.dynamics.com'
+
+// El org de Dataverse al que la app pide los datos NO se deduce solo porque el
+// conector sea "Microsoft Dataverse": hay que decirselo en cada llamada via el
+// parametro 'organization'. Se resuelve en tiempo real con getContext().app
+// (dataverseOrgUrl, si el host ya lo da) y, si no, por el id del entorno —
+// asi funciona igual publicada en cualquier entorno sin tocar nada al compilar.
+// Antes este valor se fijaba al compilar (VITE_DATAVERSE_ORG) y si se olvidaba
+// ponerlo, "Ebro Business App" en produccion pedia los datos de desarrollo.
+const ORGANIZACION_POR_ENTORNO: Record<string, string> = {
+  '192d0a93-f34e-e64a-a9c3-6558e2f66156': 'https://org642a1b00.crm4.dynamics.com', // desarrollo
+  '6adf3534-66c7-e4a1-95c7-045d1b228f44': 'https://org9d11094c.crm4.dynamics.com', // produccion
+}
+
+let organizacionPromise: Promise<string> | null = null
+function resolverOrganizacion(): Promise<string> {
+  if (!organizacionPromise) {
+    organizacionPromise = getContext().then((ctx) => {
+      const org = ctx.app.dataverseOrgUrl || ORGANIZACION_POR_ENTORNO[ctx.app.environmentId]
+      if (!org) throw new Error(`No se reconoce el entorno de Power Platform (${ctx.app.environmentId}): falta su Dataverse en ORGANIZACION_POR_ENTORNO.`)
+      return org.replace(/\/+$/, '')
+    })
+  }
+  return organizacionPromise
+}
 
 // Nombres de coleccion OData (logicalname + "s") de las tablas de CRM Flotas B2B.
 export const Tables = {
@@ -25,6 +49,7 @@ export const Tables = {
   Nota: 'fl_notas',
   Adjunto: 'annotations',
   Asignacion: 'fl_asignacions',
+  Notificacion: 'fl_notificacions',
 } as const
 
 interface EntityItem {
@@ -49,12 +74,13 @@ function unwrap<T>(items: EntityItem[] | undefined): T[] {
 
 /** Lista filas de una tabla (entityName = coleccion OData, ej. 'fl_leads'). */
 export async function listRecords<T>(entityName: string, options: ListOptions = {}): Promise<T[]> {
+  const organization = await resolverOrganizacion()
   const result = await dv.executeAsync<Record<string, unknown>, EntityItemList>({
     connectorOperation: {
       tableName: DATASOURCE,
       operationName: 'ListRecordsWithOrganization',
       parameters: {
-        organization: ORGANIZATION,
+        organization,
         entityName,
         prefer: 'odata.include-annotations="*"',
         accept: 'application/json',
@@ -74,12 +100,13 @@ export async function listRecords<T>(entityName: string, options: ListOptions = 
 
 /** Obtiene una fila por id. Devuelve null si no existe. */
 export async function getRecord<T>(entityName: string, id: string, select?: string): Promise<T | null> {
+  const organization = await resolverOrganizacion()
   const result = await dv.executeAsync<Record<string, unknown>, Record<string, unknown>>({
     connectorOperation: {
       tableName: DATASOURCE,
       operationName: 'GetItemWithOrganization',
       parameters: {
-        organization: ORGANIZATION,
+        organization,
         entityName,
         recordId: id,
         prefer: 'odata.include-annotations="*"',
@@ -97,12 +124,13 @@ export async function getRecord<T>(entityName: string, id: string, select?: stri
 
 /** Crea una fila. Devuelve el id de la fila creada. */
 export async function createRecord(entityName: string, item: Record<string, unknown>): Promise<string> {
+  const organization = await resolverOrganizacion()
   const result = await dv.executeAsync<Record<string, unknown>, Record<string, unknown>>({
     connectorOperation: {
       tableName: DATASOURCE,
       operationName: 'CreateRecordWithOrganization',
       parameters: {
-        organization: ORGANIZATION,
+        organization,
         entityName,
         prefer: 'return=representation',
         accept: 'application/json',
@@ -126,12 +154,13 @@ export async function updateRecord(
   id: string,
   item: Record<string, unknown>,
 ): Promise<void> {
+  const organization = await resolverOrganizacion()
   const result = await dv.executeAsync<Record<string, unknown>, unknown>({
     connectorOperation: {
       tableName: DATASOURCE,
       operationName: 'UpdateRecordWithOrganization',
       parameters: {
-        organization: ORGANIZATION,
+        organization,
         entityName,
         recordId: id,
         prefer: 'return=representation',
@@ -147,11 +176,12 @@ export async function updateRecord(
 
 /** Elimina una fila. */
 export async function deleteRecord(entityName: string, id: string): Promise<void> {
+  const organization = await resolverOrganizacion()
   const result = await dv.executeAsync<Record<string, unknown>, unknown>({
     connectorOperation: {
       tableName: DATASOURCE,
       operationName: 'DeleteRecordWithOrganization',
-      parameters: { organization: ORGANIZATION, entityName, recordId: id },
+      parameters: { organization, entityName, recordId: id },
     },
   })
   if (!result.success) {
@@ -170,16 +200,17 @@ export async function relateRecords(
   destinoEntity: string,
   destinoId: string,
 ): Promise<void> {
+  const organization = await resolverOrganizacion()
   const result = await dv.executeAsync<Record<string, unknown>, unknown>({
     connectorOperation: {
       tableName: DATASOURCE,
       operationName: 'AssociateEntitiesWithOrganization',
       parameters: {
-        organization: ORGANIZATION,
+        organization,
         entityName,
         recordId: id,
         associationEntityRelationship: relacion,
-        item: { '@odata.id': `${ORGANIZATION}/api/data/v9.2/${destinoEntity}(${destinoId})` },
+        item: { '@odata.id': `${organization}/api/data/v9.2/${destinoEntity}(${destinoId})` },
       },
     },
   })
@@ -196,16 +227,17 @@ export async function unrelateRecords(
   destinoEntity: string,
   destinoId: string,
 ): Promise<void> {
+  const organization = await resolverOrganizacion()
   const result = await dv.executeAsync<Record<string, unknown>, unknown>({
     connectorOperation: {
       tableName: DATASOURCE,
       operationName: 'DisassociateEntitiesWithOrganization',
       parameters: {
-        organization: ORGANIZATION,
+        organization,
         entityName,
         recordId: id,
         associationEntityRelationship: relacion,
-        $id: `${ORGANIZATION}/api/data/v9.2/${destinoEntity}(${destinoId})`,
+        $id: `${organization}/api/data/v9.2/${destinoEntity}(${destinoId})`,
       },
     },
   })

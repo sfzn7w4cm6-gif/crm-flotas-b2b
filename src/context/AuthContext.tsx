@@ -67,20 +67,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setAppContext(ctx)
 
         const correo = ctx.user.userPrincipalName
-        if (!correo) {
-          setError('No se pudo determinar tu correo de usuario conectado.')
-          setLoading(false)
-          return
+        const systemUserId = ctx.user.systemUserId
+
+        // Primero por la cuenta de Dataverse ya vinculada (la que guarda "Usuarios y accesos"):
+        // es el unico enlace fiable para invitados externos, cuyo inicio de sesion no es su correo.
+        let usuarios: UsuarioApp[] = systemUserId
+          ? await listRecords<UsuarioApp>(Tables.UsuarioApp, { filter: `_fl_systemuserid_value eq ${systemUserId}`, top: 1 })
+          : []
+        if (cancelled) return
+
+        if (usuarios.length === 0 && correo) {
+          usuarios = await listRecords<UsuarioApp>(Tables.UsuarioApp, { filter: `fl_correo eq '${correo}'`, top: 1 })
+          if (cancelled) return
         }
 
-        const usuarios = await listRecords<UsuarioApp>(Tables.UsuarioApp, {
-          filter: `fl_correo eq '${correo}'`,
-          top: 1,
-        })
-        if (cancelled) return
+        // Invitado B2B sin vincular todavia: el inicio de sesion llega como
+        // "local_dominio.com#EXT#@tenant.onmicrosoft.com". Se prueba tambien con el
+        // correo real que se deduce de ahi (cambiando el ultimo "_" por "@").
+        if (usuarios.length === 0 && correo?.includes('#EXT#')) {
+          const local = correo.slice(0, correo.indexOf('#EXT#'))
+          const corte = local.lastIndexOf('_')
+          if (corte > 0) {
+            const correoReal = `${local.slice(0, corte)}@${local.slice(corte + 1)}`
+            usuarios = await listRecords<UsuarioApp>(Tables.UsuarioApp, { filter: `fl_correo eq '${correoReal}'`, top: 1 })
+            if (cancelled) return
+          }
+        }
+
         if (usuarios.length === 0) {
           setError(
-            `Tu usuario (${correo}) no está registrado en Ebro Business. Contacta a un administrador para que te dé de alta.`,
+            correo
+              ? `Tu usuario (${correo}) no está registrado en Ebro Business. Contacta a un administrador para que te dé de alta.`
+              : 'No se pudo determinar tu usuario conectado.',
           )
           setLoading(false)
           return

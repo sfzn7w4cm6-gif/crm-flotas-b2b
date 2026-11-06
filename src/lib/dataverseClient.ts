@@ -11,11 +11,13 @@ const DATASOURCE = 'commondataserviceforapps'
 
 // El org de Dataverse al que la app pide los datos NO se deduce solo porque el
 // conector sea "Microsoft Dataverse": hay que decirselo en cada llamada via el
-// parametro 'organization'. Se resuelve en tiempo real con getContext().app
-// (dataverseOrgUrl, si el host ya lo da) y, si no, por el id del entorno —
-// asi funciona igual publicada en cualquier entorno sin tocar nada al compilar.
-// Antes este valor se fijaba al compilar (VITE_DATAVERSE_ORG) y si se olvidaba
-// ponerlo, "Ebro Business App" en produccion pedia los datos de desarrollo.
+// parametro 'organization' (probado el 06/11/2026: la variante sin organizacion,
+// "ListRecords" a secas, falla con "Invalid organization URL 'null' provided" —
+// esta conexion no tiene ninguna organizacion por defecto, asi que la variante
+// "...WithOrganization" es obligatoria, no opcional). Se resuelve en tiempo real
+// con getContext().app (dataverseOrgUrl, si el host ya lo da) y, si no, por el
+// id del entorno — asi funciona igual publicada en cualquier entorno sin tocar
+// nada al compilar.
 const ORGANIZACION_POR_ENTORNO: Record<string, string> = {
   '192d0a93-f34e-e64a-a9c3-6558e2f66156': 'https://org642a1b00.crm4.dynamics.com', // desarrollo
   '6adf3534-66c7-e4a1-95c7-045d1b228f44': 'https://org9d11094c.crm4.dynamics.com', // produccion

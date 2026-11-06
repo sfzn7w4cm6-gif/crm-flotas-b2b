@@ -30,7 +30,6 @@ export const CAMPOS: Partial<Record<CampoFase, { label: string; tipo: TipoCampo;
   observaciones: { label: 'Observaciones / notas clave', tipo: 'textoLargo', seccion: 'Histórico y seguimiento', leadField: 'fl_observaciones' },
   descuentoConcesionario: { label: 'Descuento del concesionario (%)', tipo: 'porcentaje', seccion: 'Oferta', leadField: 'fl_descuentoconcesionario' },
   ofertaCondiciones: { label: 'Condiciones de la oferta', tipo: 'textoLargo', seccion: 'Oferta', leadField: 'fl_ofertacondiciones' },
-  importeVenta: { label: 'Importe de la venta (€)', tipo: 'euros', seccion: 'Venta' },
 }
 
 interface Requisito {
@@ -61,7 +60,8 @@ const REQUISITOS: Partial<Record<Fase, Requisito[]>> = {
     opcional('observaciones'),
   ],
   [Fase.Propuesta]: [obligatorio('descuentoConcesionario'), opcional('ofertaCondiciones')],
-  [Fase.Cierre]: [obligatorio('importeVenta')],
+  // Al cerrar se revisan/confirman las unidades realmente vendidas (modelo + cantidad).
+  [Fase.Cierre]: [obligatorio('modelos')],
 }
 
 // Siempre que la oportunidad siga abierta se ofrece actualizar el siguiente paso.
@@ -82,13 +82,10 @@ export interface Contexto {
   lead: Lead
   /** Nº de líneas de modelo; los leads antiguos con texto en "Modelos de interés" cuentan como rellenos. */
   numLineas: number
-  importe: number | null | undefined
 }
 
 export function estaVacio(campo: CampoFase, ctx: Contexto): boolean {
   if (campo === 'modelos') return ctx.numLineas === 0 && !ctx.lead.fl_modelosinteres
-  // undefined = la columna de importe no existe en el entorno: no se puede pedir.
-  if (campo === 'importeVenta') return ctx.importe === null
   const f = CAMPOS[campo]?.leadField
   const v = f ? ctx.lead[f] : undefined
   return v === null || v === undefined || v === ''
@@ -118,5 +115,5 @@ export function camposDelDialogo(fase: Fase, ctx: Contexto): Requisito[] {
     for (const c of SIGUIENTE_PASO) if (!visibles.some((r) => r.campo === c)) visibles.push(reqs.find((r) => r.campo === c) ?? opcional(c))
   }
   const orden = Object.keys(CAMPOS) as CampoFase[]
-  return visibles.filter((r) => !(r.campo === 'importeVenta' && ctx.importe === undefined)).sort((a, b) => orden.indexOf(a.campo) - orden.indexOf(b.campo))
+  return visibles.sort((a, b) => orden.indexOf(a.campo) - orden.indexOf(b.campo))
 }

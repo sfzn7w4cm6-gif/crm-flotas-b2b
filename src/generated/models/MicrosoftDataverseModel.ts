@@ -227,6 +227,89 @@ export interface SearchOutput {
   };
 }
 
+export interface IqCreateSemanticModelRequest {
+  // Enter a name that uniquely identifies the semantic model in this environment.
+  uniqueName: string;
+  // The logical names of the Microsoft Dataverse tables to include in the semantic model.
+  tables: string[];
+}
+
+export interface IqCreateSemanticModelRequestWithOrganization {
+  // Enter a name that uniquely identifies the semantic model in this environment.
+  uniqueName: string;
+  // The logical names of the Microsoft Dataverse tables to include in the semantic model.
+  tables: string[];
+}
+
+export interface IqSemanticModelCreateResponse {
+  data?: IqSemanticModelCreateData;
+  // A message that describes the result of the create action.
+  message?: string;
+}
+
+export interface IqSemanticModelCreateData {
+  // The ID of the semantic model that was created.
+  id?: string;
+  // The unique name of the semantic model that was created.
+  uniqueName?: string;
+  // The date and time when the semantic model was created.
+  createdOn?: string;
+}
+
+export interface IqSemanticModelDeleteResponse {
+  data?: IqSemanticModelDeleteData;
+  // A message that describes the result of the delete action.
+  message?: string;
+}
+
+export interface IqSemanticModelDeleteData {
+  // The ID of the semantic model that was deleted.
+  id?: string;
+}
+
+export type IqAskRequestsearchMode = 'Auto'|'QuickResponse'|'ThinkDeeper';
+
+export interface IqAskRequest {
+  // Enter a natural-language question about the data in the semantic model.
+  query: string;
+  // Enter the unique name of the semantic model that contains the data to query.
+  semanticModelName: string;
+  // The search mode to use when answering the question.
+  searchMode?: IqAskRequestsearchMode;
+  // The maximum number of matching rows to return. The default is 100.
+  count?: number;
+  // To retrieve the next page, enter the paging token returned by the previous response.
+  pagingToken?: string;
+}
+
+export type IqAskRequestWithOrganizationsearchMode = 'Auto'|'QuickResponse'|'ThinkDeeper';
+
+export interface IqAskRequestWithOrganization {
+  // Enter a natural-language question about the data in the semantic model.
+  query: string;
+  // Enter the unique name of the semantic model that contains the data to query.
+  semanticModelName: string;
+  // The search mode to use when answering the question.
+  searchMode?: IqAskRequestWithOrganizationsearchMode;
+  // The maximum number of matching rows to return. The default is 100.
+  count?: number;
+  // To retrieve the next page, enter the paging token returned by the previous response.
+  pagingToken?: string;
+}
+
+export interface IqAskResponse {
+  // The matching data rows returned for the question.
+  rawResult?: Record<string, unknown>[];
+  // Links to the sources used to produce the answer.
+  citationLinks?: string[];
+  // A natural-language summary of the matching data.
+  summary?: string;
+  // The total number of matching rows.
+  totalResultCount?: number;
+  // The token to provide in the next request to retrieve the next page of results.
+  pagingToken?: string;
+}
+
 export interface IqSemanticModelListResponse {
   // A list of semantic models available in the environment.
   data?: IqSemanticModel[];

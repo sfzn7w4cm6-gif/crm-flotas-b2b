@@ -18,6 +18,12 @@ export const RolAppLabel: Record<RolApp, string> = {
   [RolApp.Administrador]: 'Administrador',
 }
 
+export const TipoNotificacion = {
+  DescuentoPendiente: 101000000,
+  EmpresaDuplicada: 101000001,
+} as const
+export type TipoNotificacion = (typeof TipoNotificacion)[keyof typeof TipoNotificacion]
+
 export const ModoFinanciacion = {
   Renting: 101000000,
   Leasing: 101000001,
@@ -93,7 +99,6 @@ export const FASES_ACTIVAS: Fase[] = [
 export interface Concesionario {
   fl_concesionarioid: string
   fl_nombre: string
-  fl_cif?: string
   fl_activo: boolean
   /** Equipo propietario de sus empresas; sus miembros son los comerciales con alguna sede en él. */
   _fl_equipo_value?: string
@@ -250,6 +255,8 @@ export interface Objetivo {
   fl_nombre: string
   fl_leadsmes: number
   _fl_concesionario_value?: string
+  /** Si tiene sede, el objetivo es solo de esa sede (no del concesionario entero). */
+  _fl_ubicacion_value?: string
 }
 
 // ---------------------------------------------------------------- red comercial y catalogo
@@ -308,6 +315,18 @@ export interface Empresa {
   /** La oportunidad en curso (Prospección a Negociación); vacía si no hay ninguna. */
   _fl_oportunidadabierta_value?: string
   '_fl_oportunidadabierta_value@OData.Community.Display.V1.FormattedValue'?: string
+}
+
+/** Aviso de la campanita del equipo de ventas. No se borra sola (histórico);
+ *  solo desaparece si alguien pulsa "Quitar". */
+export interface Notificacion {
+  fl_notificacionid: string
+  fl_titulo: string
+  fl_tipo: TipoNotificacion
+  fl_cif?: string
+  _fl_lead_value?: string
+  _fl_empresa_value?: string
+  createdon?: string
 }
 
 /** Modelo del catálogo y cantidad dentro de una oportunidad. */

@@ -2862,6 +2862,238 @@ export const dataSourcesInfo = {
           }
         }
       },
+      "ListSemanticModels": {
+        "path": "/{connectionId}/api/iq/v1.0/semanticmodel",
+        "method": "GET",
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "include",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "responseInfo": {
+          "200": {
+            "type": "object"
+          },
+          "default": {
+            "type": "void"
+          }
+        }
+      },
+      "CreateSemanticModel": {
+        "path": "/{connectionId}/api/iq/v1.0/semanticmodel",
+        "method": "POST",
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "CreateSemanticModelRequest",
+            "in": "body",
+            "required": true,
+            "type": "object"
+          }
+        ],
+        "responseInfo": {
+          "201": {
+            "type": "object"
+          },
+          "default": {
+            "type": "void"
+          }
+        }
+      },
+      "ListSemanticModelsWithOrganization": {
+        "path": "/{connectionId}/api/iq/v1.0.0/semanticmodel",
+        "method": "GET",
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "organization",
+            "in": "header",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "include",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "responseInfo": {
+          "200": {
+            "type": "object"
+          },
+          "default": {
+            "type": "void"
+          }
+        }
+      },
+      "CreateSemanticModelWithOrganization": {
+        "path": "/{connectionId}/api/iq/v1.0.0/semanticmodel",
+        "method": "POST",
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "organization",
+            "in": "header",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "CreateSemanticModelRequest",
+            "in": "body",
+            "required": true,
+            "type": "object"
+          }
+        ],
+        "responseInfo": {
+          "201": {
+            "type": "object"
+          },
+          "default": {
+            "type": "void"
+          }
+        }
+      },
+      "DeleteSemanticModel": {
+        "path": "/{connectionId}/api/iq/v1.0/semanticmodel/{id}",
+        "method": "DELETE",
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responseInfo": {
+          "200": {
+            "type": "object"
+          },
+          "default": {
+            "type": "void"
+          }
+        }
+      },
+      "DeleteSemanticModelWithOrganization": {
+        "path": "/{connectionId}/api/iq/v1.0.0/semanticmodel/{id}",
+        "method": "DELETE",
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "organization",
+            "in": "header",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responseInfo": {
+          "200": {
+            "type": "object"
+          },
+          "default": {
+            "type": "void"
+          }
+        }
+      },
+      "AskUsingSemanticModel": {
+        "path": "/{connectionId}/api/iq/v1.0/ask",
+        "method": "POST",
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "AskRequest",
+            "in": "body",
+            "required": true,
+            "type": "object"
+          }
+        ],
+        "responseInfo": {
+          "200": {
+            "type": "object"
+          },
+          "default": {
+            "type": "void"
+          }
+        }
+      },
+      "AskUsingSemanticModelWithOrganization": {
+        "path": "/{connectionId}/api/iq/v1.0.0/ask",
+        "method": "POST",
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "organization",
+            "in": "header",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "AskRequest",
+            "in": "body",
+            "required": true,
+            "type": "object"
+          }
+        ],
+        "responseInfo": {
+          "200": {
+            "type": "object"
+          },
+          "default": {
+            "type": "void"
+          }
+        }
+      },
       "GetCatalogs": {
         "path": "/{connectionId}/api/data/v9.2/catalogs",
         "method": "GET",

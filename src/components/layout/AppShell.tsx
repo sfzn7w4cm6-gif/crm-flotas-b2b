@@ -1,6 +1,7 @@
 import { useState, type CSSProperties } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { Icon } from '../Icon'
+import { Campanita } from '../Campanita'
 import { NAV_ITEMS } from './navConfig'
 import { useAuth } from '../../context/AuthContext'
 import { RolApp, RolAppLabel } from '../../lib/types'
@@ -29,6 +30,9 @@ export function AppShell() {
   const visibleItems = NAV_ITEMS.filter(
     (item) => !item.roles || (isAdmin && viewAsRole === null) || (effectiveRol !== null && item.roles.includes(effectiveRol)),
   )
+  // La campanita es cosa del equipo de ventas (y del administrador viendo la app normal,
+  // no simulando el rol de concesionario): son quienes gestionan % de marca y duplicados.
+  const muestraCampanita = (isAdmin && viewAsRole === null) || effectiveRol === RolApp.EquipoVentas
 
   const initials = (usuario?.fl_nombre || '?')
     .split(' ')
@@ -51,6 +55,12 @@ export function AppShell() {
 
   return (
     <div className={`shell ${sidebarHidden ? 'is-sidebar-hidden' : ''}`}>
+      {muestraCampanita && (
+        <div className="shell-topbar">
+          <Campanita />
+        </div>
+      )}
+
       <button
         type="button"
         className="shell-menu-btn"

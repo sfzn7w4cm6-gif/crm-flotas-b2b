@@ -14,7 +14,6 @@ $FASES = @(
 
 Write-Host "--- 1. fl_concesionario ---"
 New-DvTable -Name "fl_concesionario" -DisplayName "Concesionario" -DisplayCollectionName "Concesionarios" -PrimaryColumnName "fl_nombre" -PrimaryColumnLabel "Nombre"
-Add-DvStringColumn -Entity "fl_concesionario" -Name "fl_cif" -Label "CIF" -MaxLength 20
 Add-DvBoolColumn -Entity "fl_concesionario" -Name "fl_activo" -Label "Activo" -Default $true
 
 Write-Host "--- 2. fl_ubicacion ---"

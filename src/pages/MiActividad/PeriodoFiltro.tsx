@@ -1,28 +1,30 @@
 import { useEffect, useRef, useState } from 'react'
 import { Icon } from '../../components/Icon'
-import { mismoPeriodo, periodoActual } from '../../lib/actividadService'
-import type { Periodo } from '../../lib/actividadService'
+import { mismoPeriodo, nombrePeriodos } from '../../lib/actividadService'
+import type { Periodo, PeriodoMulti } from '../../lib/actividadService'
 
 const MESES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
 
-/** Boton de filtro dentro de una tarjeta: elige un mes o un año.
- *  `primerAnio` limita los años que se ofrecen (desde el primer dato). */
+/** Boton de filtro dentro de una tarjeta: elige uno o varios meses y/o años (ej. agosto +
+ *  septiembre). Lista vacía = "Todo" (sin filtrar). `primerAnio` limita los años que se
+ *  ofrecen (desde el primer dato). El popover no se cierra al elegir, para poder marcar
+ *  varios de seguido; se cierra al hacer clic fuera o con Escape. */
 export function PeriodoFiltro({
   value,
   onChange,
   primerAnio,
   etiqueta,
 }: {
-  value: Periodo
-  onChange: (p: Periodo) => void
+  value: PeriodoMulti
+  onChange: (p: PeriodoMulti) => void
   primerAnio: number
   /** Si se indica, el botón muestra este texto (el periodo elegido) en lugar del icono. */
   etiqueta?: string
 }) {
   const hoy = new Date()
   const [abierto, setAbierto] = useState(false)
-  const [modo, setModo] = useState<Periodo['tipo']>(value.tipo)
-  const [anioVista, setAnioVista] = useState(value.anio)
+  const [modo, setModo] = useState<Periodo['tipo']>(value[0]?.tipo ?? 'mes')
+  const [anioVista, setAnioVista] = useState(value[0]?.anio ?? hoy.getFullYear())
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -39,12 +41,11 @@ export function PeriodoFiltro({
     }
   }, [abierto])
 
-  const elegir = (p: Periodo) => {
-    onChange(p)
-    setAbierto(false)
+  const toggle = (p: Periodo) => {
+    const yaEsta = value.some((v) => mismoPeriodo(v, p))
+    onChange(yaEsta ? value.filter((v) => !mismoPeriodo(v, p)) : [...value, p])
   }
-  const actual = periodoActual(hoy)
-  const filtrado = !mismoPeriodo(value, actual)
+  const filtrado = value.length > 0
   const desde = Math.min(primerAnio, hoy.getFullYear())
   const anios = Array.from({ length: hoy.getFullYear() - desde + 1 }, (_, i) => hoy.getFullYear() - i)
 
@@ -53,18 +54,14 @@ export function PeriodoFiltro({
       <button
         type="button"
         className={etiqueta ? 'periodo-btn-texto' : `periodo-btn${filtrado ? ' is-activo' : ''}`}
-        onClick={() => {
-          setModo(value.tipo)
-          setAnioVista(value.anio)
-          setAbierto((a) => !a)
-        }}
+        onClick={() => setAbierto((a) => !a)}
         aria-label="Filtrar por periodo"
         aria-expanded={abierto}
-        title="Filtrar por mes o año"
+        title="Filtrar por mes o año (varios a la vez)"
       >
         {etiqueta ? (
           <>
-            {etiqueta}
+            {nombrePeriodos(value) === 'Todo' ? etiqueta : nombrePeriodos(value)}
             <Icon name="chevronDown" size={13} />
           </>
         ) : (
@@ -73,7 +70,7 @@ export function PeriodoFiltro({
       </button>
 
       {abierto && (
-        <div className="periodo-pop" role="dialog" aria-label="Elegir periodo">
+        <div className="periodo-pop" role="dialog" aria-label="Elegir uno o varios periodos">
           <div className="periodo-modos">
             <button type="button" className={modo === 'mes' ? 'is-activo' : ''} onClick={() => setModo('mes')}>
               Mes
@@ -108,8 +105,8 @@ export function PeriodoFiltro({
                       key={m}
                       type="button"
                       disabled={futuro}
-                      className={mismoPeriodo(p, value) ? 'is-sel' : ''}
-                      onClick={() => elegir(p)}
+                      className={value.some((v) => mismoPeriodo(v, p)) ? 'is-sel' : ''}
+                      onClick={() => toggle(p)}
                     >
                       {m}
                     </button>
@@ -122,7 +119,7 @@ export function PeriodoFiltro({
               {anios.map((a) => {
                 const p: Periodo = { tipo: 'anio', anio: a }
                 return (
-                  <button key={a} type="button" className={mismoPeriodo(p, value) ? 'is-sel' : ''} onClick={() => elegir(p)}>
+                  <button key={a} type="button" className={value.some((v) => mismoPeriodo(v, p)) ? 'is-sel' : ''} onClick={() => toggle(p)}>
                     {a}
                   </button>
                 )
@@ -130,9 +127,11 @@ export function PeriodoFiltro({
             </div>
           )}
 
+          <p className="periodo-nota">{filtrado ? `${nombrePeriodos(value)} elegido${value.length === 1 ? '' : 's'}.` : 'Sin filtrar (todo).'} Puedes marcar varios.</p>
+
           {filtrado && (
-            <button type="button" className="periodo-reset" onClick={() => elegir(actual)}>
-              Volver al mes actual
+            <button type="button" className="periodo-reset" onClick={() => onChange([])}>
+              Quitar filtro (ver todo)
             </button>
           )}
         </div>

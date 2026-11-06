@@ -13,6 +13,13 @@ import type { EntityMetadata } from '../models/MicrosoftDataverseModel';
 import type { EntityRelationshipsDynamicValuesList } from '../models/MicrosoftDataverseModel';
 import type { FlowStepMetadata } from '../models/MicrosoftDataverseModel';
 import type { IOperationResult } from '@microsoft/power-apps/data';
+import type { IqAskRequest } from '../models/MicrosoftDataverseModel';
+import type { IqAskRequestWithOrganization } from '../models/MicrosoftDataverseModel';
+import type { IqAskResponse } from '../models/MicrosoftDataverseModel';
+import type { IqCreateSemanticModelRequest } from '../models/MicrosoftDataverseModel';
+import type { IqCreateSemanticModelRequestWithOrganization } from '../models/MicrosoftDataverseModel';
+import type { IqSemanticModelDeleteResponse } from '../models/MicrosoftDataverseModel';
+import type { IqSemanticModelListResponse } from '../models/MicrosoftDataverseModel';
 import type { MCPQueryRequest } from '../models/MicrosoftDataverseModel';
 import type { MCPQueryResponse } from '../models/MicrosoftDataverseModel';
 import type { Object } from '../models/MicrosoftDataverseModel';
@@ -1234,6 +1241,142 @@ export class MicrosoftDataverseService {
         connectorOperation: {
           tableName: MicrosoftDataverseService.dataSourceName,
           operationName: 'GetRelevantRows',
+          parameters: params
+        },
+      });
+    return result;
+  }
+
+  /**
+   * List semantic models
+   * Retrieves the semantic models available in the selected Microsoft Dataverse environment.
+   */
+  public static async ListSemanticModels(include?: string): Promise<IOperationResult<IqSemanticModelListResponse>> {
+    const params: { include?: string } = { include };
+    const result = await MicrosoftDataverseService.client.executeAsync<{ include?: string }, IqSemanticModelListResponse>(
+      {
+        connectorOperation: {
+          tableName: MicrosoftDataverseService.dataSourceName,
+          operationName: 'ListSemanticModels',
+          parameters: params
+        },
+      });
+    return result;
+  }
+
+  /**
+   * Create semantic model
+   * Creates a semantic model from the selected Microsoft Dataverse tables.
+   */
+  public static async CreateSemanticModel(CreateSemanticModelRequest: IqCreateSemanticModelRequest): Promise<IOperationResult<void>> {
+    const params: { CreateSemanticModelRequest: IqCreateSemanticModelRequest } = { CreateSemanticModelRequest };
+    const result = await MicrosoftDataverseService.client.executeAsync<{ CreateSemanticModelRequest: IqCreateSemanticModelRequest }, void>(
+      {
+        connectorOperation: {
+          tableName: MicrosoftDataverseService.dataSourceName,
+          operationName: 'CreateSemanticModel',
+          parameters: params
+        },
+      });
+    return result;
+  }
+
+  /**
+   * List semantic models from selected environment
+   * Retrieves the semantic models available in the selected Microsoft Dataverse environment.
+   */
+  public static async ListSemanticModelsWithOrganization(organization: string, include?: string): Promise<IOperationResult<IqSemanticModelListResponse>> {
+    const params: { organization: string, include?: string } = { organization, include };
+    const result = await MicrosoftDataverseService.client.executeAsync<{ organization: string, include?: string }, IqSemanticModelListResponse>(
+      {
+        connectorOperation: {
+          tableName: MicrosoftDataverseService.dataSourceName,
+          operationName: 'ListSemanticModelsWithOrganization',
+          parameters: params
+        },
+      });
+    return result;
+  }
+
+  /**
+   * Create semantic model from selected environment
+   * Creates a semantic model from selected Microsoft Dataverse tables in the selected environment.
+   */
+  public static async CreateSemanticModelWithOrganization(organization: string, CreateSemanticModelRequest: IqCreateSemanticModelRequestWithOrganization): Promise<IOperationResult<void>> {
+    const params: { organization: string, CreateSemanticModelRequest: IqCreateSemanticModelRequestWithOrganization } = { organization, CreateSemanticModelRequest };
+    const result = await MicrosoftDataverseService.client.executeAsync<{ organization: string, CreateSemanticModelRequest: IqCreateSemanticModelRequestWithOrganization }, void>(
+      {
+        connectorOperation: {
+          tableName: MicrosoftDataverseService.dataSourceName,
+          operationName: 'CreateSemanticModelWithOrganization',
+          parameters: params
+        },
+      });
+    return result;
+  }
+
+  /**
+   * Delete semantic model
+   * Deletes the selected semantic model. This action does not delete the underlying Microsoft Dataverse tables or their data.
+   */
+  public static async DeleteSemanticModel(id: string): Promise<IOperationResult<IqSemanticModelDeleteResponse>> {
+    const params: { id: string } = { id };
+    const result = await MicrosoftDataverseService.client.executeAsync<{ id: string }, IqSemanticModelDeleteResponse>(
+      {
+        connectorOperation: {
+          tableName: MicrosoftDataverseService.dataSourceName,
+          operationName: 'DeleteSemanticModel',
+          parameters: params
+        },
+      });
+    return result;
+  }
+
+  /**
+   * Delete semantic model from selected environment
+   * Deletes the selected semantic model from the selected environment. This action does not delete the underlying Microsoft Dataverse tables or their data.
+   */
+  public static async DeleteSemanticModelWithOrganization(organization: string, id: string): Promise<IOperationResult<IqSemanticModelDeleteResponse>> {
+    const params: { organization: string, id: string } = { organization, id };
+    const result = await MicrosoftDataverseService.client.executeAsync<{ organization: string, id: string }, IqSemanticModelDeleteResponse>(
+      {
+        connectorOperation: {
+          tableName: MicrosoftDataverseService.dataSourceName,
+          operationName: 'DeleteSemanticModelWithOrganization',
+          parameters: params
+        },
+      });
+    return result;
+  }
+
+  /**
+   * Ask using semantic model
+   * Asks a natural-language question about data in the selected Microsoft Dataverse semantic model.
+   */
+  public static async AskUsingSemanticModel(AskRequest: IqAskRequest): Promise<IOperationResult<IqAskResponse>> {
+    const params: { AskRequest: IqAskRequest } = { AskRequest };
+    const result = await MicrosoftDataverseService.client.executeAsync<{ AskRequest: IqAskRequest }, IqAskResponse>(
+      {
+        connectorOperation: {
+          tableName: MicrosoftDataverseService.dataSourceName,
+          operationName: 'AskUsingSemanticModel',
+          parameters: params
+        },
+      });
+    return result;
+  }
+
+  /**
+   * Ask using semantic model from selected environment
+   * Asks a natural-language question about data in a Microsoft Dataverse semantic model in the selected environment.
+   */
+  public static async AskUsingSemanticModelWithOrganization(organization: string, AskRequest: IqAskRequestWithOrganization): Promise<IOperationResult<IqAskResponse>> {
+    const params: { organization: string, AskRequest: IqAskRequestWithOrganization } = { organization, AskRequest };
+    const result = await MicrosoftDataverseService.client.executeAsync<{ organization: string, AskRequest: IqAskRequestWithOrganization }, IqAskResponse>(
+      {
+        connectorOperation: {
+          tableName: MicrosoftDataverseService.dataSourceName,
+          operationName: 'AskUsingSemanticModelWithOrganization',
           parameters: params
         },
       });

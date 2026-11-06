@@ -11,7 +11,6 @@ import { fetchMiHistorico } from '../../lib/actividadService'
 import { fetchModelos } from '../../lib/catalogosService'
 import { coincideBusqueda, coincideModelo, fetchTextosExtra, textoBusqueda } from '../../lib/filtrosLeads'
 import { parseFecha } from '../../lib/formato'
-import { fetchImportesVenta } from '../../lib/tareasService'
 import { Fase } from '../../lib/types'
 import type { Lead, Modelo } from '../../lib/types'
 import { descargarExcel } from '../../lib/excelExport'
@@ -92,7 +91,7 @@ export function MisLeads() {
   const [enFaseDesde, setEnFaseDesde] = useState<Map<string, Date>>(new Map())
   const [ahora] = useState(() => Date.now())
   // Tarjeta soltada en otra columna: se abre la ventana de cambio de fase.
-  const [moviendo, setMoviendo] = useState<{ lead: Lead; fase: Fase; importe: number | null | undefined } | null>(null)
+  const [moviendo, setMoviendo] = useState<{ lead: Lead; fase: Fase } | null>(null)
 
   const cargar = () => {
     fetchMisLeads()
@@ -247,10 +246,7 @@ export function MisLeads() {
     })
   }
 
-  const mover = async (lead: Lead, fase: Fase) => {
-    const imp = await fetchImportesVenta(lead.fl_leadid)
-    setMoviendo({ lead, fase, importe: imp ? (imp.get(lead.fl_leadid) ?? null) : undefined })
-  }
+  const mover = (lead: Lead, fase: Fase) => setMoviendo({ lead, fase })
 
   const columnasOrdenadas = columnOrder.map((key) => COLUMNAS.find((c) => c.key === key)!).filter((c) => c && visibleColumns.has(c.key))
 
@@ -442,7 +438,6 @@ export function MisLeads() {
       {moviendo && (
         <CambioFaseDialog
           lead={moviendo.lead}
-          importe={moviendo.importe}
           soloCompletar={false}
           faseInicial={moviendo.fase}
           onCerrar={() => {

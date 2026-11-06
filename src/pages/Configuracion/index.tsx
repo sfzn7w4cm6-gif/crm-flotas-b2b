@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import { Icon } from '../../components/Icon'
 import { Buscador, FiltroMulti } from '../../components/filtros/Filtros'
 import { fetchConcesionarios, fetchUbicaciones, fetchUsuariosApp } from '../../lib/usuariosService'
 import { fetchZonas } from '../../lib/catalogosService'
-import { fetchObjetivos, guardarObjetivo } from '../../lib/tareasService'
+import { fetchObjetivos, guardarObjetivo, objetivoDeRed, objetivoDeSede } from '../../lib/tareasService'
 import { coincideBusqueda } from '../../lib/filtrosLeads'
 import { normalizarTexto } from '../../lib/formato'
 import type { Concesionario, Objetivo, Ubicacion, UsuarioApp, Zona } from '../../lib/types'
@@ -12,16 +12,26 @@ import './Configuracion.css'
 const GENERAL = '__general__'
 
 interface FilaConfig {
-  id: string // concesionarioId o GENERAL
+  id: string // concesionarioId, ubicacionId o GENERAL
   nombre: string
-  esGeneral: boolean
+  tipo: 'general' | 'concesionario' | 'sede'
+  /** Solo en las de sede: su concesionario padre (para guardar y para heredar). */
+  concesionarioId?: string
   zonaIds: string[]
   zonas: string[]
   comerciales: string[]
-  objetivoId: string | undefined
   valorActual: number | undefined
-  /** El general, para mostrar "hereda X" en las filas que no tienen propio. */
+  /** Lo que heredaría si no tiene propio (del concesionario o, si tampoco, del general). */
   heredaDe: number | undefined
+}
+
+interface CambioRevisado {
+  fila: FilaConfig
+  nuevo: number
+}
+interface RevisionImport {
+  cambios: CambioRevisado[]
+  noResueltos: string[]
 }
 
 export function Configuracion() {
@@ -34,11 +44,18 @@ export function Configuracion() {
 
   const [zonasSel, setZonasSel] = useState<string[]>([])
   const [busqueda, setBusqueda] = useState('')
+  const [expandidos, setExpandidos] = useState<Set<string>>(new Set())
 
   const [valores, setValores] = useState<Map<string, string>>(new Map())
   const [guardando, setGuardando] = useState<Set<string>>(new Set())
   const [guardado, setGuardado] = useState<Set<string>>(new Set())
   const [error, setError] = useState<string | null>(null)
+
+  const [exportando, setExportando] = useState(false)
+  const [revisionImport, setRevisionImport] = useState<RevisionImport | null>(null)
+  const [aplicandoImport, setAplicandoImport] = useState(false)
+  const [errorImport, setErrorImport] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const cargar = () => {
     Promise.all([fetchConcesionarios(), fetchUbicaciones(), fetchZonas(), fetchUsuariosApp(), fetchObjetivos()]).then(([c, u, z, us, o]) => {
@@ -76,38 +93,60 @@ export function Configuracion() {
     return m
   }, [concesionarios, ubicaciones, usuarios])
 
-  const objetivoGeneral = useMemo(() => objetivos.find((o) => !o._fl_concesionario_value), [objetivos])
+  const objetivoGeneral = useMemo(() => objetivos.find((o) => !o._fl_concesionario_value && !o._fl_ubicacion_value), [objetivos])
+
+  // Sedes de cada concesionario, para la fila desplegable: su propio objetivo si tiene,
+  // o lo que heredaría del general si no, para mostrarlo de pista.
+  const sedesPorConcesionario = useMemo(() => {
+    const m = new Map<string, FilaConfig[]>()
+    for (const u of ubicaciones) {
+      const propio = objetivos.find((o) => o._fl_ubicacion_value === u.fl_ubicacionid)
+      const fila: FilaConfig = {
+        id: u.fl_ubicacionid,
+        nombre: u.fl_nombre,
+        tipo: 'sede',
+        concesionarioId: u._fl_concesionario_value,
+        zonaIds: u._fl_zona_value ? [u._fl_zona_value] : [],
+        zonas: u._fl_zona_value ? [nombreZona.get(u._fl_zona_value) ?? ''].filter(Boolean) : [],
+        comerciales: usuarios.filter((us) => us._fl_ubicacion_value === u.fl_ubicacionid).map((us) => us.fl_nombre),
+        valorActual: propio?.fl_leadsmes,
+        heredaDe: objetivoDeSede(objetivos, u.fl_ubicacionid),
+      }
+      m.set(u._fl_concesionario_value, [...(m.get(u._fl_concesionario_value) ?? []), fila])
+    }
+    for (const lista of m.values()) lista.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
+    return m
+  }, [ubicaciones, objetivos, usuarios, nombreZona])
 
   const filas = useMemo<FilaConfig[]>(() => {
     const general: FilaConfig = {
       id: GENERAL,
       nombre: 'General (por defecto)',
-      esGeneral: true,
+      tipo: 'general',
       zonaIds: [],
       zonas: [],
       comerciales: [],
-      objetivoId: objetivoGeneral?.fl_objetivoid,
       valorActual: objetivoGeneral?.fl_leadsmes,
       heredaDe: undefined,
     }
+    // El concesionario ya no tiene objetivo propio: muestra la suma de sus sedes, sin editar.
     const deConcesionarios: FilaConfig[] = concesionarios.map((c) => {
-      const propio = objetivos.find((o) => o._fl_concesionario_value === c.fl_concesionarioid)
       const datos = datosDeConcesionario.get(c.fl_concesionarioid)
       const zonaIds = [...(datos?.zonas ?? [])]
+      const sedes = sedesPorConcesionario.get(c.fl_concesionarioid) ?? []
       return {
         id: c.fl_concesionarioid,
         nombre: c.fl_nombre,
-        esGeneral: false,
+        tipo: 'concesionario',
         zonaIds,
         zonas: zonaIds.map((zid) => nombreZona.get(zid) ?? '').filter(Boolean),
         comerciales: datos?.comerciales ?? [],
-        objetivoId: propio?.fl_objetivoid,
-        valorActual: propio?.fl_leadsmes,
-        heredaDe: objetivoGeneral?.fl_leadsmes,
+        valorActual: objetivoDeRed(objetivos, sedes.map((s) => ({ fl_ubicacionid: s.id }))) ?? undefined,
+        heredaDe: undefined,
       }
     })
     return [general, ...deConcesionarios.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))]
-  }, [concesionarios, objetivos, datosDeConcesionario, nombreZona, objetivoGeneral])
+  }, [concesionarios, objetivos, datosDeConcesionario, nombreZona, objetivoGeneral, sedesPorConcesionario])
 
   // Indice de busqueda: nombre del concesionario, sus zonas y sus comerciales.
   const indice = useMemo(() => {
@@ -119,7 +158,7 @@ export function Configuracion() {
   const filasFiltradas = useMemo(() => {
     const q = busqueda.trim()
     return filas.filter((f) => {
-      if (!f.esGeneral && zonasSel.length && !f.zonaIds.some((z) => zonasSel.includes(z))) return false
+      if (f.tipo !== 'general' && zonasSel.length && !f.zonaIds.some((z) => zonasSel.includes(z))) return false
       if (q && !coincideBusqueda(indice.get(f.id) ?? '', q)) return false
       return true
     })
@@ -156,7 +195,8 @@ export function Configuracion() {
     setError(null)
     setGuardando((prev) => new Set(prev).add(fila.id))
     try {
-      await guardarObjetivo(objetivos, fila.esGeneral ? null : fila.id, fila.esGeneral ? 'General' : fila.nombre, n)
+      const concesionarioId = fila.tipo === 'sede' ? (fila.concesionarioId ?? null) : null
+      await guardarObjetivo(objetivos, concesionarioId, fila.tipo === 'general' ? 'General' : fila.nombre, n, fila.tipo === 'sede' ? fila.id : null)
       const nuevos = await fetchObjetivos()
       setObjetivos(nuevos)
       setValores((prev) => {
@@ -181,6 +221,171 @@ export function Configuracion() {
     }
   }
 
+  // Lista plana para exportar/importar en Excel: el general y cada sede (el concesionario ya no
+  // se edita directamente, es la suma de sus sedes), con el nombre "Concesionario - Sede".
+  const filasExportables = useMemo<FilaConfig[]>(() => {
+    const general = filas.find((f) => f.tipo === 'general')
+    const sedes: FilaConfig[] = []
+    for (const c of concesionarios) {
+      for (const s of sedesPorConcesionario.get(c.fl_concesionarioid) ?? []) {
+        sedes.push({ ...s, nombre: `${c.fl_nombre} - ${s.nombre}` })
+      }
+    }
+    sedes.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
+    return general ? [general, ...sedes] : sedes
+  }, [filas, concesionarios, sedesPorConcesionario])
+
+  const exportar = async () => {
+    setExportando(true)
+    try {
+      const { exportarObjetivosExcel } = await import('../../lib/objetivosExcel')
+      await exportarObjetivosExcel(filasExportables.map((f) => ({ id: f.id, nombre: f.nombre, valorActual: f.valorActual, esGeneral: f.tipo === 'general' })))
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudo generar el Excel.')
+    } finally {
+      setExportando(false)
+    }
+  }
+
+  const elegirArchivo = () => fileInputRef.current?.click()
+
+  const archivoElegido = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    setErrorImport(null)
+    try {
+      const { importarObjetivosExcel } = await import('../../lib/objetivosExcel')
+      const cambiosLeidos = await importarObjetivosExcel(file)
+      const porId = new Map(filasExportables.map((f) => [f.id, f]))
+      const porNombre = new Map(filasExportables.map((f) => [normalizarTexto(f.nombre), f]))
+      const cambios: CambioRevisado[] = []
+      const noResueltos: string[] = []
+      for (const c of cambiosLeidos) {
+        const fila = porId.get(c.id) ?? porNombre.get(normalizarTexto(c.nombre))
+        if (!fila) {
+          noResueltos.push(c.nombre)
+          continue
+        }
+        if (fila.valorActual === c.nuevo) continue // sin cambios reales, no hace falta tocarlo
+        cambios.push({ fila, nuevo: c.nuevo })
+      }
+      if (cambios.length === 0 && noResueltos.length === 0) {
+        setErrorImport('No hay ningún cambio en el archivo: todas las filas de "Nuevo objetivo" estaban vacías o igual que el valor actual.')
+        return
+      }
+      setRevisionImport({ cambios, noResueltos })
+    } catch (e) {
+      setErrorImport(e instanceof Error ? e.message : 'No se pudo leer el archivo.')
+    }
+  }
+
+  const aplicarImport = async () => {
+    if (!revisionImport) return
+    setAplicandoImport(true)
+    try {
+      for (const c of revisionImport.cambios) {
+        const concesionarioId = c.fila.tipo === 'sede' ? (c.fila.concesionarioId ?? null) : null
+        await guardarObjetivo(objetivos, concesionarioId, c.fila.tipo === 'general' ? 'General' : c.fila.nombre, c.nuevo, c.fila.tipo === 'sede' ? c.fila.id : null)
+      }
+      const nuevos = await fetchObjetivos()
+      setObjetivos(nuevos)
+      setRevisionImport(null)
+    } catch (e) {
+      setErrorImport(e instanceof Error ? e.message : 'No se pudieron aplicar todos los cambios.')
+    } finally {
+      setAplicandoImport(false)
+    }
+  }
+
+  const toggleExpandir = (id: string) =>
+    setExpandidos((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+
+  const filaRow = (fila: FilaConfig, opts?: { indentado?: boolean; conExpandir?: boolean }) => {
+    const valor = valorDe(fila)
+    const n = Number(valor)
+    const valido = valor !== '' && !Number.isNaN(n)
+    const sucio = esSucio(fila)
+    const expandido = expandidos.has(fila.id)
+    return (
+      <tr key={fila.id} className={fila.tipo === 'general' ? 'config-fila-general' : opts?.indentado ? 'config-fila-sede' : undefined}>
+        <td className="cell-strong">
+          {opts?.conExpandir && (
+            <button type="button" className="config-expandir" onClick={() => toggleExpandir(fila.id)} aria-label={expandido ? 'Ocultar sedes' : 'Ver sedes'}>
+              <Icon name="chevronRight" size={13} className={expandido ? 'is-abierto' : undefined} />
+            </button>
+          )}
+          {fila.tipo === 'general' && <Icon name="target" size={14} />} {fila.nombre}
+        </td>
+        <td>
+          {fila.tipo === 'general' ? (
+            <span className="flow-meta">Toda la red</span>
+          ) : fila.zonas.length > 0 ? (
+            fila.zonas.join(', ')
+          ) : (
+            <span className="flow-meta">—</span>
+          )}
+        </td>
+        <td>
+          {fila.comerciales.length === 0 ? (
+            <span className="flow-meta">Sin asignar</span>
+          ) : (
+            <span title={fila.comerciales.join(', ')}>
+              {fila.comerciales.slice(0, 2).join(', ')}
+              {fila.comerciales.length > 2 && ` +${fila.comerciales.length - 2}`}
+            </span>
+          )}
+        </td>
+        <td>
+          {fila.tipo === 'concesionario' ? (
+            <div className="config-input-wrap">
+              <strong>{fila.valorActual ?? 0}</strong>
+              <span className="flow-meta">oportunidades (suma de sedes)</span>
+            </div>
+          ) : (
+            <>
+              <div className="config-input-wrap">
+                <input
+                  type="number"
+                  min={0}
+                  inputMode="numeric"
+                  className="config-input"
+                  value={valor}
+                  placeholder={fila.tipo === 'sede' && fila.heredaDe != null ? String(fila.heredaDe) : '—'}
+                  onChange={(e) => cambiarValor(fila.id, e.target.value)}
+                />
+                <span className="flow-meta">oportunidades</span>
+              </div>
+              {fila.tipo === 'sede' && fila.valorActual == null && (
+                <p className="config-hereda">Hereda del general{fila.heredaDe != null ? ` (${fila.heredaDe})` : ''}</p>
+              )}
+            </>
+          )}
+        </td>
+        <td className="flow-meta">{fila.tipo === 'concesionario' ? (fila.valorActual != null ? `${fila.valorActual * 3} · ${fila.valorActual * 12}` : '—') : valido ? `${n * 3} · ${n * 12}` : '—'}</td>
+        <td>
+          {guardando.has(fila.id) ? (
+            <span className="flow-meta">Guardando…</span>
+          ) : guardado.has(fila.id) ? (
+            <span className="config-guardado">
+              <Icon name="check" size={14} /> Guardado
+            </span>
+          ) : sucio ? (
+            <button type="button" className="btn-mini" onClick={() => guardar(fila)}>
+              <Icon name="check" size={14} />
+              Guardar
+            </button>
+          ) : null}
+        </td>
+      </tr>
+    )
+  }
+
   if (cargando) return <p className="wizard-loading">Cargando…</p>
 
   return (
@@ -189,13 +394,75 @@ export function Configuracion() {
         <h1>
           <Icon name="settings" size={20} /> Configuración
         </h1>
+        <div className="config-excel-acciones">
+          <input ref={fileInputRef} type="file" accept=".xlsx" className="config-excel-input" onChange={archivoElegido} />
+          <button type="button" className="btn-secondary btn-compacto" onClick={elegirArchivo}>
+            <Icon name="file" size={14} /> Importar
+          </button>
+          <button type="button" className="btn-secondary btn-compacto" onClick={exportar} disabled={exportando}>
+            <Icon name="download" size={14} /> {exportando ? 'Generando…' : 'Exportar a Excel'}
+          </button>
+        </div>
       </div>
       <p className="config-subtitulo">
-        Objetivo de oportunidades nuevas al mes por concesionario. Si uno no tiene objetivo propio, se usa el <strong>general</strong>. El mismo número
-        se multiplica automáticamente para el trimestre (×3) y el año (×12).
+        Objetivo de oportunidades nuevas al mes <strong>por sede</strong>: despliega un concesionario (flecha a la izquierda) para ponerle su número a cada
+        una de sus sedes. Si una sede no tiene objetivo propio, usa el <strong>general</strong>. La fila del concesionario no se edita: muestra la suma de
+        sus sedes. El mismo número se multiplica automáticamente para el trimestre (×3) y el año (×12). Para cambiar varias sedes a la vez, exporta a
+        Excel, rellena la columna "Nuevo objetivo" y vuelve a importarlo.
       </p>
 
       {error && <p className="config-error">{error}</p>}
+      {errorImport && (
+        <p className="config-error">
+          {errorImport} <button type="button" className="btn-link" onClick={() => setErrorImport(null)}>Cerrar</button>
+        </p>
+      )}
+
+      {revisionImport && (
+        <div className="config-revision-fondo" role="presentation" onClick={() => !aplicandoImport && setRevisionImport(null)}>
+          <div className="config-revision" role="dialog" aria-label="Revisar cambios importados" onClick={(e) => e.stopPropagation()}>
+            <h2>Revisar cambios del Excel</h2>
+            {revisionImport.cambios.length === 0 ? (
+              <p className="flow-meta">Ninguna fila coincide con una sede ni con "General".</p>
+            ) : (
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Concesionario / Sede</th>
+                    <th>Actual</th>
+                    <th>Nuevo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {revisionImport.cambios.map((c) => (
+                    <tr key={c.fila.id}>
+                      <td className="cell-strong">{c.fila.nombre}</td>
+                      <td>{c.fila.valorActual ?? '—'}</td>
+                      <td>
+                        <strong>{c.nuevo}</strong>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+            {revisionImport.noResueltos.length > 0 && (
+              <p className="config-error">
+                No se pudieron identificar estas filas (no coinciden con ninguna sede ni con "General", revisa que no se haya
+                borrado la columna "id" oculta): {revisionImport.noResueltos.join(', ')}
+              </p>
+            )}
+            <div className="bloque-datos-acciones">
+              <button type="button" className="btn-link" onClick={() => setRevisionImport(null)} disabled={aplicandoImport}>
+                Cancelar
+              </button>
+              <button type="button" className="btn-primary btn-sm" onClick={aplicarImport} disabled={aplicandoImport || revisionImport.cambios.length === 0}>
+                {aplicandoImport ? 'Aplicando…' : `Aplicar ${revisionImport.cambios.length} cambio${revisionImport.cambios.length === 1 ? '' : 's'}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="lista-barra">
         <div className="lista-filtros">
@@ -230,69 +497,11 @@ export function Configuracion() {
             </tr>
           </thead>
           <tbody>
-            {filasFiltradas.map((fila) => {
-              const valor = valorDe(fila)
-              const n = Number(valor)
-              const valido = valor !== '' && !Number.isNaN(n)
-              const sucio = esSucio(fila)
-              return (
-                <tr key={fila.id} className={fila.esGeneral ? 'config-fila-general' : undefined}>
-                  <td className="cell-strong">
-                    {fila.esGeneral && <Icon name="target" size={14} />} {fila.nombre}
-                  </td>
-                  <td>
-                    {fila.esGeneral ? (
-                      <span className="flow-meta">Toda la red</span>
-                    ) : fila.zonas.length > 0 ? (
-                      fila.zonas.join(', ')
-                    ) : (
-                      <span className="flow-meta">—</span>
-                    )}
-                  </td>
-                  <td>
-                    {fila.comerciales.length === 0 ? (
-                      <span className="flow-meta">Sin asignar</span>
-                    ) : (
-                      <span title={fila.comerciales.join(', ')}>
-                        {fila.comerciales.slice(0, 2).join(', ')}
-                        {fila.comerciales.length > 2 && ` +${fila.comerciales.length - 2}`}
-                      </span>
-                    )}
-                  </td>
-                  <td>
-                    <div className="config-input-wrap">
-                      <input
-                        type="number"
-                        min={0}
-                        inputMode="numeric"
-                        className="config-input"
-                        value={valor}
-                        placeholder={!fila.esGeneral && fila.heredaDe != null ? String(fila.heredaDe) : '—'}
-                        onChange={(e) => cambiarValor(fila.id, e.target.value)}
-                      />
-                      <span className="flow-meta">oportunidades</span>
-                    </div>
-                    {!fila.esGeneral && fila.valorActual == null && (
-                      <p className="config-hereda">Hereda del general{fila.heredaDe != null ? ` (${fila.heredaDe})` : ''}</p>
-                    )}
-                  </td>
-                  <td className="flow-meta">{valido ? `${n * 3} · ${n * 12}` : '—'}</td>
-                  <td>
-                    {guardando.has(fila.id) ? (
-                      <span className="flow-meta">Guardando…</span>
-                    ) : guardado.has(fila.id) ? (
-                      <span className="config-guardado">
-                        <Icon name="check" size={14} /> Guardado
-                      </span>
-                    ) : sucio ? (
-                      <button type="button" className="btn-mini" onClick={() => guardar(fila)}>
-                        <Icon name="check" size={14} />
-                        Guardar
-                      </button>
-                    ) : null}
-                  </td>
-                </tr>
-              )
+            {filasFiltradas.flatMap((fila) => {
+              const filasSede = fila.tipo === 'concesionario' ? sedesPorConcesionario.get(fila.id) ?? [] : []
+              const filasFila = [filaRow(fila, { conExpandir: filasSede.length > 0 })]
+              if (expandidos.has(fila.id)) filasFila.push(...filasSede.map((s) => filaRow(s, { indentado: true })))
+              return filasFila
             })}
           </tbody>
         </table>

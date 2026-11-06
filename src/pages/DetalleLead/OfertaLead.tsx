@@ -2,8 +2,9 @@ import { useState } from 'react'
 import { Icon } from '../../components/Icon'
 import { DescuentoPendienteBadge } from '../../components/StatusBadge'
 import { descuentoPendiente, descuentoTotal, formatoPorcentaje } from '../../lib/descuento'
+import { numeroOportunidadAbierta } from '../../lib/empresasService'
 import type { ActualizarLeadInput } from '../../lib/leadsService'
-import type { Lead } from '../../lib/types'
+import type { Empresa, Lead } from '../../lib/types'
 import { Dato } from './DatosLead'
 
 // Bloque "Oferta" de la ficha: el descuento del concesionario (lo pone el comercial), el de
@@ -19,6 +20,8 @@ export function OfertaLead({
   editaConcesionario,
   editaVentas,
   onGuardar,
+  otraEmpresa,
+  otroConcesionarioNombre,
 }: {
   lead: Lead
   /** Puede cambiar el descuento del concesionario y las condiciones. */
@@ -26,6 +29,9 @@ export function OfertaLead({
   /** Puede cambiar el descuento de ventas. */
   editaVentas: boolean
   onGuardar: (cambios: ActualizarLeadInput) => Promise<void>
+  /** La misma empresa (por CIF), ya contactada por otro concesionario, si la hay. */
+  otraEmpresa?: Empresa | null
+  otroConcesionarioNombre?: string | null
 }) {
   const [valores, setValores] = useState<Record<Clave, string> | null>(null)
   const [guardando, setGuardando] = useState(false)
@@ -96,6 +102,24 @@ export function OfertaLead({
           )}
         </div>
       </header>
+      {otraEmpresa && (
+        <div className="oferta-aviso-duplicado">
+          <Icon name="warning" size={15} />
+          <p className="oferta-aviso-duplicado-texto">
+            Esta empresa ya está siendo trabajada por <strong>{otroConcesionarioNombre ?? 'otro concesionario'}</strong>. Alinead el % de marca para ofrecer las mismas condiciones.
+          </p>
+          {otraEmpresa._fl_oportunidadabierta_value && (
+            <button
+              type="button"
+              className="oferta-aviso-duplicado-enlace"
+              onClick={() => (window.location.hash = `#/lead/${otraEmpresa._fl_oportunidadabierta_value}`)}
+            >
+              Ver oportunidad{numeroOportunidadAbierta(otraEmpresa) ? ` ${numeroOportunidadAbierta(otraEmpresa)}` : ''}
+              <Icon name="arrowRight" size={14} />
+            </button>
+          )}
+        </div>
+      )}
       {valores ? (
         <div className="bloque-datos-form">
           <div className="datos-form-grid">

@@ -6,8 +6,8 @@ import { FaseColumnas } from '../../components/charts/FaseColumnas'
 import { FiltroMulti, FiltroSimple } from '../../components/filtros/Filtros'
 import { CalendarioTareas, FilaTarea } from '../../components/tareas/Tareas'
 import { fetchMisLeads, fetchTodosLosLeads } from '../../lib/leadsService'
-import { calcularHitos, fetchMiHistorico, nombrePeriodo, periodoActual, rangoPeriodo, resumenPeriodo } from '../../lib/actividadService'
-import type { Periodo } from '../../lib/actividadService'
+import { calcularHitos, dentroDePeriodos, fetchMiHistorico, nombrePeriodos, periodoActual, rangoPeriodo, resumenPeriodos } from '../../lib/actividadService'
+import type { PeriodoMulti } from '../../lib/actividadService'
 import { fetchModelos } from '../../lib/catalogosService'
 import { coincideModelo } from '../../lib/filtrosLeads'
 import { crearNotaConAdjuntos } from '../../lib/notasService'
@@ -88,7 +88,7 @@ interface FilaPrincipal extends FilaDetalle {
 export interface DatosInicio {
   leads: Lead[]
   historico: FaseHistorico[]
-  periodo: Periodo
+  periodo: PeriodoMulti
   concesionarios: Concesionario[]
 }
 
@@ -103,7 +103,7 @@ export function MiActividad() {
  */
 export function InicioPanel({ modo, debajo }: { modo: 'concesionario' | 'red'; debajo?: (d: DatosInicio) => ReactNode }) {
   const red = modo === 'red'
-  const { usuario, concesionario, sedes, concesionarios: misConcesionarios } = useAuth()
+  const { usuario, concesionario, sedes } = useAuth()
   const [todosLeads, setLeads] = useState<Lead[]>([])
   const [historico, setHistorico] = useState<FaseHistorico[]>([])
   const [tareas, setTareas] = useState<Tarea[] | null>(null)
@@ -119,8 +119,14 @@ export function InicioPanel({ modo, debajo }: { modo: 'concesionario' | 'red'; d
   // El periodo de arriba mueve las 4 tarjetas; la tabla de leads de abajo
   // (solo red) tiene su propio periodo independiente, porque se quiere mirar
   // por separado (ej. tarjetas del mes en curso, tabla de todo el trimestre pasado).
-  const [periodo, setPeriodo] = useState<Periodo>(() => periodoActual())
-  const [periodoTabla, setPeriodoTabla] = useState<Periodo>(() => periodoActual())
+  const [periodo, setPeriodo] = useState<PeriodoMulti>(() => [periodoActual()])
+  const [periodoTabla, setPeriodoTabla] = useState<PeriodoMulti>(() => [periodoActual()])
+  // Filtros sueltos de la tabla de abajo, independientes de la "vista" elegida (que solo
+  // decide cómo se agrupan las filas): no hace falta crear una vista para filtrar por esto.
+  const [zonaFiltroTabla, setZonaFiltroTabla] = useState<string[]>([])
+  const [concesionarioFiltroTabla, setConcesionarioFiltroTabla] = useState<string[]>([])
+  const [sedeFiltroTabla, setSedeFiltroTabla] = useState<string[]>([])
+  const [modeloFiltroTabla, setModeloFiltroTabla] = useState<string[]>([])
   const [verTodas, setVerTodas] = useState(false)
   const [calendario, setCalendario] = useState(false)
   // Tareas cerradas desde esta pantalla: se siguen mostrando (tachadas) hasta recargar.
@@ -209,24 +215,44 @@ export function InicioPanel({ modo, debajo }: { modo: 'concesionario' | 'red'; d
 
   const ubicacionPorId = useMemo(() => new Map(ubicaciones.map((u) => [u.fl_ubicacionid, u])), [ubicaciones])
 
+  // Zona -> Concesionario -> Sede en cascada, igual que en Oportunidades: cada filtro solo
+  // ofrece las opciones que tienen sentido segun lo que ya se eligio arriba.
+  const ubicacionesDeZonaTabla = useMemo(
+    () => (zonaFiltroTabla.length ? ubicaciones.filter((u) => u._fl_zona_value && zonaFiltroTabla.includes(u._fl_zona_value)) : ubicaciones),
+    [ubicaciones, zonaFiltroTabla],
+  )
+  const concesionarioIdsDeZonaTabla = useMemo(() => new Set(ubicacionesDeZonaTabla.map((u) => u._fl_concesionario_value)), [ubicacionesDeZonaTabla])
+  const concesionariosDeZonaTabla = useMemo(
+    () => (zonaFiltroTabla.length ? concesionarios.filter((c) => concesionarioIdsDeZonaTabla.has(c.fl_concesionarioid)) : concesionarios),
+    [concesionarios, zonaFiltroTabla, concesionarioIdsDeZonaTabla],
+  )
+  const ubicacionesDelConcesionarioTabla = useMemo(
+    () => (concesionarioFiltroTabla.length ? ubicacionesDeZonaTabla.filter((u) => concesionarioFiltroTabla.includes(u._fl_concesionario_value)) : ubicacionesDeZonaTabla),
+    [ubicacionesDeZonaTabla, concesionarioFiltroTabla],
+  )
+
   // Tabla general (solo red): todos los leads, acotados a la fecha de alta
   // dentro de SU PROPIO periodo (periodoTabla) — independiente del periodo
   // de las 4 tarjetas de arriba.
   const leadsTabla = useMemo(() => {
     if (!red) return []
-    const { desde, hasta } = rangoPeriodo(periodoTabla)
     // Una vista personal puede quedarse solo con unas zonas o unos concesionarios.
     const zonasVista = personal?.zonas ?? []
     const concVista = personal?.concesionarios ?? []
+    const modsFiltro = modelos.filter((m) => modeloFiltroTabla.includes(m.fl_modeloid))
     return leads.filter((l) => {
       if (!l.fl_fechaprimercontacto) return false
       const f = new Date(l.fl_fechaprimercontacto)
-      if (f < desde || f >= hasta) return false
+      if (!dentroDePeriodos(f, periodoTabla)) return false
       if (concVista.length && !concVista.includes(l._fl_concesionario_value)) return false
       if (zonasVista.length && !zonasVista.includes(ubicacionPorId.get(l._fl_ubicacion_value)?._fl_zona_value ?? '')) return false
+      if (zonaFiltroTabla.length && !zonaFiltroTabla.includes(ubicacionPorId.get(l._fl_ubicacion_value)?._fl_zona_value ?? '')) return false
+      if (concesionarioFiltroTabla.length && !concesionarioFiltroTabla.includes(l._fl_concesionario_value)) return false
+      if (sedeFiltroTabla.length && !sedeFiltroTabla.includes(l._fl_ubicacion_value)) return false
+      if (modsFiltro.length && !coincideModelo(l, modsFiltro)) return false
       return true
     })
-  }, [red, leads, periodoTabla, personal, ubicacionPorId])
+  }, [red, leads, periodoTabla, personal, ubicacionPorId, zonaFiltroTabla, concesionarioFiltroTabla, sedeFiltroTabla, modeloFiltroTabla, modelos])
 
   const nombreZona = useMemo(() => new Map(zonas.map((z) => [z.fl_zonaid, z.fl_nombre])), [zonas])
 
@@ -329,15 +355,15 @@ export function InicioPanel({ modo, debajo }: { modo: 'concesionario' | 'red'; d
     return Math.min(new Date().getFullYear() - 1, ...anios)
   }, [leads])
 
-  // El objetivo es la suma del de cada concesionario (el suyo o, si no tiene, el general): en la
-  // red, de todos; para el comercial, de los suyos, o solo de los de las sedes que haya filtrado.
-  const idsObjetivo = useMemo(() => {
-    if (red) return concesionarios.map((c) => c.fl_concesionarioid)
-    if (filtroSede.length) return [...new Set(sedes.filter((u) => filtroSede.includes(u.fl_ubicacionid)).map((u) => u._fl_concesionario_value))]
-    if (misConcesionarios.length) return misConcesionarios.map((c) => c.fl_concesionarioid)
-    return concesionario ? [concesionario.fl_concesionarioid] : []
-  }, [red, concesionarios, filtroSede, sedes, misConcesionarios, concesionario])
-  const objetivoMes = objetivos == null ? undefined : objetivoDeRed(objetivos, idsObjetivo)
+  // El objetivo es la suma del de cada sede (la suya propia o, si no tiene, la de su
+  // concesionario, o si no, la general): en la red, de todas las sedes; para el
+  // comercial, de las suyas, o solo de las que haya filtrado.
+  const sedesObjetivo = useMemo(() => {
+    if (red) return ubicaciones
+    if (filtroSede.length) return sedes.filter((u) => filtroSede.includes(u.fl_ubicacionid))
+    return sedes
+  }, [red, ubicaciones, filtroSede, sedes])
+  const objetivoMes = objetivos == null ? undefined : objetivoDeRed(objetivos, sedesObjetivo)
 
   // Con filtro de sede, solo las tareas de oportunidades de esas sedes.
   const tareasDeSede = useMemo(
@@ -363,8 +389,8 @@ export function InicioPanel({ modo, debajo }: { modo: 'concesionario' | 'red'; d
 
   const hoy = new Date()
   const tareasMostradas = verTodas ? tareasLista : tareasLista.slice(0, TAREAS_VISIBLES)
-  const etiquetaPeriodo = nombrePeriodo(periodo)
-  const etiquetaPeriodoTabla = nombrePeriodo(periodoTabla)
+  const etiquetaPeriodo = nombrePeriodos(periodo)
+  const etiquetaPeriodoTabla = nombrePeriodos(periodoTabla)
   const abiertos = leads.filter((l) => l.fl_faseactual !== Fase.Perdido)
   const vehiculosAbiertos = abiertos.reduce((acc, l) => acc + (l.fl_numvehiculosrenovarampliar || 0), 0)
 
@@ -439,6 +465,46 @@ export function InicioPanel({ modo, debajo }: { modo: 'concesionario' | 'red'; d
                 </button>
               )}
             </div>
+            <FiltroMulti
+              etiqueta="Zona"
+              opciones={zonas.map((z) => ({ value: z.fl_zonaid, label: z.fl_nombre }))}
+              value={zonaFiltroTabla}
+              onChange={(v) => {
+                setZonaFiltroTabla(v)
+                setConcesionarioFiltroTabla([])
+                setSedeFiltroTabla([])
+              }}
+            />
+            <FiltroMulti
+              etiqueta="Concesionario"
+              opciones={concesionariosDeZonaTabla.map((c) => ({ value: c.fl_concesionarioid, label: c.fl_nombre }))}
+              value={concesionarioFiltroTabla}
+              onChange={(v) => {
+                setConcesionarioFiltroTabla(v)
+                setSedeFiltroTabla([])
+              }}
+            />
+            <FiltroMulti
+              etiqueta="Sede"
+              opciones={ubicacionesDelConcesionarioTabla.map((u) => ({ value: u.fl_ubicacionid, label: u.fl_nombre }))}
+              value={sedeFiltroTabla}
+              onChange={setSedeFiltroTabla}
+            />
+            <FiltroMulti etiqueta="Modelo" opciones={modelos.map((m) => ({ value: m.fl_modeloid, label: m.fl_nombre }))} value={modeloFiltroTabla} onChange={setModeloFiltroTabla} />
+            {(zonaFiltroTabla.length > 0 || concesionarioFiltroTabla.length > 0 || sedeFiltroTabla.length > 0 || modeloFiltroTabla.length > 0) && (
+              <button
+                type="button"
+                className="lista-limpiar"
+                onClick={() => {
+                  setZonaFiltroTabla([])
+                  setConcesionarioFiltroTabla([])
+                  setSedeFiltroTabla([])
+                  setModeloFiltroTabla([])
+                }}
+              >
+                Limpiar filtros
+              </button>
+            )}
           </div>
 
           {vista === 'modelo' ? (
@@ -623,10 +689,10 @@ function Metrica({
   titulo: string
   ayuda: string
   eventos: Evento[]
-  periodo: Periodo
+  periodo: PeriodoMulti
   formato?: (n: number) => string
 }) {
-  const r = resumenPeriodo(eventos, periodo)
+  const r = resumenPeriodos(eventos, periodo)
   const diff = r.comparado > 0 ? Math.round(((r.valor - r.comparado) / r.comparado) * 100) : null
 
   return (
@@ -652,12 +718,12 @@ function Metrica({
   )
 }
 
-function MetricaObjetivo({ objetivo, eventos, periodo, red }: { objetivo: number | null | undefined; eventos: Evento[]; periodo: Periodo; red: boolean }) {
+function MetricaObjetivo({ objetivo, eventos, periodo, red }: { objetivo: number | null | undefined; eventos: Evento[]; periodo: PeriodoMulti; red: boolean }) {
   if (!objetivo) {
     return (
       <div className="inicio-metrica">
         <span className="inicio-metrica-titulo">Objetivo de oportunidades</span>
-        {red && <span className="inicio-metrica-ayuda">Suma de los objetivos de todos los concesionarios</span>}
+        {red && <span className="inicio-metrica-ayuda">Suma de los objetivos de todas las sedes</span>}
         <span className="inicio-metrica-valor is-vacio">—</span>
         <span className="inicio-metrica-nota">
           {objetivo === undefined ? 'Objetivos aún no activados' : red ? 'Ningún concesionario tiene objetivo todavía. Ponlo en Configuración.' : 'Sin objetivo asignado'}
@@ -665,15 +731,16 @@ function MetricaObjetivo({ objetivo, eventos, periodo, red }: { objetivo: number
       </div>
     )
   }
-  const { desde, hasta, meses } = rangoPeriodo(periodo)
+  // Sin periodo elegido ("Todo") se usa 12 meses como aproximacion anual, igual que en el Panel KPI.
+  const meses = periodo.length === 0 ? 12 : periodo.reduce((acc, p) => acc + rangoPeriodo(p).meses, 0)
   const meta = objetivo * meses
-  const creados = eventos.filter((e) => e.fecha >= desde && e.fecha < hasta).length
+  const creados = eventos.filter((e) => dentroDePeriodos(e.fecha, periodo)).length
   const pct = Math.round((creados / meta) * 100)
 
   return (
     <div className="inicio-metrica">
       <span className="inicio-metrica-titulo">Objetivo de oportunidades</span>
-      {red && <span className="inicio-metrica-ayuda">Suma de los objetivos de todos los concesionarios</span>}
+      {red && <span className="inicio-metrica-ayuda">Suma de los objetivos de todas las sedes</span>}
       <span className="inicio-metrica-valor">
         {creados}
         <span className="inicio-metrica-meta"> / {meta}</span>
@@ -690,10 +757,9 @@ function MetricaObjetivo({ objetivo, eventos, periodo, red }: { objetivo: number
  *  periodo, cuantos de ESOS MISMOS llegaron a venta (en cualquier momento,
  *  no solo dentro del periodo — un lead activado a final de mes puede
  *  cerrarse el mes siguiente). Sustituye a "Facturado" en los dos inicios. */
-function MetricaConversion({ activados, ventas, periodo }: { activados: Evento[]; ventas: Evento[]; periodo: Periodo }) {
-  const { desde, hasta } = rangoPeriodo(periodo)
-  const activadosPeriodo = activados.filter((e) => e.fecha >= desde && e.fecha < hasta).length
-  const ventasPeriodo = ventas.filter((e) => e.fecha >= desde && e.fecha < hasta).length
+function MetricaConversion({ activados, ventas, periodo }: { activados: Evento[]; ventas: Evento[]; periodo: PeriodoMulti }) {
+  const activadosPeriodo = activados.filter((e) => dentroDePeriodos(e.fecha, periodo)).length
+  const ventasPeriodo = ventas.filter((e) => dentroDePeriodos(e.fecha, periodo)).length
   const pct = activadosPeriodo > 0 ? Math.round((ventasPeriodo / activadosPeriodo) * 100) : null
 
   return (

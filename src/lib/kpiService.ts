@@ -73,8 +73,6 @@ export function leadsPorConcesionario(leads: Lead[], concesionarios: Concesionar
 
 export interface StatsResumen {
   leadsNuevos: number
-  reunionesDiagnostico: number
-  propuestasEnviadas: number
   cierres: number
   tasaCierre: number
   tasaPerdida: number
@@ -88,16 +86,12 @@ function leadsQueAlcanzaronFase(historico: FaseHistorico[], fase: Fase): Set<str
   return new Set(historico.filter((h) => h.fl_fase === fase).map((h) => h._fl_lead_value))
 }
 
-/** Replica las 8 metricas de la hoja "KPI Dashboard" del Excel original:
- *  leads nuevos, reuniones de diagnostico, propuestas enviadas, pedidos
- *  cerrados, seguimientos completados, unidades entregadas, tasa de cierre,
- *  nuevos clientes empresa y renovaciones gestionadas (mas la tasa de
- *  perdida, que no estaba en el Excel pero es la contraparte natural de la
- *  tasa de cierre con el estado "Perdido" que se añadio a esta version). */
+/** Metricas reales del pipeline (sin "reuniones de diagnostico" ni "propuestas
+ *  enviadas": no hay ningun registro de que esas acciones ocurrieran, solo de
+ *  que el lead cambio de fase, asi que no se muestran como si fueran un hecho
+ *  contado de verdad). */
 export function statsResumen(leads: Lead[], historico: FaseHistorico[]): StatsResumen {
   const total = leads.length
-  const reuniones = leadsQueAlcanzaronFase(historico, Fase.Cualificacion).size
-  const propuestas = leadsQueAlcanzaronFase(historico, Fase.Propuesta).size
   const cierres = leadsQueAlcanzaronFase(historico, Fase.Cierre).size
   const perdidos = leadsQueAlcanzaronFase(historico, Fase.Perdido).size
 
@@ -119,8 +113,6 @@ export function statsResumen(leads: Lead[], historico: FaseHistorico[]): StatsRe
 
   return {
     leadsNuevos: total,
-    reunionesDiagnostico: reuniones,
-    propuestasEnviadas: propuestas,
     cierres,
     tasaCierre: total > 0 ? Math.round((cierres / total) * 100) : 0,
     tasaPerdida: total > 0 ? Math.round((perdidos / total) * 100) : 0,
@@ -132,25 +124,6 @@ export function statsResumen(leads: Lead[], historico: FaseHistorico[]): StatsRe
 }
 
 export type Periodo = 30 | 90 | 0 // 0 = todo
-
-/** Objetivos mensual/trimestral/anual de la hoja "1. Resumen Pipeline" →
- *  "Metricas clave del departamento" del Excel original. El filtro de
- *  periodo del Panel KPI (30/90/Todo) se corresponde con mensual/trimestral/
- *  anual — "Todo" se usa como aproximacion de "anual" al no tener un
- *  periodo de 365 dias explicito. */
-export const OBJETIVOS_KPI = {
-  leadsNuevos: { 30: 20, 90: 60, 0: 240 },
-  reunionesDiagnostico: { 30: 10, 90: 30, 0: 48 },
-  propuestasEnviadas: { 30: 10, 90: 30, 0: 96 },
-  cierres: { 30: 2, 90: 6, 0: 48 },
-  tasaCierre: { 30: 20, 90: 20, 0: 20 },
-} as const satisfies Record<string, Record<Periodo, number>>
-
-export const PERIODO_OBJETIVO_LABEL: Record<Periodo, string> = {
-  30: 'mensual',
-  90: 'trimestral',
-  0: 'anual (orientativo)',
-}
 
 /** Filtra por fl_fechaprimercontacto (fecha de negocio), no por "createdon"
  *  (fecha tecnica de alta del registro en Dataverse) — con datos de

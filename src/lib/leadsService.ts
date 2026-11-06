@@ -302,7 +302,6 @@ export interface ActualizarLeadInput {
   descuentoConcesionario?: number | null
   descuentoVentas?: number | null
   motivoPerdida?: string
-  importeVenta?: number
 }
 
 const CAMPO_MAP: Record<keyof ActualizarLeadInput, string> = {
@@ -331,7 +330,6 @@ const CAMPO_MAP: Record<keyof ActualizarLeadInput, string> = {
   descuentoConcesionario: 'fl_descuentoconcesionario',
   descuentoVentas: 'fl_descuentoventas',
   motivoPerdida: 'fl_motivoperdida',
-  importeVenta: 'fl_importeventa',
 }
 
 // Campos que pertenecen a la empresa (sección 2, contactos). Desde la sección 3 todo es de la oportunidad.

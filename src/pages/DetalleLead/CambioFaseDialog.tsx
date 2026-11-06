@@ -4,7 +4,6 @@ import { FaseSelect } from '../../components/StatusBadge'
 import { CAMPOS, camposDelDialogo, type CampoFase } from '../../lib/camposFase'
 import { actualizarLead, cambiarFaseLead, type ActualizarLeadInput } from '../../lib/leadsService'
 import { fetchLineas } from '../../lib/lineasService'
-import { guardarImporteVenta } from '../../lib/tareasService'
 import { Fase, FaseLabel, ModoFinanciacionLabel, PlazoDecisionLabel } from '../../lib/types'
 import type { Lead } from '../../lib/types'
 import { LineasOportunidad } from './LineasOportunidad'
@@ -16,15 +15,12 @@ import { LineasOportunidad } from './LineasOportunidad'
  */
 export function CambioFaseDialog({
   lead,
-  importe,
   soloCompletar,
   faseInicial,
   onCerrar,
   onHecho,
 }: {
   lead: Lead
-  /** undefined = la columna de importe no existe en el entorno; null = sin rellenar. */
-  importe: number | null | undefined
   /** true: completar la fase actual, sin elegir otra. */
   soloCompletar: boolean
   /** Fase destino ya elegida (al arrastrar la tarjeta en el pipeline). */
@@ -33,7 +29,7 @@ export function CambioFaseDialog({
   onHecho: () => void
 }) {
   const [fase, setFase] = useState<Fase | ''>(soloCompletar ? lead.fl_faseactual : (faseInicial ?? ''))
-  const [valores, setValores] = useState<Partial<Record<CampoFase, string>>>(() => valoresIniciales(lead, importe))
+  const [valores, setValores] = useState<Partial<Record<CampoFase, string>>>(() => valoresIniciales(lead))
   const [motivoPerdida, setMotivoPerdida] = useState('')
   // Las líneas al abrir deciden qué campos se muestran; las actuales, si se cumple el obligatorio.
   const [lineasIniciales, setLineasIniciales] = useState<number | null>(null)
@@ -51,8 +47,8 @@ export function CambioFaseDialog({
   }, [lead.fl_leadid])
 
   const campos = useMemo(
-    () => (fase === '' || lineasIniciales === null ? [] : camposDelDialogo(fase, { lead, numLineas: lineasIniciales, importe })),
-    [fase, lead, lineasIniciales, importe],
+    () => (fase === '' || lineasIniciales === null ? [] : camposDelDialogo(fase, { lead, numLineas: lineasIniciales })),
+    [fase, lead, lineasIniciales],
   )
 
   const relleno = (campo: CampoFase) =>
@@ -68,20 +64,16 @@ export function CambioFaseDialog({
     setGuardando(true)
     setError(null)
     try {
-      const iniciales = valoresIniciales(lead, importe)
+      const iniciales = valoresIniciales(lead)
       const cambios: Record<string, unknown> = {}
       for (const { campo } of campos) {
-        if (campo === 'modelos' || campo === 'importeVenta') continue
+        if (campo === 'modelos') continue
         const v = (valores[campo] ?? '').trim()
         if (v === '' || v === iniciales[campo]) continue
         const tipo = CAMPOS[campo]?.tipo
         cambios[campo] = tipo === 'numero' || tipo === 'euros' || tipo === 'porcentaje' || tipo === 'financiacion' || tipo === 'plazo' ? Number(v) : v
       }
       await actualizarLead(lead.fl_leadid, cambios as ActualizarLeadInput, lead._fl_empresa_value)
-      const importeNuevo = (valores.importeVenta ?? '').trim()
-      if (campos.some((c) => c.campo === 'importeVenta') && importeNuevo !== '' && importeNuevo !== iniciales.importeVenta) {
-        await guardarImporteVenta(lead.fl_leadid, Number(importeNuevo))
-      }
       if (fase !== lead.fl_faseactual) {
         await cambiarFaseLead(lead.fl_leadid, lead.fl_numero, fase, fase === Fase.Perdido ? motivoPerdida.trim() || undefined : undefined, lead._fl_empresa_value)
       }
@@ -135,24 +127,27 @@ export function CambioFaseDialog({
             </p>
           )}
 
-          {secciones.map((s) => (
-            <div key={s.titulo} className="fase-dialog-seccion">
-              <h3>{s.titulo}</h3>
-              <div className="wizard-form">
-                {s.campos.map(({ campo, obligatorio }) => {
-                  const def = CAMPOS[campo]!
-                  return (
-                    <div key={campo} className="field">
-                      <label>
-                        {def.label} {obligatorio ? '*' : ''}
-                      </label>
-                      <CampoInput campo={campo} tipo={def.tipo} valor={valores[campo] ?? ''} onChange={(v) => set(campo, v)} lead={lead} onLineas={setNumLineas} />
-                    </div>
-                  )
-                })}
+          {secciones.map((s) => {
+            const esOferta = s.titulo === 'Oferta'
+            return (
+              <div key={s.titulo} className={esOferta ? 'fase-dialog-seccion fase-dialog-seccion-oferta' : 'fase-dialog-seccion'}>
+                <h3>{s.titulo}</h3>
+                <div className={esOferta ? 'datos-form-grid' : 'wizard-form'}>
+                  {s.campos.map(({ campo, obligatorio }) => {
+                    const def = CAMPOS[campo]!
+                    return (
+                      <div key={campo} className={esOferta && def.tipo === 'textoLargo' ? 'field is-ancho' : 'field'}>
+                        <label>
+                          {def.label} {obligatorio ? '*' : ''}
+                        </label>
+                        <CampoInput campo={campo} tipo={def.tipo} valor={valores[campo] ?? ''} onChange={(v) => set(campo, v)} lead={lead} onLineas={setNumLineas} />
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
 
           {error && <p className="wizard-error">{error}</p>}
         </div>
@@ -227,7 +222,7 @@ function CampoInput({
 }
 
 /** Valores actuales del lead como texto, que es como los manejan los campos del formulario. */
-function valoresIniciales(lead: Lead, importe: number | null | undefined): Partial<Record<CampoFase, string>> {
+function valoresIniciales(lead: Lead): Partial<Record<CampoFase, string>> {
   const r: Partial<Record<CampoFase, string>> = {}
   for (const [campo, def] of Object.entries(CAMPOS) as [CampoFase, NonNullable<(typeof CAMPOS)[CampoFase]>][]) {
     if (!def.leadField) continue
@@ -235,6 +230,5 @@ function valoresIniciales(lead: Lead, importe: number | null | undefined): Parti
     if (v === null || v === undefined || v === '') continue
     r[campo] = def.tipo === 'fecha' ? String(v).slice(0, 10) : String(v)
   }
-  if (importe !== null && importe !== undefined) r.importeVenta = String(importe)
   return r
 }

@@ -405,14 +405,39 @@ Dos cosas viajan por caminos **distintos** — no asumir que una trae la otra:
    hay que volver a asignar los roles a los usuarios reales del entorno nuevo
    (los scripts `04-assign-admin.ps1`/`05-seed-data.ps1` sirven de referencia,
    pero los IDs de usuario son distintos en cada entorno).
-2. **La conexión a Dataverse de la app**: aunque el registro de la app ahora
-   viaja con la solución, su conexión a Dataverse (`commondataserviceforapps`)
-   es específica del entorno de origen y no se reconecta sola. Tras importar,
-   hay que volver a hacer `pac code push` apuntando al `environmentId` nuevo
-   (actualizar `power.config.json`) y crear/asociar una conexión Dataverse
-   nueva en ese entorno (`pac code add-data-source` con el `--connection-id`
-   de la conexión del entorno nuevo) para que la app importada quede
-   funcional.
+2. **La app en sí NO se puede reutilizar tal cual, aunque viaje con la
+   solución** — esto costó varios intentos fallidos averiguarlo: el `appId`
+   de `power.config.json` queda atado al entorno de origen a nivel de la
+   plataforma Power Apps (no solo en Dataverse), así que `pac code push`
+   contra el entorno nuevo usando el `appId` de este proyecto (`033039d0-...`)
+   falla con `InvalidEnvironmentName`. El registro `canvasapp` que sí viaja
+   con la solución importada queda como una "ficha vacía" (nombre y metadatos,
+   sin código real desplegado) con ese mismo nombre de app, lo que además
+   bloquea crear una app nueva con el mismo `appDisplayName`
+   (`ApplicationDisplayNameIsInUse`). El procedimiento que sí funciona:
+   1. Habilitar la función de entorno **"Power Apps code apps"** en el
+      entorno nuevo (Centro de administración → entorno → Configuración →
+      Producto → Características → "Power Apps code apps" → activar →
+      Guardar; puede tardar unos minutos en propagarse).
+   2. En una carpeta aparte (nunca sobre el `power.config.json` de este
+      repo, que debe seguir apuntando siempre al entorno de desarrollo),
+      ejecutar `pac code init --displayName "<nombre>" --environment <id
+      del entorno nuevo> --buildPath ./dist --fileEntryPoint index.html`
+      apuntando `--buildPath` a una copia del `dist/` ya compilado de este
+      proyecto. Si el nombre choca con la ficha vacía importada
+      (`ApplicationDisplayNameIsInUse`), lo más simple es usar un nombre
+      ligeramente distinto (ej. "Ebro Business App" en vez de "Ebro
+      Business") en vez de borrar la ficha vacía.
+   3. `pac code add-data-source --apiId shared_commondataserviceforapps
+      --connectionId <id de la conexión Dataverse del entorno nuevo>
+      --environment <id del entorno nuevo>` (usar el nombre corto del
+      conector como `--apiId`, nunca la ruta completa `/providers/...` —
+      en Git Bash además esa ruta se corrompe por el "path mangling" de
+      MSYS; usar PowerShell para este comando).
+   4. `pac code push --environment <id o URL del entorno nuevo>` desde esa
+      misma carpeta aparte. Esto genera un `appId` nuevo, **distinto** del
+      de desarrollo — apuntarlo en la sección "Entorno de producción" más
+      abajo, nunca copiarlo al `power.config.json` de este repo.
 3. **Los datos — ojo, esto incluye la red comercial real, no solo la demo**:
    una solución lleva esquema, no filas, así que el entorno nuevo arranca con
    las 13 tablas **vacías**. Eso incluye tanto los datos de demo
@@ -429,6 +454,63 @@ Dos cosas viajan por caminos **distintos** — no asumir que una trae la otra:
    B2B al tenant antes de poder entrar, y después su fila en `fl_usuarioapp`
    (correo + rol + sede) para que la app lo reconozca. Ya se habló de esto,
    solo falta hacerlo.
+5. **El org de Dataverse al que la app pide los datos NO viaja solo — hay que
+   construir la build pensando en ello, o la app de producción pide los datos
+   a desarrollo sin dar ningún error** (bug real, detectado el 03/11/2026:
+   "Ebro Business App" en producción mostraba los ~45 leads/tareas de demo
+   porque `src/lib/dataverseClient.ts` tenía el org de **desarrollo** fijo en
+   el código, sin relación con en qué entorno estuviera alojada la app —
+   el fallo es silencioso, la app carga bien y parece funcionar, solo que
+   contra la base de datos equivocada). Ahora ese valor sale de
+   `import.meta.env.VITE_DATAVERSE_ORG` (con el org de desarrollo como
+   valor por defecto si no se define, para no romper `npm run build`/
+   `pac code run` normales). Para publicar en producción:
+   ```powershell
+   # 1. Build especial apuntando al org de produccion, en una carpeta aparte
+   #    (nunca sobrescribir el dist/ de este repo, que debe seguir compilado
+   #    contra desarrollo):
+   $env:VITE_DATAVERSE_ORG = "https://org9d11094c.crm4.dynamics.com"
+   npm run build -- --outDir <carpeta-aparte>/dist-prod
+   Remove-Item Env:\VITE_DATAVERSE_ORG   # no dejarlo puesto para el resto de la sesion
+
+   # 2. Copiar ese dist-prod/ sobre el dist/ de la carpeta de pac code init
+   #    de produccion (la del punto 2 de arriba), y desde ahi:
+   pac code push --environment <id o URL del entorno de produccion>
+   ```
+   Repetir esto cada vez que se vuelva a publicar en producción — construir
+   normal con `npm run build` y copiar ese `dist/` sin más, como se hizo al
+   principio, vuelve a desplegar la app contra el org de desarrollo.
+
+### Entorno de producción ya desplegado (03/11/2026)
+
+- **Entorno**: "Entorno - Equipo de Ventas",
+  `environmentId = 6adf3534-66c7-e4a1-95c7-045d1b228f44`,
+  org URL `https://org9d11094c.crm4.dynamics.com`.
+- **App**: `appDisplayName = "Ebro Business App"` (nombre distinto al de
+  desarrollo por el choque explicado en el punto 2 de arriba),
+  `appId = b9bfcd40-fbb7-4e29-88a8-7275312e769f`.
+  Enlace: `https://apps.powerapps.com/play/e/6adf3534-66c7-e4a1-95c7-045d1b228f44/app/b9bfcd40-fbb7-4e29-88a8-7275312e769f`.
+- Solución `CRMFlotasB2B` importada como **administrada**; red comercial real
+  (7 zonas, 42 concesionarios, 108 sedes, 13 modelos) ya cargada con
+  `16-red-ebro-y-modelos.ps1`, sin datos de demo.
+- Queda pendiente: invitar a los usuarios reales de los concesionarios
+  (punto 4 arriba) y la verificación funcional final con un usuario real.
+- **03/11/2026, corregido**: la build publicada hasta ahora pedía los datos
+  al org de desarrollo (ver punto 5 arriba) — se repitió el `pac code push`
+  con `VITE_DATAVERSE_ORG` apuntando a `org9d11094c.crm4.dynamics.com`.
+  Confirmado contando filas en vivo en producción tras la correccion: 0 en
+  `fl_lead`/`fl_tarea`/`fl_fasehistorico`/`fl_empresa`/`fl_lineaoportunidad`/
+  `fl_objetivo`/`fl_asignacion` (nada de demo), 42/108/7/13 en
+  `fl_concesionario`/`fl_ubicacion`/`fl_zona`/`fl_modelo` (red real).
+- Primer usuario concesionario real dado de alta: `ext.allanos@ebrofactory.com`
+  (invitada B2B, UPN `ext.allanos_ebrofactory.com#EXT#@ebroauto.onmicrosoft.com`),
+  rol Concesionario, sede M Automoción-Barcelona. Pendiente de verificar que
+  consigue entrar (hubo un error "user is not a member of the organization"
+  al intentarlo, antes de esta corrección — probar de nuevo ahora).
+- El `power.config.json` de este repo sigue apuntando siempre al entorno de
+  desarrollo (`192d0a93-...`) — para volver a publicar en producción, repetir
+  el procedimiento del punto 2 desde una carpeta aparte, no editar este
+  archivo.
 
 ## Errores ya resueltos (para no repetirlos)
 

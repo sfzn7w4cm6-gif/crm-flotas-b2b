@@ -21,6 +21,17 @@ export async function buscarEmpresaPorCif(concesionarioId: string, cif: string):
   return filas[0] ?? null
 }
 
+/** La misma empresa (por CIF) ya contactada por OTRO concesionario, si la hay — para avisar
+ *  en el campo de oferta de que dos concesionarios tienen a la vez esta empresa. */
+export async function buscarEmpresaDuplicadaEnOtroConcesionario(cif: string, concesionarioId: string): Promise<Empresa | null> {
+  const filas = await listRecords<Empresa>(Tables.Empresa, {
+    select: EMPRESA_SELECT,
+    filter: `fl_cif eq '${normalizarCif(cif).replace(/'/g, "''")}' and _fl_concesionario_value ne ${concesionarioId}`,
+    top: 1,
+  })
+  return filas[0] ?? null
+}
+
 /** Empresas de unos concesionarios, o de toda la red si no se indican (equipo de ventas). */
 export async function fetchEmpresas(concesionarioIds?: string[]): Promise<Empresa[]> {
   return listRecords<Empresa>(Tables.Empresa, {

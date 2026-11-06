@@ -4,6 +4,9 @@ import { TablaDesplazable } from '../../components/TablaDesplazable'
 import { Icon } from '../../components/Icon'
 import { AvisoDescuentos, FiltroDescuentoPendiente } from '../../components/AvisoDescuentos'
 import { descuentoPendiente } from '../../lib/descuento'
+import { dentroDePeriodos } from '../../lib/actividadService'
+import type { PeriodoMulti } from '../../lib/actividadService'
+import { PeriodoFiltro } from '../MiActividad/PeriodoFiltro'
 import { Buscador, FiltroMulti } from '../../components/filtros/Filtros'
 import { fetchTodosLosLeads } from '../../lib/leadsService'
 import { fetchMiHistorico } from '../../lib/actividadService'
@@ -56,6 +59,8 @@ export function SeguimientoLeads() {
   const [busqueda, setBusqueda] = useState('')
   // Desde el aviso de Inicio se llega con ?descuento=pendiente.
   const [soloSinDescuento, setSoloSinDescuento] = useState(() => params.get('descuento') === 'pendiente')
+  // Vacío = "Todo" (sin filtrar), a diferencia de Inicio: esta pantalla no tenía antes filtro de periodo.
+  const [periodo, setPeriodo] = useState<PeriodoMulti>([])
   const [sortBy, setSortBy] = useState<ColKey | null>(null)
   const [sortDir, setSortDir] = useState<SortDir>('asc')
   const [columnOrder, setColumnOrder] = useState<ColKey[]>(ORDEN_INICIAL)
@@ -154,14 +159,16 @@ export function SeguimientoLeads() {
       if (empresasSel.length && !(l._fl_empresa_value && empresasSel.includes(l._fl_empresa_value))) return false
       if (mods.length && !coincideModelo(l, mods)) return false
       if (soloSinDescuento && !descuentoPendiente(l)) return false
+      if (periodo.length && !dentroDePeriodos(l.fl_fechaprimercontacto ? new Date(l.fl_fechaprimercontacto) : new Date(l.createdon), periodo)) return false
       if (busqueda.trim() && !coincideBusqueda(indice.get(l.fl_leadid) ?? '', busqueda)) return false
       return true
     })
-  }, [leads, indice, modelos, zonasSel, ubicacionIdsDeZona, concesionariosSel, ubicacionesSel, fases, empresasSel, modelosSel, busqueda, soloSinDescuento])
+  }, [leads, indice, modelos, zonasSel, ubicacionIdsDeZona, concesionariosSel, ubicacionesSel, fases, empresasSel, modelosSel, busqueda, soloSinDescuento, periodo])
 
   const hayFiltros =
     busqueda.trim() !== '' ||
     soloSinDescuento ||
+    periodo.length > 0 ||
     zonasSel.length + concesionariosSel.length + ubicacionesSel.length + fases.length + modelosSel.length + empresasSel.length > 0
   const limpiarFiltros = () => {
     setBusqueda('')
@@ -172,8 +179,13 @@ export function SeguimientoLeads() {
     setModelosSel([])
     setEmpresasSel([])
     setSoloSinDescuento(false)
+    setPeriodo([])
   }
   const sinDescuento = useMemo(() => leads.filter(descuentoPendiente).length, [leads])
+  const primerAnio = useMemo(() => {
+    const anios = leads.filter((l) => l.fl_fechaprimercontacto).map((l) => new Date(l.fl_fechaprimercontacto).getFullYear())
+    return anios.length ? Math.min(new Date().getFullYear() - 1, ...anios) : new Date().getFullYear() - 1
+  }, [leads])
 
   const ordenados = useMemo(() => {
     if (!sortBy) return filtrados
@@ -272,6 +284,7 @@ export function SeguimientoLeads() {
           <FiltroMulti etiqueta="Modelo" opciones={modelos.map((m) => ({ value: m.fl_modeloid, label: m.fl_nombre }))} value={modelosSel} onChange={setModelosSel} />
           <FiltroMulti etiqueta="Empresa" opciones={opcionesEmpresa} value={empresasSel} onChange={setEmpresasSel} />
           <FiltroDescuentoPendiente activo={soloSinDescuento} onChange={setSoloSinDescuento} />
+          <PeriodoFiltro value={periodo} onChange={setPeriodo} primerAnio={primerAnio} etiqueta="Periodo" />
           {hayFiltros && (
             <button type="button" className="lista-limpiar" onClick={limpiarFiltros}>
               Limpiar filtros

@@ -8,12 +8,13 @@ import { getRecord, Tables } from '../../lib/dataverseClient'
 import { actualizarLead, cambiarComercial, cifEnOtraEmpresa, fetchHistoricoDeFase, fetchLead, type ActualizarLeadInput } from '../../lib/leadsService'
 import { fetchAdjuntos, subirAdjuntos } from '../../lib/adjuntosService'
 import { borrarNota, crearNotaConAdjuntos, fetchNotas } from '../../lib/notasService'
-import { cambiarEstadoTarea, crearTarea, fetchImportesVenta, fetchTareasDeLead, tareaAbierta } from '../../lib/tareasService'
+import { cambiarEstadoTarea, crearTarea, fetchTareasDeLead, tareaAbierta } from '../../lib/tareasService'
 import { fetchComercialesDeSede } from '../../lib/asignacionesService'
+import { buscarEmpresaDuplicadaEnOtroConcesionario } from '../../lib/empresasService'
 import { fechaLarga } from '../../lib/formato'
 import { faltantes, requisitosHasta } from '../../lib/camposFase'
 import { Fase, RolApp } from '../../lib/types'
-import type { Adjunto, Concesionario, EstadoTarea, FaseHistorico, Lead, Nota, Tarea, Ubicacion, UsuarioApp } from '../../lib/types'
+import type { Adjunto, Concesionario, Empresa, EstadoTarea, FaseHistorico, Lead, Nota, Tarea, Ubicacion, UsuarioApp } from '../../lib/types'
 import { BloqueDatos, Dato, type DefDato } from './DatosLead'
 import { HistorialTareas } from './HistorialTareas'
 import { NotasLead } from './NotasLead'
@@ -63,6 +64,9 @@ export function DetalleLead() {
   const [historico, setHistorico] = useState<FaseHistorico[]>([])
   const [concesionario, setConcesionario] = useState<Concesionario | null>(null)
   const [ubicacion, setUbicacion] = useState<Ubicacion | null>(null)
+  // Misma empresa (por CIF) ya contactada por otro concesionario, si la hay.
+  const [otraEmpresa, setOtraEmpresa] = useState<Empresa | null>(null)
+  const [otroConcesionarioNombre, setOtroConcesionarioNombre] = useState<string | null>(null)
   const [cargando, setCargando] = useState(true)
   // Ventana de cambio de fase, o de completar los datos de la fase actual.
   const [dialogo, setDialogo] = useState<'fase' | 'completar' | null>(null)
@@ -73,8 +77,6 @@ export function DetalleLead() {
   const [notas, setNotas] = useState<Nota[] | null>([])
   const [adjuntos, setAdjuntos] = useState<Map<string, Adjunto[]>>(new Map())
   const [creandoTarea, setCreandoTarea] = useState(false)
-  // undefined = la columna de importe aun no existe; null = sin rellenar
-  const [importe, setImporte] = useState<number | null | undefined>(undefined)
 
   const cargarActividad = async (leadId: string) => {
     const [t, n] = await Promise.all([fetchTareasDeLead(leadId).catch(() => null), fetchNotas(leadId).catch(() => null)])
@@ -86,14 +88,28 @@ export function DetalleLead() {
 
   const cargar = () => {
     if (!id) return
-    Promise.all([fetchLead(id), fetchHistoricoDeFase(id), fetchImportesVenta(id)])
-      .then(([l, h, imp]) => {
+    Promise.all([fetchLead(id), fetchHistoricoDeFase(id)])
+      .then(([l, h]) => {
         setLead(l)
         setHistorico(h)
-        setImporte(imp ? (imp.get(id) ?? null) : undefined)
         if (l) {
           getRecord<Concesionario>(Tables.Concesionario, l._fl_concesionario_value, 'fl_concesionarioid,fl_nombre').then(setConcesionario)
           getRecord<Ubicacion>(Tables.Ubicacion, l._fl_ubicacion_value, 'fl_ubicacionid,fl_nombre,fl_areamanager').then(setUbicacion)
+          if (l.fl_cif) {
+            buscarEmpresaDuplicadaEnOtroConcesionario(l.fl_cif, l._fl_concesionario_value).then((otra) => {
+              setOtraEmpresa(otra)
+              if (otra) {
+                getRecord<Concesionario>(Tables.Concesionario, otra._fl_concesionario_value, 'fl_concesionarioid,fl_nombre').then((c) =>
+                  setOtroConcesionarioNombre(c?.fl_nombre ?? null),
+                )
+              } else {
+                setOtroConcesionarioNombre(null)
+              }
+            })
+          } else {
+            setOtraEmpresa(null)
+            setOtroConcesionarioNombre(null)
+          }
         }
       })
       .finally(() => setCargando(false))
@@ -132,7 +148,7 @@ export function DetalleLead() {
   const quitarAdjunto = (a: Adjunto) =>
     setAdjuntos((m) => new Map([...m].map(([k, lista]) => [k, lista.filter((x) => x.annotationid !== a.annotationid)])))
 
-  const falta = numLineas === null ? null : faltantes(lead.fl_faseactual, { lead, numLineas, importe })
+  const falta = numLineas === null ? null : faltantes(lead.fl_faseactual, { lead, numLineas })
   const tareasAbiertas = (tareas ?? []).filter(tareaAbierta).length
 
   return (
@@ -178,7 +194,6 @@ export function DetalleLead() {
       {dialogo && (
         <CambioFaseDialog
           lead={lead}
-          importe={importe}
           soloCompletar={dialogo === 'completar'}
           onCerrar={() => {
             // Los modelos se guardan al añadirlos, aunque se cancele: se recarga para verlos.
@@ -216,16 +231,21 @@ export function DetalleLead() {
             onGuardar={guardarDatos}
             antes={<LineasOportunidad leadId={lead.fl_leadid} textoAnterior={lead.fl_modelosinteres} soloLectura={soloLectura} onLineas={setNumLineas} />}
           />
-          <OfertaLead lead={lead} editaConcesionario={!soloLectura} editaVentas={editaDescuentoVentas} onGuardar={guardarDatos} />
+          <OfertaLead
+            lead={lead}
+            editaConcesionario={!soloLectura}
+            editaVentas={editaDescuentoVentas}
+            onGuardar={guardarDatos}
+            otraEmpresa={otraEmpresa}
+            otroConcesionarioNombre={otroConcesionarioNombre}
+          />
           <BloqueDatos
             titulo="Seguimiento"
             defs={[
               ...SEGUIMIENTO,
-              ...(importe !== undefined ? [{ clave: 'importeVenta', label: 'Importe de la venta', tipo: 'euros' } as DefDato] : []),
               ...(lead.fl_faseactual === Fase.Perdido ? [{ clave: 'motivoPerdida', label: 'Motivo de la pérdida', tipo: 'textoLargo', ancho: true } as DefDato] : []),
             ]}
             lead={lead}
-            importe={importe}
             soloLectura={soloLectura}
             onGuardar={guardarDatos}
             antes={

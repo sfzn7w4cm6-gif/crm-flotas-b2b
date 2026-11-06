@@ -2,10 +2,12 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { FaseBadge } from '../../components/StatusBadge'
-import { fetchEmpresa, numeroOportunidadAbierta } from '../../lib/empresasService'
+import { Icon } from '../../components/Icon'
+import { buscarEmpresaDuplicadaEnOtroConcesionario, fetchEmpresa, numeroOportunidadAbierta } from '../../lib/empresasService'
 import { fetchOportunidadesDeEmpresa } from '../../lib/leadsService'
+import { getRecord, Tables } from '../../lib/dataverseClient'
 import { EstadoEmpresa, EstadoEmpresaLabel, RolApp } from '../../lib/types'
-import type { Empresa, Lead } from '../../lib/types'
+import type { Concesionario, Empresa, Lead } from '../../lib/types'
 import '../NuevoLead/NuevoLead.css'
 import '../DetalleLead/DetalleLead.css'
 
@@ -15,11 +17,17 @@ export function DetalleEmpresa() {
   const navigate = useNavigate()
   const { effectiveRol } = useAuth()
   const soloLectura = effectiveRol === RolApp.EquipoVentas
+  // El equipo de ventas ve toda la red: si hay duplicidad, también la oportunidad del otro concesionario.
+  const vistaRed = effectiveRol !== RolApp.Concesionario
 
   const [empresa, setEmpresa] = useState<Empresa | null>(null)
   const [oportunidades, setOportunidades] = useState<Lead[]>([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [otraEmpresa, setOtraEmpresa] = useState<Empresa | null>(null)
+  const [oportunidadesOtraEmpresa, setOportunidadesOtraEmpresa] = useState<Lead[]>([])
+  const [nombreConcesionarioPropio, setNombreConcesionarioPropio] = useState<string | null>(null)
+  const [otroConcesionarioNombre, setOtroConcesionarioNombre] = useState<string | null>(null)
 
   useEffect(() => {
     if (!id) return
@@ -28,10 +36,31 @@ export function DetalleEmpresa() {
       .then(([e, o]) => {
         setEmpresa(e)
         setOportunidades(o)
+        if (e?.fl_cif) {
+          if (vistaRed) {
+            getRecord<Concesionario>(Tables.Concesionario, e._fl_concesionario_value, 'fl_concesionarioid,fl_nombre').then((c) =>
+              setNombreConcesionarioPropio(c?.fl_nombre ?? null),
+            )
+          }
+          buscarEmpresaDuplicadaEnOtroConcesionario(e.fl_cif, e._fl_concesionario_value).then((otra) => {
+            setOtraEmpresa(otra)
+            if (otra) {
+              getRecord<Concesionario>(Tables.Concesionario, otra._fl_concesionario_value, 'fl_concesionarioid,fl_nombre').then((c) =>
+                setOtroConcesionarioNombre(c?.fl_nombre ?? null),
+              )
+              // La oportunidad del otro concesionario solo se pide y se enseña al equipo de ventas,
+              // que ve toda la red: un concesionario nunca debe ver las oportunidades de otro.
+              if (vistaRed) fetchOportunidadesDeEmpresa(otra.fl_empresaid).then(setOportunidadesOtraEmpresa)
+            } else {
+              setOtroConcesionarioNombre(null)
+              setOportunidadesOtraEmpresa([])
+            }
+          })
+        }
       })
       .catch((e) => setError(e instanceof Error ? e.message : 'No se pudo cargar la empresa.'))
       .finally(() => setCargando(false))
-  }, [id])
+  }, [id, vistaRed])
 
   if (cargando) return <p className="wizard-loading">Cargando…</p>
   if (!empresa) return <p className="wizard-error">{error ?? 'No se encontró la empresa.'}</p>
@@ -64,6 +93,21 @@ export function DetalleEmpresa() {
       </div>
       {error && <p className="wizard-error">{error}</p>}
 
+      {otraEmpresa && (
+        <div className="oferta-aviso-duplicado">
+          <Icon name="warning" size={15} />
+          <p className="oferta-aviso-duplicado-texto">
+            Esta misma empresa ya está siendo trabajada por <strong>{otroConcesionarioNombre ?? 'otro concesionario'}</strong>. Alinead el % de marca para ofrecer las mismas condiciones.
+          </p>
+          {otraEmpresa._fl_oportunidadabierta_value && (
+            <button type="button" className="oferta-aviso-duplicado-enlace" onClick={() => navigate(`/lead/${otraEmpresa._fl_oportunidadabierta_value}`)}>
+              Ver oportunidad{numeroOportunidadAbierta(otraEmpresa) ? ` ${numeroOportunidadAbierta(otraEmpresa)}` : ''}
+              <Icon name="arrowRight" size={14} />
+            </button>
+          )}
+        </div>
+      )}
+
       <div className="detalle-grid">
         <div className="detalle-col">
           <Seccion titulo="Contactos clave">
@@ -75,35 +119,44 @@ export function DetalleEmpresa() {
         </div>
 
         <div className="detalle-col">
-          <Seccion titulo="Oportunidades">
+          <Seccion titulo={vistaRed && otraEmpresa ? `Oportunidades · ${nombreConcesionarioPropio ?? 'este concesionario'}` : 'Oportunidades'}>
             {abiertaOculta && (
               <p className="flow-meta">
                 Tiene una oportunidad en curso{numeroOportunidadAbierta(empresa) ? ` (${numeroOportunidadAbierta(empresa)})` : ''} que lleva
                 otro comercial de tu concesionario.
               </p>
             )}
-            {oportunidades.length === 0 ? (
-              !abiertaOculta && <p className="flow-meta">Sin oportunidades.</p>
-            ) : (
-              <ul className="oportunidades-lista">
-                {oportunidades.map((o) => (
-                  <li key={o.fl_leadid}>
-                    <button type="button" className="oportunidad-fila" onClick={() => navigate(`/lead/${o.fl_leadid}`)}>
-                      <span className="oportunidad-numero">{o.fl_numero}</span>
-                      <FaseBadge fase={o.fl_faseactual} size="sm" />
-                      <span className="flow-meta">
-                        {o.fl_comercialresponsable} · {new Date(o.fl_fechaprimercontacto || o.createdon).toLocaleDateString('es-ES')}
-                      </span>
-                      {o.fl_modelosinteres && <span className="flow-meta">{o.fl_modelosinteres}</span>}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
+            <ListaOportunidades oportunidades={oportunidades} vacio={abiertaOculta ? null : 'Sin oportunidades.'} onAbrir={(idLead) => navigate(`/lead/${idLead}`)} />
           </Seccion>
+
+          {vistaRed && otraEmpresa && (
+            <Seccion titulo={`Oportunidades · ${otroConcesionarioNombre ?? 'otro concesionario'}`}>
+              <ListaOportunidades oportunidades={oportunidadesOtraEmpresa} vacio="Sin oportunidades visibles." onAbrir={(idLead) => navigate(`/lead/${idLead}`)} />
+            </Seccion>
+          )}
         </div>
       </div>
     </div>
+  )
+}
+
+function ListaOportunidades({ oportunidades, vacio, onAbrir }: { oportunidades: Lead[]; vacio: string | null; onAbrir: (leadId: string) => void }) {
+  if (oportunidades.length === 0) return vacio ? <p className="flow-meta">{vacio}</p> : null
+  return (
+    <ul className="oportunidades-lista">
+      {oportunidades.map((o) => (
+        <li key={o.fl_leadid}>
+          <button type="button" className="oportunidad-fila" onClick={() => onAbrir(o.fl_leadid)}>
+            <span className="oportunidad-numero">{o.fl_numero}</span>
+            <FaseBadge fase={o.fl_faseactual} size="sm" />
+            <span className="flow-meta">
+              {o.fl_comercialresponsable} · {new Date(o.fl_fechaprimercontacto || o.createdon).toLocaleDateString('es-ES')}
+            </span>
+            {o.fl_modelosinteres && <span className="flow-meta">{o.fl_modelosinteres}</span>}
+          </button>
+        </li>
+      ))}
+    </ul>
   )
 }
 

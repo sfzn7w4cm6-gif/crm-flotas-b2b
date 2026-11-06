@@ -2,8 +2,8 @@ import { useMemo } from 'react'
 import { BarChart } from '../../components/charts/BarChart'
 import { TableTwin } from '../../components/charts/TableTwin'
 import { FASE_COLORS } from '../../components/StatusBadge'
-import { rangoPeriodo } from '../../lib/actividadService'
-import { leadsPorConcesionario, OBJETIVOS_KPI, statsResumen, tasasConversion, tiempoMedioPorFase } from '../../lib/kpiService'
+import { dentroDePeriodos } from '../../lib/actividadService'
+import { leadsPorConcesionario, statsResumen, tasasConversion, tiempoMedioPorFase } from '../../lib/kpiService'
 import { InicioPanel, type DatosInicio } from '../MiActividad'
 import '../../components/charts/charts.css'
 import './PanelKPI.css'
@@ -19,14 +19,13 @@ export function PanelKPI() {
 
 function Analisis({ leads, historico, periodo, concesionarios }: DatosInicio) {
   // Los indicadores del plan comercial cuentan los leads dados de alta en el periodo.
-  const { desde, hasta } = rangoPeriodo(periodo)
   const leadsPeriodo = useMemo(
     () =>
       leads.filter((l) => {
         const f = l.fl_fechaprimercontacto ? new Date(l.fl_fechaprimercontacto) : null
-        return f !== null && f >= desde && f < hasta
+        return f !== null && dentroDePeriodos(f, periodo)
       }),
-    [leads, desde, hasta],
+    [leads, periodo],
   )
   const ids = useMemo(() => new Set(leadsPeriodo.map((l) => l.fl_leadid)), [leadsPeriodo])
   const historicoPeriodo = useMemo(() => historico.filter((h) => ids.has(h._fl_lead_value)), [historico, ids])
@@ -35,15 +34,11 @@ function Analisis({ leads, historico, periodo, concesionarios }: DatosInicio) {
   const conversion = useMemo(() => tasasConversion(historico), [historico])
   const tiempos = useMemo(() => tiempoMedioPorFase(historico), [historico])
   const porConcesionario = useMemo(() => leadsPorConcesionario(leadsPeriodo, concesionarios), [leadsPeriodo, concesionarios])
-  // Objetivos del Excel: mensuales con un mes elegido, anuales con un año.
-  const obj = (k: keyof typeof OBJETIVOS_KPI) => OBJETIVOS_KPI[k][periodo.tipo === 'mes' ? 30 : 0]
 
-  const indicadores: { label: string; valor: number; sufijo?: string; meta?: number }[] = [
-    { label: 'Oportunidades captadas', valor: resumen.leadsNuevos, meta: obj('leadsNuevos') },
-    { label: 'Reuniones de diagnóstico', valor: resumen.reunionesDiagnostico, meta: obj('reunionesDiagnostico') },
-    { label: 'Propuestas enviadas', valor: resumen.propuestasEnviadas, meta: obj('propuestasEnviadas') },
-    { label: 'Pedidos cerrados', valor: resumen.cierres, meta: obj('cierres') },
-    { label: 'Tasa de cierre', valor: resumen.tasaCierre, sufijo: ' %', meta: obj('tasaCierre') },
+  const indicadores: { label: string; valor: number; sufijo?: string }[] = [
+    { label: 'Oportunidades captadas', valor: resumen.leadsNuevos },
+    { label: 'Pedidos cerrados', valor: resumen.cierres },
+    { label: 'Tasa de cierre', valor: resumen.tasaCierre, sufijo: ' %' },
     { label: 'Tasa de pérdida', valor: resumen.tasaPerdida, sufijo: ' %' },
     { label: 'Seguimientos completados', valor: resumen.seguimientosCompletados },
     { label: 'Unidades entregadas', valor: resumen.unidadesEntregadas },
@@ -68,12 +63,6 @@ function Analisis({ leads, historico, periodo, concesionarios }: DatosInicio) {
                 {i.sufijo}
               </span>
               <span className="indicador-label">{i.label}</span>
-              {i.meta !== undefined && (
-                <span className={`indicador-meta${i.valor >= i.meta ? ' is-cumplido' : ''}`}>
-                  Objetivo {i.meta}
-                  {i.sufijo}
-                </span>
-              )}
             </div>
           ))}
         </div>

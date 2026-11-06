@@ -26,8 +26,7 @@ export interface DefDato {
 
 type Valores = Partial<Record<ClaveDato, string>>
 
-function valorDe(lead: Lead, clave: ClaveDato, importe: number | null | undefined): string {
-  if (clave === 'importeVenta') return importe != null ? String(importe) : ''
+function valorDe(lead: Lead, clave: ClaveDato): string {
   const campo: Record<string, keyof Lead> = {
     razonSocial: 'fl_razonsocial',
     cif: 'fl_cif',
@@ -107,7 +106,6 @@ export function BloqueDatos({
   titulo,
   defs,
   lead,
-  importe,
   soloLectura,
   antes,
   despues,
@@ -116,7 +114,6 @@ export function BloqueDatos({
   titulo: string
   defs: DefDato[]
   lead: Lead
-  importe?: number | null
   soloLectura: boolean
   /** Contenido fijo al principio del bloque (p. ej. los modelos, que se editan aparte). */
   antes?: ReactNode
@@ -128,7 +125,7 @@ export function BloqueDatos({
   const [valores, setValores] = useState<Valores>({})
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const iniciales = (): Valores => Object.fromEntries(defs.map((d) => [d.clave, valorDe(lead, d.clave, importe).slice(0, d.tipo === 'fecha' ? 10 : undefined)]))
+  const iniciales = (): Valores => Object.fromEntries(defs.map((d) => [d.clave, valorDe(lead, d.clave).slice(0, d.tipo === 'fecha' ? 10 : undefined)]))
 
   const empezar = () => {
     setValores(iniciales())
@@ -188,7 +185,7 @@ export function BloqueDatos({
       ) : (
         <dl className="datos-grid">
           {defs.map((d) => (
-            <Dato key={d.clave} label={d.label} valor={mostrar(d, valorDe(lead, d.clave, importe))} ancho={d.ancho} />
+            <Dato key={d.clave} label={d.label} valor={mostrar(d, valorDe(lead, d.clave))} ancho={d.ancho} />
           ))}
           {despues}
         </dl>

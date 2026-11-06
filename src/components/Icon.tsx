@@ -39,6 +39,9 @@ const PATHS: Record<string, string> = {
   file: 'M6 3h8l5 5v13H6zM14 3v5h5',
   sliders: 'M4 7h10M18 7h2M4 17h4M12 17h8M16 5v4M10 15v4',
   pencil: 'M4 20h4L19 9l-4-4L4 16v4ZM13.5 6.5l4 4',
+  bell: 'M6 9a6 6 0 1 1 12 0c0 3.5 1 5 2 6H4c1-1 2-2.5 2-6ZM9.5 18a2.5 2.5 0 0 0 5 0',
+  trash: 'M5 7h14M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M7 7l1 13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1l1-13',
+  arrowRight: 'M5 12h14M13 5l7 7-7 7',
 }
 
 export function Icon({

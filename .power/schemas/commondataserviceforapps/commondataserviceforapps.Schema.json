@@ -4,7 +4,7 @@
   "type": "Microsoft.PowerApps/apis",
   "properties": {
     "displayName": "Microsoft Dataverse",
-    "iconUri": "https://static.powerapps.com/resource/ppcr/releases/v1.0.1831/1.0.1831.5064/commondataserviceforapps/icon.png",
+    "iconUri": "https://static.powerapps.com/resource/ppcr/releases/v1.0.1834/1.0.1834.5101/commondataserviceforapps/icon.png",
     "iconBrandColor": "",
     "apiEnvironment": "Shared",
     "isCustomApi": false,
@@ -510,8 +510,8 @@
           "url": "https://make.powerautomate.com/en-us/support/"
         }
       },
-      "host": "192d0a93f34ee64aa9c36558e2f661.56.environment.api.powerplatform.com",
-      "basePath": "/connectors/runtime/invoke/scalegroups/europe002/shards/13/apis/commondataserviceforapps/connections/",
+      "host": "6adf353466c7e4a195c7045d1b228f.44.environment.api.powerplatform.com",
+      "basePath": "/connectors/runtime/invoke/scalegroups/europe002/shards/17/apis/commondataserviceforapps/connections/",
       "schemes": [
         "https"
       ],
@@ -7421,8 +7421,540 @@
             }
           }
         },
-        "/{connectionId}/api/iq/v1.0/semanticmodel": {},
-        "/{connectionId}/api/iq/v1.0.0/semanticmodel": {},
+        "/{connectionId}/api/iq/v1.0/semanticmodel": {
+          "get": {
+            "tags": [
+              "IqSemanticModel",
+              "OrganizationBoundAction"
+            ],
+            "summary": "List semantic models",
+            "description": "Retrieves the semantic models available in the selected Microsoft Dataverse environment.",
+            "operationId": "ListSemanticModels",
+            "consumes": [],
+            "produces": [
+              "application/json",
+              "text/json"
+            ],
+            "parameters": [
+              {
+                "name": "connectionId",
+                "in": "path",
+                "required": true,
+                "x-ms-visibility": "internal",
+                "type": "string"
+              },
+              {
+                "name": "include",
+                "in": "query",
+                "description": "Select botinfo to include information about the agents associated with each semantic model.",
+                "required": false,
+                "x-ms-summary": "Include agent information",
+                "x-ms-visibility": "advanced",
+                "type": "string",
+                "enum": [
+                  "botinfo"
+                ]
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "OK",
+                "schema": {
+                  "$ref": "#/definitions/IqSemanticModelListResponse"
+                }
+              },
+              "default": {
+                "description": "Operation Failed."
+              }
+            },
+            "deprecated": false,
+            "x-ms-visibility": "important",
+            "x-ms-name-for-model": "list_semantic_models",
+            "x-ms-description-for-model": "Returns the semantic models available in the current Dataverse environment. Use this action to find a model's ID or unique name before asking a question or deleting a model.",
+            "externalDocs": {
+              "url": "https://docs.microsoft.com/connectors/commondataserviceforapps/#list-semantic-models"
+            }
+          },
+          "post": {
+            "tags": [
+              "IqSemanticModel",
+              "OrganizationBoundAction"
+            ],
+            "summary": "Create semantic model",
+            "description": "Creates a semantic model from the selected Microsoft Dataverse tables.",
+            "operationId": "CreateSemanticModel",
+            "consumes": [
+              "application/json",
+              "text/json"
+            ],
+            "produces": [
+              "application/json",
+              "text/json"
+            ],
+            "parameters": [
+              {
+                "name": "connectionId",
+                "in": "path",
+                "required": true,
+                "x-ms-visibility": "internal",
+                "type": "string"
+              },
+              {
+                "name": "CreateSemanticModelRequest",
+                "in": "body",
+                "description": "The unique name for the semantic model and the Dataverse tables to include.",
+                "required": true,
+                "schema": {
+                  "$ref": "#/definitions/IqCreateSemanticModelRequest"
+                },
+                "x-ms-summary": "Semantic model"
+              }
+            ],
+            "responses": {
+              "201": {
+                "description": "Created",
+                "schema": {
+                  "$ref": "#/definitions/IqSemanticModelCreateResponse"
+                }
+              },
+              "default": {
+                "description": "Operation Failed."
+              }
+            },
+            "deprecated": false,
+            "x-ms-visibility": "important",
+            "x-ms-name-for-model": "create_semantic_model",
+            "x-ms-description-for-model": "Creates a semantic model from one or more Dataverse tables. Provide a unique name for the model and the logical name of each table to include.",
+            "externalDocs": {
+              "url": "https://docs.microsoft.com/connectors/commondataserviceforapps/#create-semantic-model"
+            }
+          }
+        },
+        "/{connectionId}/api/iq/v1.0.0/semanticmodel": {
+          "get": {
+            "tags": [
+              "IqSemanticModel",
+              "Runtime"
+            ],
+            "summary": "List semantic models from selected environment",
+            "description": "Retrieves the semantic models available in the selected Microsoft Dataverse environment.",
+            "operationId": "ListSemanticModelsWithOrganization",
+            "consumes": [],
+            "produces": [
+              "application/json",
+              "text/json"
+            ],
+            "parameters": [
+              {
+                "name": "connectionId",
+                "in": "path",
+                "required": true,
+                "x-ms-visibility": "internal",
+                "type": "string"
+              },
+              {
+                "name": "organization",
+                "in": "header",
+                "description": "Choose an environment",
+                "required": true,
+                "x-ms-dynamic-values": {
+                  "operationId": "GetOrganizations",
+                  "parameters": {},
+                  "value-collection": "value",
+                  "value-path": "Url",
+                  "value-title": "FriendlyName"
+                },
+                "x-ms-dynamic-list": {
+                  "operationId": "GetOrganizations",
+                  "parameters": {},
+                  "itemsPath": "value",
+                  "itemValuePath": "Url",
+                  "itemTitlePath": "FriendlyName"
+                },
+                "x-ms-summary": "Environment",
+                "x-ms-visibility": "important",
+                "x-ms-name-for-model": "list_semantic_models_with_organization_organization",
+                "x-ms-description-for-model": "The Power Platform environment containing the Dataverse semantic models.",
+                "type": "string"
+              },
+              {
+                "name": "include",
+                "in": "query",
+                "description": "Select botinfo to include information about the agents associated with each semantic model.",
+                "required": false,
+                "x-ms-summary": "Include agent information",
+                "x-ms-visibility": "advanced",
+                "type": "string",
+                "enum": [
+                  "botinfo"
+                ]
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "OK",
+                "schema": {
+                  "$ref": "#/definitions/IqSemanticModelListResponse"
+                }
+              },
+              "default": {
+                "description": "Operation Failed."
+              }
+            },
+            "deprecated": false,
+            "x-ms-visibility": "important",
+            "x-ms-name-for-model": "list_semantic_models_with_organization",
+            "x-ms-description-for-model": "Returns semantic models from a selected Dataverse environment. Use this action to find a model's ID or unique name before asking a question or deleting a model.",
+            "externalDocs": {
+              "url": "https://docs.microsoft.com/connectors/commondataserviceforapps/#list-semantic-models-from-selected-environment"
+            }
+          },
+          "post": {
+            "tags": [
+              "IqSemanticModel",
+              "Runtime"
+            ],
+            "summary": "Create semantic model from selected environment",
+            "description": "Creates a semantic model from selected Microsoft Dataverse tables in the selected environment.",
+            "operationId": "CreateSemanticModelWithOrganization",
+            "consumes": [
+              "application/json",
+              "text/json"
+            ],
+            "produces": [
+              "application/json",
+              "text/json"
+            ],
+            "parameters": [
+              {
+                "name": "connectionId",
+                "in": "path",
+                "required": true,
+                "x-ms-visibility": "internal",
+                "type": "string"
+              },
+              {
+                "name": "organization",
+                "in": "header",
+                "description": "Choose an environment",
+                "required": true,
+                "x-ms-dynamic-values": {
+                  "operationId": "GetOrganizations",
+                  "parameters": {},
+                  "value-collection": "value",
+                  "value-path": "Url",
+                  "value-title": "FriendlyName"
+                },
+                "x-ms-dynamic-list": {
+                  "operationId": "GetOrganizations",
+                  "parameters": {},
+                  "itemsPath": "value",
+                  "itemValuePath": "Url",
+                  "itemTitlePath": "FriendlyName"
+                },
+                "x-ms-summary": "Environment",
+                "x-ms-visibility": "important",
+                "x-ms-name-for-model": "create_semantic_model_with_organization_organization",
+                "x-ms-description-for-model": "The Power Platform environment where the Dataverse semantic model is created.",
+                "type": "string"
+              },
+              {
+                "name": "CreateSemanticModelRequest",
+                "in": "body",
+                "description": "The unique name for the semantic model and the Dataverse tables to include.",
+                "required": true,
+                "schema": {
+                  "$ref": "#/definitions/IqCreateSemanticModelRequestWithOrganization"
+                },
+                "x-ms-summary": "Semantic model"
+              }
+            ],
+            "responses": {
+              "201": {
+                "description": "Created",
+                "schema": {
+                  "$ref": "#/definitions/IqSemanticModelCreateResponse"
+                }
+              },
+              "default": {
+                "description": "Operation Failed."
+              }
+            },
+            "deprecated": false,
+            "x-ms-visibility": "important",
+            "x-ms-name-for-model": "create_semantic_model_with_organization",
+            "x-ms-description-for-model": "Creates a semantic model from one or more Dataverse tables in a selected environment. Provide a unique name and the logical name of each table to include.",
+            "externalDocs": {
+              "url": "https://docs.microsoft.com/connectors/commondataserviceforapps/#create-semantic-model-from-selected-environment"
+            }
+          }
+        },
+        "/{connectionId}/api/iq/v1.0/semanticmodel/{id}": {
+          "delete": {
+            "tags": [
+              "IqSemanticModel",
+              "OrganizationBoundAction"
+            ],
+            "summary": "Delete semantic model",
+            "description": "Deletes the selected semantic model. This action does not delete the underlying Microsoft Dataverse tables or their data.",
+            "operationId": "DeleteSemanticModel",
+            "consumes": [],
+            "produces": [
+              "application/json",
+              "text/json"
+            ],
+            "parameters": [
+              {
+                "name": "connectionId",
+                "in": "path",
+                "required": true,
+                "x-ms-visibility": "internal",
+                "type": "string"
+              },
+              {
+                "name": "id",
+                "in": "path",
+                "description": "Enter the ID of the semantic model to delete.",
+                "required": true,
+                "x-ms-summary": "Semantic model ID",
+                "x-ms-visibility": "important",
+                "type": "string"
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "OK",
+                "schema": {
+                  "$ref": "#/definitions/IqSemanticModelDeleteResponse"
+                }
+              },
+              "default": {
+                "description": "Operation Failed."
+              }
+            },
+            "deprecated": false,
+            "x-ms-visibility": "important",
+            "x-ms-name-for-model": "delete_semantic_model",
+            "x-ms-description-for-model": "Deletes a Dataverse semantic model by ID. This action removes the model and its table associations, but does not delete the underlying Dataverse tables or data.",
+            "externalDocs": {
+              "url": "https://docs.microsoft.com/connectors/commondataserviceforapps/#delete-semantic-model"
+            }
+          }
+        },
+        "/{connectionId}/api/iq/v1.0.0/semanticmodel/{id}": {
+          "delete": {
+            "tags": [
+              "IqSemanticModel",
+              "Runtime"
+            ],
+            "summary": "Delete semantic model from selected environment",
+            "description": "Deletes the selected semantic model from the selected environment. This action does not delete the underlying Microsoft Dataverse tables or their data.",
+            "operationId": "DeleteSemanticModelWithOrganization",
+            "consumes": [],
+            "produces": [
+              "application/json",
+              "text/json"
+            ],
+            "parameters": [
+              {
+                "name": "connectionId",
+                "in": "path",
+                "required": true,
+                "x-ms-visibility": "internal",
+                "type": "string"
+              },
+              {
+                "name": "organization",
+                "in": "header",
+                "description": "Choose an environment",
+                "required": true,
+                "x-ms-dynamic-values": {
+                  "operationId": "GetOrganizations",
+                  "parameters": {},
+                  "value-collection": "value",
+                  "value-path": "Url",
+                  "value-title": "FriendlyName"
+                },
+                "x-ms-dynamic-list": {
+                  "operationId": "GetOrganizations",
+                  "parameters": {},
+                  "itemsPath": "value",
+                  "itemValuePath": "Url",
+                  "itemTitlePath": "FriendlyName"
+                },
+                "x-ms-summary": "Environment",
+                "x-ms-visibility": "important",
+                "x-ms-name-for-model": "delete_semantic_model_with_organization_organization",
+                "x-ms-description-for-model": "The Power Platform environment containing the Dataverse semantic model to delete.",
+                "type": "string"
+              },
+              {
+                "name": "id",
+                "in": "path",
+                "description": "Enter the ID of the semantic model to delete.",
+                "required": true,
+                "x-ms-summary": "Semantic model ID",
+                "x-ms-visibility": "important",
+                "type": "string"
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "OK",
+                "schema": {
+                  "$ref": "#/definitions/IqSemanticModelDeleteResponse"
+                }
+              },
+              "default": {
+                "description": "Operation Failed."
+              }
+            },
+            "deprecated": false,
+            "x-ms-visibility": "important",
+            "x-ms-name-for-model": "delete_semantic_model_with_organization",
+            "x-ms-description-for-model": "Deletes a Dataverse semantic model by ID from a selected environment. This does not delete the underlying Dataverse tables or data.",
+            "externalDocs": {
+              "url": "https://docs.microsoft.com/connectors/commondataserviceforapps/#delete-semantic-model-from-selected-environment"
+            }
+          }
+        },
+        "/{connectionId}/api/iq/v1.0/ask": {
+          "post": {
+            "tags": [
+              "IqAsk",
+              "OrganizationBoundAction"
+            ],
+            "summary": "Ask using semantic model",
+            "description": "Asks a natural-language question about data in the selected Microsoft Dataverse semantic model.",
+            "operationId": "AskUsingSemanticModel",
+            "consumes": [
+              "application/json",
+              "text/json"
+            ],
+            "produces": [
+              "application/json",
+              "text/json"
+            ],
+            "parameters": [
+              {
+                "name": "connectionId",
+                "in": "path",
+                "required": true,
+                "x-ms-visibility": "internal",
+                "type": "string"
+              },
+              {
+                "name": "AskRequest",
+                "in": "body",
+                "description": "The question, semantic model, and optional response settings.",
+                "required": true,
+                "schema": {
+                  "$ref": "#/definitions/IqAskRequest"
+                },
+                "x-ms-summary": "Ask request"
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "OK",
+                "schema": {
+                  "$ref": "#/definitions/IqAskResponse"
+                }
+              },
+              "default": {
+                "description": "Operation Failed."
+              }
+            },
+            "deprecated": false,
+            "x-ms-visibility": "important",
+            "x-ms-name-for-model": "ask_using_semantic_model",
+            "x-ms-description-for-model": "Asks a natural-language question about data in a Dataverse semantic model. Provide the question and the model's exact unique name. The response can include matching rows, a summary, citation links, and paging information.",
+            "externalDocs": {
+              "url": "https://docs.microsoft.com/connectors/commondataserviceforapps/#ask-using-semantic-model"
+            }
+          }
+        },
+        "/{connectionId}/api/iq/v1.0.0/ask": {
+          "post": {
+            "tags": [
+              "IqAsk",
+              "Runtime"
+            ],
+            "summary": "Ask using semantic model from selected environment",
+            "description": "Asks a natural-language question about data in a Microsoft Dataverse semantic model in the selected environment.",
+            "operationId": "AskUsingSemanticModelWithOrganization",
+            "consumes": [
+              "application/json",
+              "text/json"
+            ],
+            "produces": [
+              "application/json",
+              "text/json"
+            ],
+            "parameters": [
+              {
+                "name": "connectionId",
+                "in": "path",
+                "required": true,
+                "x-ms-visibility": "internal",
+                "type": "string"
+              },
+              {
+                "name": "organization",
+                "in": "header",
+                "description": "Choose an environment",
+                "required": true,
+                "x-ms-dynamic-values": {
+                  "operationId": "GetOrganizations",
+                  "parameters": {},
+                  "value-collection": "value",
+                  "value-path": "Url",
+                  "value-title": "FriendlyName"
+                },
+                "x-ms-dynamic-list": {
+                  "operationId": "GetOrganizations",
+                  "parameters": {},
+                  "itemsPath": "value",
+                  "itemValuePath": "Url",
+                  "itemTitlePath": "FriendlyName"
+                },
+                "x-ms-summary": "Environment",
+                "x-ms-visibility": "important",
+                "x-ms-name-for-model": "ask_using_semantic_model_with_organization_organization",
+                "x-ms-description-for-model": "The Power Platform environment containing the Dataverse semantic model to query.",
+                "type": "string"
+              },
+              {
+                "name": "AskRequest",
+                "in": "body",
+                "description": "The question, semantic model, and optional response settings.",
+                "required": true,
+                "schema": {
+                  "$ref": "#/definitions/IqAskRequestWithOrganization"
+                },
+                "x-ms-summary": "Ask request"
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "OK",
+                "schema": {
+                  "$ref": "#/definitions/IqAskResponse"
+                }
+              },
+              "default": {
+                "description": "Operation Failed."
+              }
+            },
+            "deprecated": false,
+            "x-ms-visibility": "important",
+            "x-ms-name-for-model": "ask_using_semantic_model_with_organization",
+            "x-ms-description-for-model": "Asks a natural-language question about data in a Dataverse semantic model in a selected environment. Provide the question and the model's exact unique name.",
+            "externalDocs": {
+              "url": "https://docs.microsoft.com/connectors/commondataserviceforapps/#ask-using-semantic-model-from-selected-environment"
+            }
+          }
+        },
         "/{connectionId}/api/data/v9.2/catalogs": {
           "get": {
             "tags": [
@@ -9527,6 +10059,305 @@
             }
           }
         },
+        "IqCreateSemanticModelRequest": {
+          "description": "The information required to create a semantic model.",
+          "required": [
+            "uniqueName",
+            "tables"
+          ],
+          "type": "object",
+          "properties": {
+            "uniqueName": {
+              "x-ms-summary": "Unique name",
+              "description": "Enter a name that uniquely identifies the semantic model in this environment.",
+              "type": "string",
+              "x-ms-visibility": "important"
+            },
+            "tables": {
+              "x-ms-summary": "Tables",
+              "description": "The logical names of the Microsoft Dataverse tables to include in the semantic model.",
+              "type": "array",
+              "items": {
+                "x-ms-summary": "Table",
+                "type": "string",
+                "x-ms-dynamic-values": {
+                  "operationId": "GetEntities",
+                  "parameters": {},
+                  "value-collection": "value",
+                  "value-path": "LogicalName",
+                  "value-title": "DisplayCollectionName/UserLocalizedLabel/Label"
+                },
+                "x-ms-dynamic-list": {
+                  "operationId": "GetEntities",
+                  "parameters": {},
+                  "itemsPath": "value",
+                  "itemValuePath": "LogicalName",
+                  "itemTitlePath": "DisplayCollectionName/UserLocalizedLabel/Label"
+                }
+              },
+              "x-ms-visibility": "important"
+            }
+          }
+        },
+        "IqCreateSemanticModelRequestWithOrganization": {
+          "description": "The information required to create a semantic model in a selected environment.",
+          "required": [
+            "uniqueName",
+            "tables"
+          ],
+          "type": "object",
+          "properties": {
+            "uniqueName": {
+              "x-ms-summary": "Unique name",
+              "description": "Enter a name that uniquely identifies the semantic model in this environment.",
+              "type": "string",
+              "x-ms-visibility": "important"
+            },
+            "tables": {
+              "x-ms-summary": "Tables",
+              "description": "The logical names of the Microsoft Dataverse tables to include in the semantic model.",
+              "type": "array",
+              "items": {
+                "x-ms-summary": "Table",
+                "type": "string",
+                "x-ms-dynamic-values": {
+                  "operationId": "GetEntitiesWithOrganization",
+                  "parameters": {
+                    "organization": {
+                      "parameter": "organization"
+                    }
+                  },
+                  "value-collection": "value",
+                  "value-path": "LogicalName",
+                  "value-title": "DisplayCollectionName/UserLocalizedLabel/Label"
+                },
+                "x-ms-dynamic-list": {
+                  "operationId": "GetEntitiesWithOrganization",
+                  "parameters": {
+                    "organization": {
+                      "parameterReference": "organization"
+                    }
+                  },
+                  "itemsPath": "value",
+                  "itemValuePath": "LogicalName",
+                  "itemTitlePath": "DisplayCollectionName/UserLocalizedLabel/Label"
+                }
+              },
+              "x-ms-visibility": "important"
+            }
+          }
+        },
+        "IqSemanticModelCreateResponse": {
+          "description": "The result of creating a semantic model.",
+          "type": "object",
+          "properties": {
+            "data": {
+              "$ref": "#/definitions/IqSemanticModelCreateData"
+            },
+            "message": {
+              "x-ms-summary": "Message",
+              "description": "A message that describes the result of the create action.",
+              "type": "string",
+              "x-nullable": true
+            }
+          }
+        },
+        "IqSemanticModelCreateData": {
+          "description": "Information about the semantic model that was created.",
+          "type": "object",
+          "properties": {
+            "id": {
+              "x-ms-summary": "Semantic model ID",
+              "description": "The ID of the semantic model that was created.",
+              "type": "string",
+              "x-nullable": true
+            },
+            "uniqueName": {
+              "x-ms-summary": "Unique name",
+              "description": "The unique name of the semantic model that was created.",
+              "type": "string",
+              "x-nullable": true
+            },
+            "createdOn": {
+              "x-ms-summary": "Created on",
+              "description": "The date and time when the semantic model was created.",
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        "IqSemanticModelDeleteResponse": {
+          "description": "The result of deleting a semantic model.",
+          "type": "object",
+          "properties": {
+            "data": {
+              "$ref": "#/definitions/IqSemanticModelDeleteData"
+            },
+            "message": {
+              "x-ms-summary": "Message",
+              "description": "A message that describes the result of the delete action.",
+              "type": "string",
+              "x-nullable": true
+            }
+          }
+        },
+        "IqSemanticModelDeleteData": {
+          "description": "Information about the semantic model that was deleted.",
+          "type": "object",
+          "properties": {
+            "id": {
+              "x-ms-summary": "Semantic model ID",
+              "description": "The ID of the semantic model that was deleted.",
+              "type": "string",
+              "x-nullable": true
+            }
+          }
+        },
+        "IqAskRequest": {
+          "description": "The question to ask and the settings that control the response.",
+          "required": [
+            "query",
+            "semanticModelName"
+          ],
+          "type": "object",
+          "properties": {
+            "query": {
+              "x-ms-summary": "Question",
+              "description": "Enter a natural-language question about the data in the semantic model.",
+              "type": "string",
+              "x-ms-visibility": "important"
+            },
+            "semanticModelName": {
+              "x-ms-summary": "Semantic model name",
+              "description": "Enter the unique name of the semantic model that contains the data to query.",
+              "type": "string",
+              "x-ms-visibility": "important"
+            },
+            "searchMode": {
+              "x-ms-summary": "Search mode",
+              "description": "The search mode to use when answering the question.",
+              "type": "string",
+              "enum": [
+                "Auto",
+                "QuickResponse",
+                "ThinkDeeper"
+              ],
+              "default": "Auto",
+              "x-ms-visibility": "advanced"
+            },
+            "count": {
+              "x-ms-summary": "Row count",
+              "description": "The maximum number of matching rows to return. The default is 100.",
+              "type": "integer",
+              "format": "int32",
+              "minimum": 1,
+              "maximum": 2000,
+              "default": 100,
+              "x-ms-visibility": "advanced"
+            },
+            "pagingToken": {
+              "x-ms-summary": "Paging token",
+              "description": "To retrieve the next page, enter the paging token returned by the previous response.",
+              "type": "string",
+              "x-nullable": true,
+              "x-ms-visibility": "advanced"
+            }
+          }
+        },
+        "IqAskRequestWithOrganization": {
+          "description": "The question to ask and the settings that control the response in a selected environment.",
+          "required": [
+            "query",
+            "semanticModelName"
+          ],
+          "type": "object",
+          "properties": {
+            "query": {
+              "x-ms-summary": "Question",
+              "description": "Enter a natural-language question about the data in the semantic model.",
+              "type": "string",
+              "x-ms-visibility": "important"
+            },
+            "semanticModelName": {
+              "x-ms-summary": "Semantic model name",
+              "description": "Enter the unique name of the semantic model that contains the data to query.",
+              "type": "string",
+              "x-ms-visibility": "important"
+            },
+            "searchMode": {
+              "x-ms-summary": "Search mode",
+              "description": "The search mode to use when answering the question.",
+              "type": "string",
+              "enum": [
+                "Auto",
+                "QuickResponse",
+                "ThinkDeeper"
+              ],
+              "default": "Auto",
+              "x-ms-visibility": "advanced"
+            },
+            "count": {
+              "x-ms-summary": "Row count",
+              "description": "The maximum number of matching rows to return. The default is 100.",
+              "type": "integer",
+              "format": "int32",
+              "minimum": 1,
+              "maximum": 2000,
+              "default": 100,
+              "x-ms-visibility": "advanced"
+            },
+            "pagingToken": {
+              "x-ms-summary": "Paging token",
+              "description": "To retrieve the next page, enter the paging token returned by the previous response.",
+              "type": "string",
+              "x-nullable": true,
+              "x-ms-visibility": "advanced"
+            }
+          }
+        },
+        "IqAskResponse": {
+          "description": "The answer and supporting results returned for the question.",
+          "type": "object",
+          "properties": {
+            "rawResult": {
+              "x-ms-summary": "Raw result",
+              "description": "The matching data rows returned for the question.",
+              "type": "array",
+              "x-nullable": true,
+              "items": {
+                "type": "object",
+                "additionalProperties": {}
+              }
+            },
+            "citationLinks": {
+              "x-ms-summary": "Citation links",
+              "description": "Links to the sources used to produce the answer.",
+              "type": "array",
+              "x-nullable": true,
+              "items": {
+                "type": "string"
+              }
+            },
+            "summary": {
+              "x-ms-summary": "Summary",
+              "description": "A natural-language summary of the matching data.",
+              "type": "string",
+              "x-nullable": true
+            },
+            "totalResultCount": {
+              "x-ms-summary": "Total result count",
+              "description": "The total number of matching rows.",
+              "type": "integer",
+              "format": "int64"
+            },
+            "pagingToken": {
+              "x-ms-summary": "Paging token",
+              "description": "The token to provide in the next request to retrieve the next page of results.",
+              "type": "string",
+              "x-nullable": true
+            }
+          }
+        },
         "IqSemanticModelListResponse": {
           "description": "The semantic models available in the selected Dataverse environment.",
           "type": "object",
@@ -9911,23 +10742,23 @@
       }
     },
     "runtimeUrls": [
-      "https://192d0a93f34ee64aa9c36558e2f661.56.environment.api.powerplatform.com/connectors/runtime/invoke/scalegroups/europe002/shards/13/apis/commondataserviceforapps/connections/"
+      "https://6adf353466c7e4a195c7045d1b228f.44.environment.api.powerplatform.com/connectors/runtime/invoke/scalegroups/europe002/shards/17/apis/commondataserviceforapps/connections/"
     ],
-    "primaryRuntimeUrl": "https://192d0a93f34ee64aa9c36558e2f661.56.environment.api.powerplatform.com/connectors/runtime/invoke/scalegroups/europe002/shards/13/apis/commondataserviceforapps/connections/",
-    "doNotUseApiHubNetRuntimeUrl": "https://192d0a93-f34e-e64a-a9c3-6558e2f66156.13.common.europe002.azure-apihub.net/apim/commondataserviceforapps",
+    "primaryRuntimeUrl": "https://6adf353466c7e4a195c7045d1b228f.44.environment.api.powerplatform.com/connectors/runtime/invoke/scalegroups/europe002/shards/17/apis/commondataserviceforapps/connections/",
+    "doNotUseApiHubNetRuntimeUrl": "https://6adf3534-66c7-e4a1-95c7-045d1b228f44.17.common.europe002.azure-apihub.net/apim/commondataserviceforapps",
     "metadata": {
       "source": "marketplace",
       "brandColor": "",
       "useNewApimVersion": "true",
       "version": {
-        "previous": "releases/v1.0.1827\\1.0.1827.4939",
-        "current": "releases/v1.0.1831\\1.0.1831.5064"
+        "previous": "releases/v1.0.1831\\1.0.1831.5064",
+        "current": "releases/v1.0.1834\\1.0.1834.5101"
       },
       "OperationIcons": {
-        "mcp_ContactCenterMCPServer": "https://static.powerapps.com/resource/ppcr/releases/v1.0.1831/1.0.1831.5064/commondataserviceforapps/icon_mcp_ContactCenterMCPServer.png",
-        "mcp_ERPMCPServer": "https://static.powerapps.com/resource/ppcr/releases/v1.0.1831/1.0.1831.5064/commondataserviceforapps/icon_mcp_ERPMCPServer.png",
-        "mcp_SalesMCPServer": "https://static.powerapps.com/resource/ppcr/releases/v1.0.1831/1.0.1831.5064/commondataserviceforapps/icon_mcp_SalesMCPServer.png",
-        "mcp_ServiceMCPServer": "https://static.powerapps.com/resource/ppcr/releases/v1.0.1831/1.0.1831.5064/commondataserviceforapps/icon_mcp_ServiceMCPServer.png"
+        "mcp_ContactCenterMCPServer": "https://static.powerapps.com/resource/ppcr/releases/v1.0.1834/1.0.1834.5101/commondataserviceforapps/icon_mcp_ContactCenterMCPServer.png",
+        "mcp_ERPMCPServer": "https://static.powerapps.com/resource/ppcr/releases/v1.0.1834/1.0.1834.5101/commondataserviceforapps/icon_mcp_ERPMCPServer.png",
+        "mcp_SalesMCPServer": "https://static.powerapps.com/resource/ppcr/releases/v1.0.1834/1.0.1834.5101/commondataserviceforapps/icon_mcp_SalesMCPServer.png",
+        "mcp_ServiceMCPServer": "https://static.powerapps.com/resource/ppcr/releases/v1.0.1834/1.0.1834.5101/commondataserviceforapps/icon_mcp_ServiceMCPServer.png"
       }
     },
     "capabilities": [
@@ -9937,7 +10768,7 @@
     "interfaces": {},
     "description": "Provides access to Microsoft Dataverse actions and triggers for Power Platform environments.",
     "createdTime": "2023-11-28T19:50:15.3220251Z",
-    "changedTime": "2026-10-01T20:44:48.7250849Z",
+    "changedTime": "2026-10-26T16:43:33.7204051Z",
     "releaseTag": "Production",
     "tier": "Premium",
     "publisher": "Microsoft",

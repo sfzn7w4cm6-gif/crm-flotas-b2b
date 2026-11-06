@@ -4,7 +4,7 @@ import type { Concesionario, Ubicacion, UsuarioApp } from './types'
 
 export async function fetchConcesionarios(): Promise<Concesionario[]> {
   return listRecords<Concesionario>(Tables.Concesionario, {
-    select: 'fl_concesionarioid,fl_nombre,fl_cif,fl_activo,_fl_equipo_value',
+    select: 'fl_concesionarioid,fl_nombre,fl_activo,_fl_equipo_value',
     filter: 'fl_activo eq true',
     orderby: 'fl_nombre asc',
   })

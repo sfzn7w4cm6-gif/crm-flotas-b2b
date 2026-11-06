@@ -122,5 +122,43 @@ export function resumenPeriodo(eventos: { fecha: Date; valor: number }[], p: Per
   }
 }
 
+/** Varios meses y/o años a la vez (ej. agosto + septiembre). Vacío = sin filtro ("Todo"). */
+export type PeriodoMulti = Periodo[]
+
+/** Si una fecha cae dentro de alguno de los periodos elegidos. Lista vacía = no se filtra. */
+export function dentroDePeriodos(fecha: Date, periodos: PeriodoMulti, hoy = new Date()): boolean {
+  if (periodos.length === 0) return true
+  return periodos.some((p) => {
+    const { desde, hasta } = rangoPeriodo(p, hoy)
+    return fecha >= desde && fecha < hasta
+  })
+}
+
+export function nombrePeriodos(periodos: PeriodoMulti): string {
+  if (periodos.length === 0) return 'Todo'
+  if (periodos.length === 1) return nombrePeriodo(periodos[0])
+  return `${periodos.length} periodos`
+}
+
+/** Igual que resumenPeriodo, pero con varios periodos a la vez: con uno solo se comporta
+ *  exactamente igual (delega en resumenPeriodo); con varios, la comparación deja de tener
+ *  un "periodo anterior" unico y se compara con el mismo tramo de cada periodo un año antes,
+ *  y el desglose pasa a ser el subtotal de cada periodo elegido. */
+export function resumenPeriodos(eventos: { fecha: Date; valor: number }[], periodos: PeriodoMulti, hoy = new Date()): ResumenPeriodo {
+  if (periodos.length <= 1) return resumenPeriodo(eventos, periodos[0] ?? periodoActual(hoy), hoy)
+  const suma = (desde: Date, hasta: Date) => eventos.reduce((acc, e) => (e.fecha >= desde && e.fecha < hasta ? acc + e.valor : acc), 0)
+  const anioAnterior = (p: Periodo): Periodo => (p.tipo === 'mes' ? { tipo: 'mes', anio: p.anio - 1, mes: p.mes } : { tipo: 'anio', anio: p.anio - 1 })
+  const sumaPeriodo = (p: Periodo) => {
+    const { desde, hasta } = rangoPeriodo(p, hoy)
+    return suma(desde, hasta)
+  }
+  return {
+    valor: periodos.reduce((acc, p) => acc + sumaPeriodo(p), 0),
+    comparado: periodos.reduce((acc, p) => acc + sumaPeriodo(anioAnterior(p)), 0),
+    comparadoEtiqueta: 'vs. mismo tramo del año anterior',
+    pie: periodos.map((p) => ({ etiqueta: nombrePeriodo(p), valor: sumaPeriodo(p) })),
+  }
+}
+
 const EUR = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })
 export const formatoEuros = (n: number) => EUR.format(n)

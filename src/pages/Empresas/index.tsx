@@ -8,6 +8,7 @@ import { coincideBusqueda, textoBusqueda } from '../../lib/filtrosLeads'
 import { normalizarTexto } from '../../lib/formato'
 import { fetchEmpresas, numeroOportunidadAbierta } from '../../lib/empresasService'
 import { fetchMisLeads, fetchTodosLosLeads } from '../../lib/leadsService'
+import { empresasDuplicadas } from '../../lib/notificacionesService'
 import { fetchConcesionarios } from '../../lib/usuariosService'
 import { EstadoEmpresa, EstadoEmpresaLabel, Fase, FaseLabel, RolApp } from '../../lib/types'
 import type { Concesionario, Empresa, Lead } from '../../lib/types'
@@ -40,6 +41,8 @@ export function Empresas() {
   const [estados, setEstados] = useState<EstadoEmpresa[]>([])
   const [soloEnCurso, setSoloEnCurso] = useState(false)
   const [concesionariosSel, setConcesionariosSel] = useState<string[]>([])
+  const [ordenFechaActivo, setOrdenFechaActivo] = useState(false)
+  const [ordenFechaDir, setOrdenFechaDir] = useState<'asc' | 'desc'>('desc')
 
   useEffect(() => {
     if (!vistaRed && !misConcesionarios.length) return
@@ -76,6 +79,22 @@ export function Empresas() {
 
   const nombreConcesionario = useMemo(() => new Map(concesionarios.map((c) => [c.fl_concesionarioid, c.fl_nombre])), [concesionarios])
 
+  // Solo tiene sentido en la vista de red: con un solo concesionario cargado no se puede
+  // saber si otro concesionario tiene la misma empresa.
+  const otrosConcesionariosPorEmpresa = useMemo(() => {
+    const m = new Map<string, string[]>()
+    if (!vistaRed) return m
+    for (const grupo of empresasDuplicadas(filas.map((f) => f.empresa))) {
+      for (const e of grupo.empresas) {
+        m.set(
+          e.fl_empresaid,
+          grupo.empresas.filter((x) => x.fl_empresaid !== e.fl_empresaid).map((x) => nombreConcesionario.get(x._fl_concesionario_value) ?? '—'),
+        )
+      }
+    }
+    return m
+  }, [filas, vistaRed, nombreConcesionario])
+
   // Busca en los datos de la empresa y en todo lo de sus oportunidades (fase, modelos, notas de seguimiento...).
   const indice = useMemo(
     () =>
@@ -107,6 +126,26 @@ export function Empresas() {
   }, [filas, indice, busqueda, estados, soloEnCurso, concesionariosSel])
 
   const hayFiltros = busqueda.trim() !== '' || estados.length > 0 || soloEnCurso || concesionariosSel.length > 0
+
+  const ordenadas = useMemo(() => {
+    if (!ordenFechaActivo) return filtradas
+    const copia = [...filtradas]
+    copia.sort((a, b) => {
+      const ta = a.ultimaOportunidad?.getTime() ?? -Infinity
+      const tb = b.ultimaOportunidad?.getTime() ?? -Infinity
+      return ordenFechaDir === 'asc' ? ta - tb : tb - ta
+    })
+    return copia
+  }, [filtradas, ordenFechaActivo, ordenFechaDir])
+
+  const toggleOrdenFecha = () => {
+    if (!ordenFechaActivo) {
+      setOrdenFechaActivo(true)
+      setOrdenFechaDir('desc')
+    } else {
+      setOrdenFechaDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+    }
+  }
 
   return (
     <div>
@@ -172,21 +211,47 @@ export function Empresas() {
                 <th>Empresa</th>
                 <th>CIF</th>
                 {conConcesionario && <th>Concesionario</th>}
+                {vistaRed && <th>Duplicada</th>}
                 <th>Estado</th>
                 <th>Oportunidad en curso</th>
                 <th>Oportunidades</th>
                 <th>Ventas</th>
-                <th>Última oportunidad</th>
+                <th>
+                  <button
+                    type="button"
+                    className={`th-sort ${ordenFechaActivo ? 'is-active' : ''} ${ordenFechaActivo && ordenFechaDir === 'desc' ? 'is-desc' : ''}`}
+                    onClick={toggleOrdenFecha}
+                  >
+                    Última oportunidad
+                    <span className="th-sort-icon">
+                      <Icon name="chevronDown" size={12} />
+                    </span>
+                  </button>
+                </th>
               </tr>
             </thead>
             <tbody>
-              {filtradas.map((f) => {
+              {ordenadas.map((f) => {
                 const numeroEnCurso = numeroOportunidadAbierta(f.empresa)
                 return (
                   <tr key={f.empresa.fl_empresaid} className="row-clickable" onClick={() => navigate(`/empresa/${f.empresa.fl_empresaid}`)}>
                     <td className="cell-strong">{f.empresa.fl_razonsocial}</td>
                     <td>{f.empresa.fl_cif}</td>
                     {conConcesionario && <td>{nombreConcesionario.get(f.empresa._fl_concesionario_value) ?? '—'}</td>}
+                    {vistaRed && (
+                      <td>
+                        {(() => {
+                          const otros = otrosConcesionariosPorEmpresa.get(f.empresa.fl_empresaid)
+                          return otros?.length ? (
+                            <span className="badge-duplicada" title={`También la tiene: ${otros.join(', ')}`}>
+                              <Icon name="warning" size={12} /> {otros.join(', ')}
+                            </span>
+                          ) : (
+                            <span className="celda-vacia">—</span>
+                          )
+                        })()}
+                      </td>
+                    )}
                     <td>{EstadoEmpresaLabel[f.empresa.fl_estado ?? EstadoEmpresa.ClientePotencial]}</td>
                     <td>
                       {f.enCurso ? (

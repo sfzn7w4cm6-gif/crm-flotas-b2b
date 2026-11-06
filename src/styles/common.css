@@ -490,6 +490,18 @@
 .celda-vacia {
   color: var(--color-text-muted);
 }
+.badge-duplicada {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--color-naranja-bg);
+  color: var(--color-naranja);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
 
 .view-editor-pista {
   margin: 8px 6px 2px;

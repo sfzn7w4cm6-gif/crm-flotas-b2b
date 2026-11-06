@@ -700,6 +700,12 @@
    "acabado": "Excellence"
   },
   {
+   "nombre": "S400 HEV PLUS",
+   "familia": "S400",
+   "motorizacion": "HEV",
+   "acabado": "Plus"
+  },
+  {
    "nombre": "S700 ICE COMFORT",
    "familia": "S700",
    "motorizacion": "ICE",
@@ -724,10 +730,10 @@
    "acabado": "Luxury"
   },
   {
-   "nombre": "S700 PHEV PREMIUM",
+   "nombre": "S700 PHEV COMFORT",
    "familia": "S700",
    "motorizacion": "PHEV",
-   "acabado": "Premium"
+   "acabado": "Comfort"
   },
   {
    "nombre": "S700 PHEV LUXURY",

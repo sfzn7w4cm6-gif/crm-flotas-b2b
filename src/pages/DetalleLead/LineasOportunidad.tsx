@@ -12,12 +12,15 @@ export function LineasOportunidad({
   textoAnterior,
   soloLectura,
   onLineas,
+  version = 0,
 }: {
   leadId: string
   textoAnterior?: string
   soloLectura: boolean
-  /** Avisa del nº de líneas al cargar y tras cada cambio (la ventana de cambio de fase lo necesita). */
-  onLineas?: (n: number) => void
+  /** Avisa de las líneas al cargar y tras cada cambio (la oferta y el cambio de fase las necesitan). */
+  onLineas?: (lineas: LineaOportunidad[], modelos: Modelo[]) => void
+  /** Al cambiar, se vuelven a leer (p. ej. tras corregir unidades en el cierre). */
+  version?: number
 }) {
   const [lineas, setLineas] = useState<LineaOportunidad[] | null>(null)
   const [modelos, setModelos] = useState<Modelo[]>([])
@@ -33,10 +36,13 @@ export function LineasOportunidad({
       .then(([l, m]) => {
         setLineas(l)
         setModelos(m)
-        onLineas?.(l.length)
+        onLineas?.(l, m)
       })
-      .catch(() => setLineas([]))
-  }, [leadId])
+      .catch(() => {
+        setLineas([])
+        onLineas?.([], [])
+      })
+  }, [leadId, version])
 
   const nombre = new Map(modelos.map((m) => [m.fl_modeloid, m.fl_nombre]))
   const total = (lineas ?? []).reduce((acc, l) => acc + l.fl_cantidad, 0)
@@ -50,7 +56,7 @@ export function LineasOportunidad({
       await guardarResumenLineas(leadId, nuevas, modelos)
       setLineas(nuevas)
       setEditadas(true)
-      onLineas?.(nuevas.length)
+      onLineas?.(nuevas, modelos)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo guardar.')
     } finally {

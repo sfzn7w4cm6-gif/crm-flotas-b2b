@@ -1,11 +1,12 @@
 import { createRecord, deleteRecord, listRecords, Tables } from './dataverseClient'
 import { descuentoPendiente } from './descuento'
 import { normalizarCif } from './empresasService'
+import { condicionesPorRevisar } from './leadsService'
 import { TipoNotificacion } from './types'
 import type { Empresa, Lead, Notificacion } from './types'
 
-// Campanita del equipo de ventas: oportunidades pendientes de % de marca y empresas
-// contactadas por mas de un concesionario a la vez. Una vez creada, una notificacion
+// Campanita del equipo de ventas: oportunidades pendientes de % de marca, condiciones nuevas
+// del concesionario por revisar y empresas contactadas por mas de un concesionario a la vez. Una vez creada, una notificacion
 // nunca se borra sola (queda como historico abajo de la lista si el caso se resuelve);
 // solo desaparece si alguien pulsa "Quitar" (eliminarNotificacion).
 
@@ -71,6 +72,22 @@ export async function sincronizarNotificaciones(leads: Lead[], empresas: Empresa
     )
   }
 
+  // Condiciones nuevas del concesionario: una notificación por cada vez que las cambia.
+  for (const l of leads) {
+    if (!condicionesPorRevisar(l)) continue
+    const yaAvisado = existentes.some(
+      (n) => n.fl_tipo === TipoNotificacion.CondicionesPorRevisar && n._fl_lead_value === l.fl_leadid && (n.createdon ?? '') >= (l.fl_fechacondiciones ?? ''),
+    )
+    if (yaAvisado) continue
+    tareas.push(
+      createRecord(Tables.Notificacion, {
+        fl_titulo: `Condiciones pendientes de revisar: ${l.fl_razonsocial} (${l.fl_numero})`,
+        fl_tipo: TipoNotificacion.CondicionesPorRevisar,
+        'fl_lead@odata.bind': `/${Tables.Lead}(${l.fl_leadid})`,
+      }),
+    )
+  }
+
   for (const grupo of empresasDuplicadas(empresas)) {
     if (cifsConNotif.has(grupo.cif)) continue
     const nombres = grupo.empresas.map((e) => nombreConcesionario.get(e._fl_concesionario_value) ?? 'un concesionario').join(' y ')
@@ -91,15 +108,16 @@ export async function sincronizarNotificaciones(leads: Lead[], empresas: Empresa
 
 /** Si el caso que dio pie a esta notificacion sigue pendiente ahora mismo — se usa solo
  *  para ordenar (pendientes primero), nunca para decidir si se borra. */
-export function notificacionPendiente(n: Notificacion, leadIdsPendientes: Set<string>, cifsDuplicados: Set<string>): boolean {
+export function notificacionPendiente(n: Notificacion, leadIdsPendientes: Set<string>, cifsDuplicados: Set<string>, leadIdsCondiciones: Set<string> = new Set()): boolean {
   if (n.fl_tipo === TipoNotificacion.DescuentoPendiente) return !!n._fl_lead_value && leadIdsPendientes.has(n._fl_lead_value)
+  if (n.fl_tipo === TipoNotificacion.CondicionesPorRevisar) return !!n._fl_lead_value && leadIdsCondiciones.has(n._fl_lead_value)
   if (n.fl_tipo === TipoNotificacion.EmpresaDuplicada) return !!n.fl_cif && cifsDuplicados.has(n.fl_cif)
   return false
 }
 
 /** A donde navega la campanita al pulsar una notificacion. */
 export function enlaceNotificacion(n: Notificacion): string | undefined {
-  if (n.fl_tipo === TipoNotificacion.DescuentoPendiente && n._fl_lead_value) return `#/lead/${n._fl_lead_value}`
+  if ((n.fl_tipo === TipoNotificacion.DescuentoPendiente || n.fl_tipo === TipoNotificacion.CondicionesPorRevisar) && n._fl_lead_value) return `#/lead/${n._fl_lead_value}`
   if (n.fl_tipo === TipoNotificacion.EmpresaDuplicada && n._fl_empresa_value) return `#/empresa/${n._fl_empresa_value}`
   return undefined
 }

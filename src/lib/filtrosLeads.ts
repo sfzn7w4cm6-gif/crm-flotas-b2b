@@ -36,7 +36,6 @@ export function textoBusqueda(l: Lead, extra: (string | undefined)[] = []): stri
       PlazoDecisionLabel[l.fl_plazoestimadodecision],
       l.fl_competidoresdetectados,
       l.fl_requisitos,
-      l.fl_kmtiempo,
       FaseLabel[l.fl_faseactual],
       l.fl_ofertacondiciones,
       l.fl_ultimaaccionrealizada,

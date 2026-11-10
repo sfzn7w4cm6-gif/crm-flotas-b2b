@@ -5,52 +5,41 @@ import ExcelJS from 'exceljs'
 // el archivo que la persona edita en Excel y reimporta, así que se necesita un lector real
 // de .xlsx. Se usa exceljs (con su build de navegador) en vez de la librería 'xlsx'
 // (SheetJS) que ya se descartó en este proyecto por tener vulnerabilidades sin parchear.
+//
+// Formato: el de "Plantilla para importar objetivos.xlsx" de EBRO. Una hoja "PLANTILLA" con
+// dos columnas: DEALER (la sede, p. ej. "Syrsa-Huelva", que ya lleva el nombre del grupo) y
+// OBJETIVO (oportunidades al mes; la plantilla original la llamaba EBRO RENTING, también vale:
+// se lee la columna de al lado de DEALER). Las filas TOTAL y las vacías se ignoran.
 
 export interface FilaExportObjetivo {
-  /** "__general__" o el id de la sede — se guarda oculto para poder reimportar sin ambigüedad. */
-  id: string
-  /** "General (por defecto)" o "Concesionario - Sede" (ej. "M Automoción - Barcelona"). */
+  /** Nombre de la sede tal y como está en la app (p. ej. "M Automoción-Barcelona"). */
   nombre: string
   valorActual: number | undefined
-  esGeneral: boolean
 }
 
-const NOMBRE_HOJA = 'Objetivos'
-const COL_NOMBRE = 1
-const COL_ACTUAL = 2
-const COL_NUEVO = 3
-const COL_ID = 4
+const NOMBRE_HOJA = 'PLANTILLA'
+const CABECERA_NOMBRE = 'DEALER'
+const CABECERA_OBJETIVO = 'OBJETIVO'
 
 export async function exportarObjetivosExcel(filas: FilaExportObjetivo[]): Promise<void> {
   const wb = new ExcelJS.Workbook()
-  wb.creator = 'CRM Flotas B2B'
+  wb.creator = 'Ebro Business'
   wb.created = new Date()
   const hoja = wb.addWorksheet(NOMBRE_HOJA, { views: [{ state: 'frozen', ySplit: 1 }] })
-
   hoja.columns = [
-    { header: 'Concesionario / Sede', key: 'nombre', width: 42 },
-    { header: 'Objetivo actual (leads/mes)', key: 'actual', width: 24 },
-    { header: 'Nuevo objetivo (leads/mes)', key: 'nuevo', width: 24 },
-    { header: 'id', key: 'id', width: 10 },
+    { header: CABECERA_NOMBRE, key: 'nombre', width: 40 },
+    { header: CABECERA_OBJETIVO, key: 'objetivo', width: 16 },
   ]
-  hoja.getColumn(COL_ID).hidden = true
-
   hoja.getRow(1).eachCell((celda) => {
     celda.font = { bold: true, color: { argb: 'FFFFFFFF' } }
     celda.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1D1D1B' } }
     celda.alignment = { vertical: 'middle' }
   })
-
   for (const f of filas) {
-    const fila = hoja.addRow({ nombre: f.nombre, actual: f.valorActual ?? null, nuevo: null, id: f.id })
-    if (f.esGeneral) fila.getCell(COL_NOMBRE).font = { bold: true }
-    fila.getCell(COL_ACTUAL).alignment = { horizontal: 'center' }
-    fila.getCell(COL_ACTUAL).numFmt = '0'
-    const celdaNuevo = fila.getCell(COL_NUEVO)
-    celdaNuevo.alignment = { horizontal: 'center' }
-    celdaNuevo.numFmt = '0'
-    celdaNuevo.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF6DD' } }
-    celdaNuevo.border = { top: { style: 'thin', color: { argb: 'FFC1B6A3' } }, bottom: { style: 'thin', color: { argb: 'FFC1B6A3' } }, left: { style: 'thin', color: { argb: 'FFC1B6A3' } }, right: { style: 'thin', color: { argb: 'FFC1B6A3' } } }
+    const fila = hoja.addRow({ nombre: f.nombre, objetivo: f.valorActual ?? null })
+    const celda = fila.getCell(2)
+    celda.alignment = { horizontal: 'center' }
+    celda.numFmt = '0'
   }
 
   const buffer = await wb.xlsx.writeBuffer()
@@ -58,7 +47,7 @@ export async function exportarObjetivosExcel(filas: FilaExportObjetivo[]): Promi
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `objetivos-crm-flotas-${new Date().toISOString().slice(0, 10)}.xlsx`
+  a.download = `objetivos-ebro-business-${new Date().toISOString().slice(0, 10)}.xlsx`
   document.body.appendChild(a)
   a.click()
   document.body.removeChild(a)
@@ -66,29 +55,46 @@ export async function exportarObjetivosExcel(filas: FilaExportObjetivo[]): Promi
 }
 
 export interface CambioObjetivoImportado {
-  /** Vacío si la columna oculta "id" se borró o no se encuentra: se resuelve por nombre en el llamante. */
-  id: string
   nombre: string
   nuevo: number
 }
 
-/** Lee la plantilla reimportada: solo recoge las filas donde se rellenó "Nuevo objetivo". */
+const textoCelda = (v: ExcelJS.CellValue): string => {
+  if (v == null) return ''
+  if (typeof v === 'object') {
+    if ('result' in v) return String(v.result ?? '')
+    if ('text' in v) return String(v.text ?? '')
+    if ('richText' in v) return v.richText.map((t) => t.text).join('')
+  }
+  return String(v)
+}
+
+/** Lee la plantilla: cada fila con sede y objetivo. */
 export async function importarObjetivosExcel(file: File): Promise<CambioObjetivoImportado[]> {
   const wb = new ExcelJS.Workbook()
   await wb.xlsx.load(await file.arrayBuffer())
-  const hoja = wb.getWorksheet(NOMBRE_HOJA) ?? wb.worksheets[0]
+  const hoja =
+    wb.worksheets.find((h) => h.name.trim().toUpperCase() === NOMBRE_HOJA) ??
+    wb.worksheets.find((h) => textoCelda(h.getCell(1, 1).value).trim().toUpperCase() === CABECERA_NOMBRE) ??
+    wb.worksheets[0]
   if (!hoja) throw new Error('El archivo no tiene ninguna hoja con datos.')
+
+  // Columna de la sede: la de cabecera DEALER (o la primera); el objetivo, la siguiente.
+  let colNombre = 1
+  hoja.getRow(1).eachCell((celda, col) => {
+    if (textoCelda(celda.value).trim().toUpperCase() === CABECERA_NOMBRE) colNombre = col
+  })
+  const colObjetivo = colNombre + 1
 
   const cambios: CambioObjetivoImportado[] = []
   hoja.eachRow((fila, numFila) => {
     if (numFila === 1) return
-    const nombre = String(fila.getCell(COL_NOMBRE).value ?? '').trim()
-    const id = String(fila.getCell(COL_ID).value ?? '').trim()
-    const nuevoRaw = fila.getCell(COL_NUEVO).value
-    if (!nombre || nuevoRaw === null || nuevoRaw === undefined || nuevoRaw === '') return
-    const nuevo = typeof nuevoRaw === 'object' && nuevoRaw && 'result' in nuevoRaw ? Number((nuevoRaw as { result?: unknown }).result) : Number(nuevoRaw)
-    if (!Number.isFinite(nuevo) || nuevo < 0) throw new Error(`"${nombre}": el nuevo objetivo debe ser un número de 0 o más (fila ${numFila}).`)
-    cambios.push({ id, nombre, nuevo: Math.round(nuevo) })
+    const nombre = textoCelda(fila.getCell(colNombre).value).trim()
+    const bruto = textoCelda(fila.getCell(colObjetivo).value).trim()
+    if (!nombre || /^total/i.test(nombre) || bruto === '') return
+    const nuevo = Number(bruto.replace(',', '.'))
+    if (!Number.isFinite(nuevo) || nuevo < 0) throw new Error(`"${nombre}": el objetivo debe ser un número de 0 o más (fila ${numFila}).`)
+    cambios.push({ nombre, nuevo: Math.round(nuevo) })
   })
   return cambios
 }

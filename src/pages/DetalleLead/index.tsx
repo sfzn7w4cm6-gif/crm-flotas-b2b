@@ -5,7 +5,18 @@ import { Icon } from '../../components/Icon'
 import { FaseBadge } from '../../components/StatusBadge'
 import { NuevaTareaForm } from '../../components/tareas/Tareas'
 import { getRecord, Tables } from '../../lib/dataverseClient'
-import { actualizarLead, cambiarComercial, cifEnOtraEmpresa, fetchHistoricoDeFase, fetchLead, type ActualizarLeadInput } from '../../lib/leadsService'
+import {
+  actualizarLead,
+  cambiarComercial,
+  cifEnOtraEmpresa,
+  condicionesPorRevisar,
+  fetchHistoricoDeFase,
+  fetchLead,
+  marcarCondicionesRevisadas,
+  type ActualizarLeadInput,
+} from '../../lib/leadsService'
+import { guardarCambiosLineas, type CambioLinea } from '../../lib/lineasService'
+import { esSinConcesionario } from '../../lib/descuento'
 import { fetchAdjuntos, subirAdjuntos } from '../../lib/adjuntosService'
 import { borrarNota, crearNotaConAdjuntos, fetchNotas } from '../../lib/notasService'
 import { cambiarEstadoTarea, crearTarea, fetchTareasDeLead, tareaAbierta } from '../../lib/tareasService'
@@ -14,7 +25,7 @@ import { buscarEmpresaDuplicadaEnOtroConcesionario } from '../../lib/empresasSer
 import { fechaLarga } from '../../lib/formato'
 import { faltantes, requisitosHasta } from '../../lib/camposFase'
 import { Fase, RolApp } from '../../lib/types'
-import type { Adjunto, Concesionario, Empresa, EstadoTarea, FaseHistorico, Lead, Nota, Tarea, Ubicacion, UsuarioApp } from '../../lib/types'
+import type { Adjunto, Concesionario, Empresa, EstadoTarea, FaseHistorico, Lead, LineaOportunidad, Modelo, Nota, Tarea, Ubicacion, UsuarioApp } from '../../lib/types'
 import { BloqueDatos, Dato, type DefDato } from './DatosLead'
 import { HistorialTareas } from './HistorialTareas'
 import { NotasLead } from './NotasLead'
@@ -22,6 +33,7 @@ import { LineasOportunidad } from './LineasOportunidad'
 import { CambioFaseDialog } from './CambioFaseDialog'
 import { AvisoFase } from './AvisoFase'
 import { OfertaLead } from './OfertaLead'
+import { CierreOperacion } from './CierreOperacion'
 import './DetalleLead.css'
 
 const EMPRESA: DefDato[] = [
@@ -39,10 +51,8 @@ const FLOTA: DefDato[] = [
   { clave: 'vencimientoContratosActuales', label: 'Vencimiento contratos', tipo: 'fecha' },
 ]
 const NECESIDAD: DefDato[] = [
-  { clave: 'cuotasObjetivo', label: 'Cuotas objetivo', tipo: 'euros' },
   { clave: 'plazoEstimadoDecision', label: 'Plazo de decisión', tipo: 'plazo' },
   { clave: 'competidoresDetectados', label: 'Competidores', tipo: 'texto' },
-  { clave: 'kmTiempo', label: 'Km / tiempo', tipo: 'texto' },
   { clave: 'requisitos', label: 'Requisitos', tipo: 'textoLargo', ancho: true },
 ]
 const SEGUIMIENTO: DefDato[] = [
@@ -57,8 +67,7 @@ export function DetalleLead() {
   const navigate = useNavigate()
   const { effectiveRol, usuario, isAdmin, viewAsRole } = useAuth()
   const soloLectura = effectiveRol === RolApp.EquipoVentas
-  // En la oferta, ventas sí pone su parte del descuento (y el administrador, las dos).
-  const editaDescuentoVentas = effectiveRol === RolApp.EquipoVentas || (isAdmin && viewAsRole === null)
+  const veComoVentas = effectiveRol === RolApp.EquipoVentas || (isAdmin && viewAsRole === null)
 
   const [lead, setLead] = useState<Lead | null>(null)
   const [historico, setHistorico] = useState<FaseHistorico[]>([])
@@ -71,7 +80,9 @@ export function DetalleLead() {
   // Ventana de cambio de fase, o de completar los datos de la fase actual.
   const [dialogo, setDialogo] = useState<'fase' | 'completar' | null>(null)
   // null hasta que cargan las líneas de modelo (para no avisar de que faltan antes de saberlo).
-  const [numLineas, setNumLineas] = useState<number | null>(null)
+  const [lineas, setLineas] = useState<LineaOportunidad[] | null>(null)
+  const [modelos, setModelos] = useState<Modelo[]>([])
+  const [versionLineas, setVersionLineas] = useState(0)
   // null = la tabla de tareas aun no existe en el entorno
   const [tareas, setTareas] = useState<Tarea[] | null>(null)
   const [notas, setNotas] = useState<Nota[] | null>([])
@@ -92,10 +103,13 @@ export function DetalleLead() {
       .then(([l, h]) => {
         setLead(l)
         setHistorico(h)
+        // Ventas abre la oportunidad: las condiciones nuevas quedan vistas (se apaga su aviso).
+        if (l && veComoVentas && condicionesPorRevisar(l)) marcarCondicionesRevisadas(l.fl_leadid).catch(() => {})
         if (l) {
           getRecord<Concesionario>(Tables.Concesionario, l._fl_concesionario_value, 'fl_concesionarioid,fl_nombre').then(setConcesionario)
           getRecord<Ubicacion>(Tables.Ubicacion, l._fl_ubicacion_value, 'fl_ubicacionid,fl_nombre,fl_areamanager').then(setUbicacion)
-          if (l.fl_cif) {
+          // El aviso de duplicidad entre concesionarios es solo para ventas y administración.
+          if (l.fl_cif && veComoVentas) {
             buscarEmpresaDuplicadaEnOtroConcesionario(l.fl_cif, l._fl_concesionario_value).then((otra) => {
               setOtraEmpresa(otra)
               if (otra) {
@@ -116,7 +130,7 @@ export function DetalleLead() {
     cargarActividad(id)
   }
 
-  useEffect(cargar, [id])
+  useEffect(cargar, [id, veComoVentas])
 
   if (cargando) return <p className="wizard-loading">Cargando…</p>
   if (!lead) return <p className="wizard-error">No se encontró la oportunidad.</p>
@@ -148,7 +162,17 @@ export function DetalleLead() {
   const quitarAdjunto = (a: Adjunto) =>
     setAdjuntos((m) => new Map([...m].map(([k, lista]) => [k, lista.filter((x) => x.annotationid !== a.annotationid)])))
 
-  const falta = numLineas === null ? null : faltantes(lead.fl_faseactual, { lead, numLineas })
+  // La gente de "Sin concesionario" negocia directamente: pone también el descuento de marca.
+  const editaDescuentoVentas = veComoVentas || (!soloLectura && esSinConcesionario(lead._fl_concesionario_value))
+  const guardarLineas = async (cambios: CambioLinea[]) => {
+    const nuevas = await guardarCambiosLineas(lead.fl_leadid, cambios, modelos, { borrarMarcaSiCambia: !editaDescuentoVentas })
+    setLineas(nuevas)
+    setVersionLineas((v) => v + 1)
+    cargar()
+  }
+  const enCierre = lead.fl_faseactual === Fase.Cierre || lead.fl_faseactual === Fase.Entrega
+
+  const falta = lineas === null ? null : faltantes(lead.fl_faseactual, { lead, numLineas: lineas.length, lineas })
   const tareasAbiertas = (tareas ?? []).filter(tareaAbierta).length
 
   return (
@@ -229,14 +253,28 @@ export function DetalleLead() {
             lead={lead}
             soloLectura={soloLectura}
             onGuardar={guardarDatos}
-            antes={<LineasOportunidad leadId={lead.fl_leadid} textoAnterior={lead.fl_modelosinteres} soloLectura={soloLectura} onLineas={setNumLineas} />}
+            antes={
+              <LineasOportunidad
+                leadId={lead.fl_leadid}
+                textoAnterior={lead.fl_modelosinteres}
+                soloLectura={soloLectura}
+                version={versionLineas}
+                onLineas={(l, m) => {
+                  setLineas(l)
+                  if (m.length) setModelos(m)
+                }}
+              />
+            }
           />
           <OfertaLead
             lead={lead}
+            lineas={lineas}
+            modelos={modelos}
             editaConcesionario={!soloLectura}
             editaVentas={editaDescuentoVentas}
             onGuardar={guardarDatos}
-            otraEmpresa={otraEmpresa}
+            onGuardarLineas={guardarLineas}
+            otraEmpresa={veComoVentas ? otraEmpresa : null}
             otroConcesionarioNombre={otroConcesionarioNombre}
           />
           <BloqueDatos
@@ -255,6 +293,9 @@ export function DetalleLead() {
               </dl>
             }
           />
+          {enCierre && (
+            <CierreOperacion lineas={lineas} modelos={modelos} editaConcesionario={!soloLectura} editaVentas={editaDescuentoVentas} onGuardarLineas={guardarLineas} />
+          )}
         </div>
 
         <div className="detalle-actividad">

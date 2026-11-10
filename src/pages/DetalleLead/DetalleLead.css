@@ -645,3 +645,56 @@
     margin-left: 24px;
   }
 }
+
+/* ---------------------------------------------------------------- oferta y cierre por modelo */
+.tabla-modelos-wrap {
+  overflow-x: auto;
+  margin: 4px 0 10px;
+}
+.tabla-modelos {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.tabla-modelos th {
+  text-align: left;
+  font-weight: 600;
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+.tabla-modelos td {
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text);
+}
+.tabla-modelos .num {
+  text-align: right;
+  white-space: nowrap;
+}
+.tabla-modelos tfoot td {
+  font-weight: 600;
+  border-bottom: none;
+}
+.tabla-modelos-input {
+  width: 84px;
+  padding: 4px 6px;
+  text-align: right;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font: inherit;
+}
+.oferta-sin-modelos {
+  margin: 4px 0 10px;
+}
+.fase-dialog .field.is-falta > label {
+  color: var(--color-danger);
+}
+.fase-dialog-aviso.is-bloqueo {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+}

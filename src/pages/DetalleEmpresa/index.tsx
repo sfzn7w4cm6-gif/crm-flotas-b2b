@@ -42,7 +42,8 @@ export function DetalleEmpresa() {
               setNombreConcesionarioPropio(c?.fl_nombre ?? null),
             )
           }
-          buscarEmpresaDuplicadaEnOtroConcesionario(e.fl_cif, e._fl_concesionario_value).then((otra) => {
+          // El aviso de duplicidad entre concesionarios es solo para ventas y administración.
+          if (vistaRed) buscarEmpresaDuplicadaEnOtroConcesionario(e.fl_cif, e._fl_concesionario_value).then((otra) => {
             setOtraEmpresa(otra)
             if (otra) {
               getRecord<Concesionario>(Tables.Concesionario, otra._fl_concesionario_value, 'fl_concesionarioid,fl_nombre').then((c) =>
@@ -93,7 +94,7 @@ export function DetalleEmpresa() {
       </div>
       {error && <p className="wizard-error">{error}</p>}
 
-      {otraEmpresa && (
+      {vistaRed && otraEmpresa && (
         <div className="oferta-aviso-duplicado">
           <Icon name="warning" size={15} />
           <p className="oferta-aviso-duplicado-texto">

@@ -1,5 +1,5 @@
 import { FASES_ACTIVAS, Fase } from './types'
-import type { Lead } from './types'
+import type { Lead, LineaOportunidad } from './types'
 import type { ActualizarLeadInput } from './leadsService'
 
 // Qué campos de la ficha (secciones 3-5 del Excel) pide cada fase al cambiar a ella.
@@ -8,9 +8,13 @@ import type { ActualizarLeadInput } from './leadsService'
 // Todos siguen editables siempre desde la ficha. Para cambiar qué pide cada fase, solo
 // hay que tocar REQUISITOS.
 
-export type CampoFase = keyof ActualizarLeadInput | 'modelos'
+/**
+ * 'modelos': modelos de interés y unidades. 'descuentos': descuento del concesionario de cada
+ * modelo (la oferta). 'cierre': unidades y descuentos finales de cada modelo al cerrar.
+ */
+export type CampoFase = keyof ActualizarLeadInput | 'modelos' | 'descuentos' | 'cierre'
 
-export type TipoCampo = 'texto' | 'textoLargo' | 'numero' | 'euros' | 'porcentaje' | 'fecha' | 'financiacion' | 'plazo' | 'modelos'
+export type TipoCampo = 'texto' | 'textoLargo' | 'numero' | 'euros' | 'porcentaje' | 'fecha' | 'financiacion' | 'plazo' | 'modelos' | 'descuentos' | 'cierre'
 
 export const CAMPOS: Partial<Record<CampoFase, { label: string; tipo: TipoCampo; seccion: string; leadField?: keyof Lead }>> = {
   numVehiculosActuales: { label: 'Nº vehículos actuales', tipo: 'numero', seccion: 'Situación actual de flota', leadField: 'fl_numvehiculosactuales' },
@@ -19,17 +23,16 @@ export const CAMPOS: Partial<Record<CampoFase, { label: string; tipo: TipoCampo;
   modoFinanciacionActual: { label: 'Modo de financiación actual', tipo: 'financiacion', seccion: 'Situación actual de flota', leadField: 'fl_modofinanciacionactual' },
   vencimientoContratosActuales: { label: 'Vencimiento contratos actuales', tipo: 'fecha', seccion: 'Situación actual de flota', leadField: 'fl_vencimientocontratosactuales' },
   modelos: { label: 'Modelos de interés', tipo: 'modelos', seccion: 'Necesidad y oportunidad' },
-  cuotasObjetivo: { label: 'Cuotas objetivo (€)', tipo: 'euros', seccion: 'Necesidad y oportunidad', leadField: 'fl_cuotasobjetivo' },
   plazoEstimadoDecision: { label: 'Plazo estimado de decisión', tipo: 'plazo', seccion: 'Necesidad y oportunidad', leadField: 'fl_plazoestimadodecision' },
   competidoresDetectados: { label: 'Competidores detectados', tipo: 'texto', seccion: 'Necesidad y oportunidad', leadField: 'fl_competidoresdetectados' },
   requisitos: { label: 'Requisitos (etiquetas, tecnología, política de flotas)', tipo: 'textoLargo', seccion: 'Necesidad y oportunidad', leadField: 'fl_requisitos' },
-  kmTiempo: { label: 'Km / tiempo', tipo: 'texto', seccion: 'Necesidad y oportunidad', leadField: 'fl_kmtiempo' },
   ultimaAccionRealizada: { label: 'Última acción realizada', tipo: 'textoLargo', seccion: 'Histórico y seguimiento', leadField: 'fl_ultimaaccionrealizada' },
   proximaAccion: { label: 'Próxima acción', tipo: 'texto', seccion: 'Histórico y seguimiento', leadField: 'fl_proximaaccion' },
   fechaProximaAccion: { label: 'Fecha próxima acción', tipo: 'fecha', seccion: 'Histórico y seguimiento', leadField: 'fl_fechaproximaaccion' },
   observaciones: { label: 'Observaciones / notas clave', tipo: 'textoLargo', seccion: 'Histórico y seguimiento', leadField: 'fl_observaciones' },
-  descuentoConcesionario: { label: 'Descuento del concesionario (%)', tipo: 'porcentaje', seccion: 'Oferta', leadField: 'fl_descuentoconcesionario' },
+  descuentos: { label: 'Descuento por modelo', tipo: 'descuentos', seccion: 'Oferta' },
   ofertaCondiciones: { label: 'Condiciones de la oferta', tipo: 'textoLargo', seccion: 'Oferta', leadField: 'fl_ofertacondiciones' },
+  cierre: { label: 'Unidades y descuento por modelo', tipo: 'cierre', seccion: 'Cierre de la operación' },
 }
 
 interface Requisito {
@@ -49,19 +52,18 @@ const REQUISITOS: Partial<Record<Fase, Requisito[]>> = {
     obligatorio('modoFinanciacionActual'),
     obligatorio('vencimientoContratosActuales'),
     obligatorio('modelos'),
-    opcional('cuotasObjetivo'),
     obligatorio('plazoEstimadoDecision'),
     opcional('competidoresDetectados'),
     opcional('requisitos'),
-    opcional('kmTiempo'),
     opcional('ultimaAccionRealizada'),
     obligatorio('proximaAccion'),
     obligatorio('fechaProximaAccion'),
     opcional('observaciones'),
   ],
-  [Fase.Propuesta]: [obligatorio('descuentoConcesionario'), opcional('ofertaCondiciones')],
-  // Al cerrar se revisan/confirman las unidades realmente vendidas (modelo + cantidad).
-  [Fase.Cierre]: [obligatorio('modelos')],
+  // La oferta va por modelo: hacen falta los modelos (Cualificación) antes de poner descuentos.
+  [Fase.Propuesta]: [obligatorio('descuentos'), opcional('ofertaCondiciones')],
+  // Al cerrar se confirman las unidades realmente vendidas de cada modelo y su descuento final.
+  [Fase.Cierre]: [obligatorio('cierre')],
 }
 
 // Siempre que la oportunidad siga abierta se ofrece actualizar el siguiente paso.
@@ -75,6 +77,11 @@ export function requisitosHasta(fase: Fase): Requisito[] {
   for (const f of hasta) {
     for (const r of REQUISITOS[f] ?? []) porCampo.set(r.campo, (porCampo.get(r.campo) ?? false) || r.obligatorio)
   }
+  // En Cierre, la tabla de cierre ya incluye modelos y descuentos: no se piden dos veces.
+  if (porCampo.has('cierre')) {
+    porCampo.delete('modelos')
+    porCampo.delete('descuentos')
+  }
   return [...porCampo].map(([campo, oblig]) => ({ campo, obligatorio: oblig }))
 }
 
@@ -82,10 +89,16 @@ export interface Contexto {
   lead: Lead
   /** Nº de líneas de modelo; los leads antiguos con texto en "Modelos de interés" cuentan como rellenos. */
   numLineas: number
+  /** Las líneas, si se conocen: para saber si cada modelo tiene ya su descuento. */
+  lineas?: LineaOportunidad[]
 }
 
 export function estaVacio(campo: CampoFase, ctx: Contexto): boolean {
   if (campo === 'modelos') return ctx.numLineas === 0 && !ctx.lead.fl_modelosinteres
+  if (campo === 'descuentos' || campo === 'cierre') {
+    if (ctx.lineas) return ctx.lineas.length === 0 || ctx.lineas.some((l) => l.fl_descuentoconcesionario == null)
+    return ctx.numLineas === 0 || ctx.lead.fl_descuentoconcesionario == null
+  }
   const f = CAMPOS[campo]?.leadField
   const v = f ? ctx.lead[f] : undefined
   return v === null || v === undefined || v === ''
@@ -111,6 +124,10 @@ export function camposDelDialogo(fase: Fase, ctx: Contexto): Requisito[] {
   const propios = new Set((REQUISITOS[fase] ?? []).map((r) => r.campo))
   const abierta = fase !== Fase.Cierre && fase !== Fase.Entrega
   const visibles = reqs.filter((r) => propios.has(r.campo) || estaVacio(r.campo, ctx))
+  // Con la oferta a la vista hacen falta los modelos en la misma ventana, para poder añadirlos.
+  if (visibles.some((r) => r.campo === 'descuentos') && !visibles.some((r) => r.campo === 'modelos' || r.campo === 'cierre')) {
+    visibles.push(reqs.find((r) => r.campo === 'modelos') ?? opcional('modelos'))
+  }
   if (abierta) {
     for (const c of SIGUIENTE_PASO) if (!visibles.some((r) => r.campo === c)) visibles.push(reqs.find((r) => r.campo === c) ?? opcional(c))
   }

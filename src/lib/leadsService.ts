@@ -9,6 +9,7 @@ import {
   numeroOportunidadAbierta,
   type ActualizarEmpresaInput,
 } from './empresasService'
+import { esSinConcesionario, registrarSinConcesionario } from './descuento'
 import { EstadoEmpresa, Fase } from './types'
 import type { Empresa, FaseHistorico, Lead, Ubicacion, UsuarioApp } from './types'
 
@@ -200,8 +201,8 @@ const FASE_TITULOS: Record<Fase, string> = {
 const LEAD_SELECT =
   'fl_leadid,fl_numero,fl_razonsocial,fl_cif,fl_nombreresponsable,fl_telefonocorporativo,fl_emailcorporativo,' +
   'fl_numvehiculosactuales,fl_marcasactuales,fl_actividadeconomica,fl_modofinanciacionactual,fl_vencimientocontratosactuales,' +
-  'fl_cuotasobjetivo,fl_modelosinteres,fl_numvehiculosrenovarampliar,fl_plazoestimadodecision,fl_competidoresdetectados,' +
-  'fl_requisitos,fl_kmtiempo,fl_fechaprimercontacto,fl_faseactual,fl_ofertacondiciones,fl_descuentoconcesionario,fl_descuentoventas,fl_ultimaaccionrealizada,fl_proximaaccion,' +
+  'fl_modelosinteres,fl_numvehiculosrenovarampliar,fl_plazoestimadodecision,fl_competidoresdetectados,' +
+  'fl_requisitos,fl_fechaprimercontacto,fl_faseactual,fl_ofertacondiciones,fl_descuentoconcesionario,fl_descuentoventas,fl_fechacondiciones,fl_condicionesrevisadas,fl_ultimaaccionrealizada,fl_proximaaccion,' +
   'fl_fechaproximaaccion,fl_comercialresponsable,fl_observaciones,fl_motivoperdida,createdon,' +
   '_fl_ubicacion_value,_fl_concesionario_value,_fl_creadopor_value,_ownerid_value,_fl_empresa_value,_fl_comercial_value'
 
@@ -226,7 +227,7 @@ export async function fetchOportunidadesDeEmpresa(empresaId: string): Promise<Le
  * al leerlo para que listas, KPIs y exportaciones sigan usando los mismos campos de siempre.
  */
 async function conDatosDeEmpresa(leads: Lead[]): Promise<Lead[]> {
-  const empresas = await fetchEmpresasPorIds(leads.map((l) => l._fl_empresa_value ?? ''))
+  const [empresas] = await Promise.all([fetchEmpresasPorIds(leads.map((l) => l._fl_empresa_value ?? '')), asegurarSinConcesionario()])
   return leads.map((l) => {
     const e = l._fl_empresa_value ? empresas.get(l._fl_empresa_value) : undefined
     if (!e) return l
@@ -239,6 +240,20 @@ async function conDatosDeEmpresa(leads: Lead[]): Promise<Lead[]> {
       fl_emailcorporativo: e.fl_emailcorporativo ?? '',
     }
   })
+}
+
+// Se busca una sola vez por sesión: el id de "Sin concesionario" cambia entre entornos.
+let sinConcesionarioCargado: Promise<void> | null = null
+export function asegurarSinConcesionario(): Promise<void> {
+  sinConcesionarioCargado ??= listRecords<{ fl_concesionarioid: string }>(Tables.Concesionario, {
+    select: 'fl_concesionarioid',
+    filter: "fl_nombre eq 'Sin concesionario'",
+  })
+    .then((c) => registrarSinConcesionario(c.map((x) => x.fl_concesionarioid)))
+    .catch(() => {
+      sinConcesionarioCargado = null
+    })
+  return sinConcesionarioCargado
 }
 
 export interface FiltrosLeads {
@@ -287,13 +302,11 @@ export interface ActualizarLeadInput {
   actividadEconomica?: string
   modoFinanciacionActual?: number
   vencimientoContratosActuales?: string
-  cuotasObjetivo?: number
   modelosInteres?: string
   numVehiculosRenovarAmpliar?: number
   plazoEstimadoDecision?: number
   competidoresDetectados?: string
   requisitos?: string
-  kmTiempo?: string
   ultimaAccionRealizada?: string
   proximaAccion?: string
   fechaProximaAccion?: string
@@ -315,13 +328,11 @@ const CAMPO_MAP: Record<keyof ActualizarLeadInput, string> = {
   actividadEconomica: 'fl_actividadeconomica',
   modoFinanciacionActual: 'fl_modofinanciacionactual',
   vencimientoContratosActuales: 'fl_vencimientocontratosactuales',
-  cuotasObjetivo: 'fl_cuotasobjetivo',
   modelosInteres: 'fl_modelosinteres',
   numVehiculosRenovarAmpliar: 'fl_numvehiculosrenovarampliar',
   plazoEstimadoDecision: 'fl_plazoestimadodecision',
   competidoresDetectados: 'fl_competidoresdetectados',
   requisitos: 'fl_requisitos',
-  kmTiempo: 'fl_kmtiempo',
   ultimaAccionRealizada: 'fl_ultimaaccionrealizada',
   proximaAccion: 'fl_proximaaccion',
   fechaProximaAccion: 'fl_fechaproximaaccion',
@@ -351,9 +362,24 @@ export async function actualizarLead(leadId: string, input: ActualizarLeadInput,
   // Si cambia el descuento del concesionario, el de ventas se borra para que ventas lo revise
   // (salvo que se guarden los dos a la vez, como hace el administrador).
   if (input.descuentoConcesionario !== undefined && input.descuentoVentas === undefined) fields.fl_descuentoventas = null
+  // Condiciones nuevas: quedan pendientes de revisar por ventas (aviso en la campanita).
+  if (input.ofertaCondiciones !== undefined) {
+    fields.fl_fechacondiciones = input.ofertaCondiciones ? new Date().toISOString() : null
+    fields.fl_condicionesrevisadas = !input.ofertaCondiciones
+  }
   if (empresaId) await actualizarEmpresa(empresaId, empresa as ActualizarEmpresaInput)
   if (Object.keys(fields).length === 0) return
   await updateRecord(Tables.Lead, leadId, fields)
+}
+
+/** Ventas ha abierto la oportunidad: las condiciones dejan de estar pendientes de revisar. */
+export async function marcarCondicionesRevisadas(leadId: string): Promise<void> {
+  await updateRecord(Tables.Lead, leadId, { fl_condicionesrevisadas: true })
+}
+
+/** Condiciones puestas por el concesionario que ventas aún no ha visto. */
+export function condicionesPorRevisar(l: Lead): boolean {
+  return !!l.fl_ofertacondiciones && !!l.fl_fechacondiciones && l.fl_condicionesrevisadas === false && !esSinConcesionario(l._fl_concesionario_value)
 }
 
 /** Otra empresa del mismo concesionario con ese CIF, si la hay (el CIF identifica a la empresa). */

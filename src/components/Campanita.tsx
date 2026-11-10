@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Icon } from './Icon'
 import { descuentoPendiente } from '../lib/descuento'
 import { fetchEmpresas } from '../lib/empresasService'
-import { fetchTodosLosLeads } from '../lib/leadsService'
+import { condicionesPorRevisar, fetchTodosLosLeads } from '../lib/leadsService'
 import {
   empresasDuplicadas,
   enlaceNotificacion,
@@ -16,13 +16,20 @@ import { TipoNotificacion } from '../lib/types'
 import type { Notificacion } from '../lib/types'
 import './Campanita.css'
 
-const formatoFecha = (iso?: string) => (iso ? new Date(iso).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' }) : '')
+const ETIQUETA_TIPO: Record<number, string> = {
+  [TipoNotificacion.DescuentoPendiente]: 'Pendiente de % de marca',
+  [TipoNotificacion.EmpresaDuplicada]: 'Empresa duplicada',
+  [TipoNotificacion.CondicionesPorRevisar]: 'Condiciones por revisar',
+}
+
+const formatoFecha =(iso?: string) => (iso ? new Date(iso).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' }) : '')
 
 export function Campanita() {
   const [abierta, setAbierta] = useState(false)
   const [notifs, setNotifs] = useState<Notificacion[]>([])
   const [leadIdsPendientes, setLeadIdsPendientes] = useState<Set<string>>(new Set())
   const [cifsDuplicados, setCifsDuplicados] = useState<Set<string>>(new Set())
+  const [leadIdsCondiciones, setLeadIdsCondiciones] = useState<Set<string>>(new Set())
   const [cargando, setCargando] = useState(true)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -36,6 +43,7 @@ export function Campanita() {
     const nombreConcesionario = new Map(concesionarios.map((c) => [c.fl_concesionarioid, c.fl_nombre]))
     const huboNuevas = await sincronizarNotificaciones(leads, empresas, existentes, nombreConcesionario).catch(() => false)
     setLeadIdsPendientes(new Set(leads.filter(descuentoPendiente).map((l) => l.fl_leadid)))
+    setLeadIdsCondiciones(new Set(leads.filter(condicionesPorRevisar).map((l) => l.fl_leadid)))
     setCifsDuplicados(new Set(empresasDuplicadas(empresas).map((g) => g.cif)))
     setNotifs(huboNuevas ? await fetchNotificaciones() : existentes)
     setCargando(false)
@@ -57,15 +65,18 @@ export function Campanita() {
   const ordenadas = useMemo(() => {
     const copia = [...notifs]
     copia.sort((a, b) => {
-      const pa = notificacionPendiente(a, leadIdsPendientes, cifsDuplicados) ? 1 : 0
-      const pb = notificacionPendiente(b, leadIdsPendientes, cifsDuplicados) ? 1 : 0
+      const pa = notificacionPendiente(a, leadIdsPendientes, cifsDuplicados, leadIdsCondiciones) ? 1 : 0
+      const pb = notificacionPendiente(b, leadIdsPendientes, cifsDuplicados, leadIdsCondiciones) ? 1 : 0
       if (pa !== pb) return pb - pa
       return (b.createdon ?? '').localeCompare(a.createdon ?? '')
     })
     return copia
-  }, [notifs, leadIdsPendientes, cifsDuplicados])
+  }, [notifs, leadIdsPendientes, cifsDuplicados, leadIdsCondiciones])
 
-  const pendientesCount = useMemo(() => notifs.filter((n) => notificacionPendiente(n, leadIdsPendientes, cifsDuplicados)).length, [notifs, leadIdsPendientes, cifsDuplicados])
+  const pendientesCount = useMemo(
+    () => notifs.filter((n) => notificacionPendiente(n, leadIdsPendientes, cifsDuplicados, leadIdsCondiciones)).length,
+    [notifs, leadIdsPendientes, cifsDuplicados, leadIdsCondiciones],
+  )
 
   const quitar = async (id: string) => {
     setNotifs((prev) => prev.filter((n) => n.fl_notificacionid !== id))
@@ -99,7 +110,7 @@ export function Campanita() {
           ) : (
             <ul className="campanita-lista">
               {ordenadas.map((n) => {
-                const pendiente = notificacionPendiente(n, leadIdsPendientes, cifsDuplicados)
+                const pendiente = notificacionPendiente(n, leadIdsPendientes, cifsDuplicados, leadIdsCondiciones)
                 return (
                   <li key={n.fl_notificacionid} className={`campanita-item${pendiente ? ' is-pendiente' : ''}`}>
                     <button type="button" className="campanita-item-texto" onClick={() => ir(n)}>
@@ -107,7 +118,7 @@ export function Campanita() {
                       <span>
                         <span className="campanita-titulo">{n.fl_titulo}</span>
                         <span className="campanita-meta">
-                          {n.fl_tipo === TipoNotificacion.EmpresaDuplicada ? 'Empresa duplicada' : 'Pendiente de % de marca'} · {formatoFecha(n.createdon)}
+                          {ETIQUETA_TIPO[n.fl_tipo] ?? 'Aviso'} · {formatoFecha(n.createdon)}
                           {!pendiente && ' · Resuelta'}
                         </span>
                       </span>

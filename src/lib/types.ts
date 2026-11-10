@@ -21,6 +21,7 @@ export const RolAppLabel: Record<RolApp, string> = {
 export const TipoNotificacion = {
   DescuentoPendiente: 101000000,
   EmpresaDuplicada: 101000001,
+  CondicionesPorRevisar: 101000002,
 } as const
 export type TipoNotificacion = (typeof TipoNotificacion)[keyof typeof TipoNotificacion]
 
@@ -147,20 +148,22 @@ export interface Lead {
   fl_modofinanciacionactual: ModoFinanciacion
   fl_vencimientocontratosactuales: string
   // seccion 4
-  fl_cuotasobjetivo: number
   fl_modelosinteres: string
   fl_numvehiculosrenovarampliar: number
   fl_plazoestimadodecision: PlazoDecision
   fl_competidoresdetectados: string
   fl_requisitos: string
-  fl_kmtiempo: string
   // seccion 5
   fl_fechaprimercontacto: string
   fl_faseactual: Fase
   fl_ofertacondiciones?: string
   // Descuento de la oferta en %: el del concesionario y el de ventas se suman (lib/descuento.ts).
+  // Se ponen por modelo (fl_lineaoportunidad); estos dos son su resumen ponderado por unidades.
   fl_descuentoconcesionario?: number | null
   fl_descuentoventas?: number | null
+  /** Cuándo cambió el concesionario las condiciones; y si ventas ya las ha visto desde entonces. */
+  fl_fechacondiciones?: string | null
+  fl_condicionesrevisadas?: boolean | null
   fl_ultimaaccionrealizada: string
   fl_proximaaccion: string
   fl_fechaproximaaccion: string
@@ -334,6 +337,9 @@ export interface LineaOportunidad {
   fl_lineaoportunidadid: string
   fl_titulo: string
   fl_cantidad: number
+  /** Descuentos de la oferta para este modelo, en %. */
+  fl_descuentoconcesionario?: number | null
+  fl_descuentoventas?: number | null
   _fl_lead_value: string
   _fl_modelo_value: string
 }

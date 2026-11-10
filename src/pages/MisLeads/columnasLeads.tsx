@@ -2,7 +2,6 @@ import type { ReactNode } from 'react'
 import { EnlaceEmpresa } from '../../components/EnlaceEmpresa'
 import { DescuentoPendienteBadge, FaseBadge } from '../../components/StatusBadge'
 import { descuentoPendiente, descuentoTotal, formatoPorcentaje } from '../../lib/descuento'
-import { formatoEuros } from '../../lib/actividadService'
 import { fechaCorta } from '../../lib/formato'
 import { FaseLabel, ModoFinanciacionLabel, PlazoDecisionLabel } from '../../lib/types'
 import type { Lead } from '../../lib/types'
@@ -32,10 +31,8 @@ export type ColKey =
   | 'vencimiento'
   | 'modelos'
   | 'vehiculos'
-  | 'cuotas'
   | 'plazo'
   | 'competidores'
-  | 'kmTiempo'
   | 'requisitos'
   | 'fechaPrimerContacto'
   | 'ultimaAccion'
@@ -125,10 +122,8 @@ export const COLUMNAS: ColumnDef[] = [
   // Necesidad y oportunidad
   texto('modelos', 'Modelos de interés', (l) => l.fl_modelosinteres),
   numero('vehiculos', 'Vehículos de interés', (l) => l.fl_numvehiculosrenovarampliar),
-  numero('cuotas', 'Cuotas objetivo', (l) => l.fl_cuotasobjetivo, formatoEuros),
   texto('plazo', 'Plazo de decisión', (l) => PlazoDecisionLabel[l.fl_plazoestimadodecision]),
   texto('competidores', 'Competidores', (l) => l.fl_competidoresdetectados),
-  texto('kmTiempo', 'Km / tiempo', (l) => l.fl_kmtiempo),
   texto('requisitos', 'Requisitos', (l) => l.fl_requisitos),
   // Seguimiento
   fecha('fechaPrimerContacto', 'Fecha de primer contacto', (l) => l.fl_fechaprimercontacto),

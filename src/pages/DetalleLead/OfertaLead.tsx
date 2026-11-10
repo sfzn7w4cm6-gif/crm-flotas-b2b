@@ -1,74 +1,70 @@
 import { useState } from 'react'
 import { Icon } from '../../components/Icon'
 import { DescuentoPendienteBadge } from '../../components/StatusBadge'
-import { descuentoPendiente, descuentoTotal, formatoPorcentaje } from '../../lib/descuento'
+import { descuentoPendiente } from '../../lib/descuento'
 import { numeroOportunidadAbierta } from '../../lib/empresasService'
 import type { ActualizarLeadInput } from '../../lib/leadsService'
-import type { Empresa, Lead } from '../../lib/types'
+import type { CambioLinea } from '../../lib/lineasService'
+import type { Empresa, Lead, LineaOportunidad, Modelo } from '../../lib/types'
 import { Dato } from './DatosLead'
+import { borradorInicial, cambiosDelBorrador, TablaModelos, type Borrador } from './TablaModelos'
 
-// Bloque "Oferta" de la ficha: el descuento del concesionario (lo pone el comercial), el de
-// ventas (lo pone el equipo de ventas), su suma y las condiciones. Cada uno edita lo suyo; el
-// administrador, todo.
-
-type Clave = 'descuentoConcesionario' | 'descuentoVentas' | 'ofertaCondiciones'
-
-const texto = (n: number | null | undefined) => (n == null ? '' : String(n))
+// Bloque "Oferta" de la ficha: por cada modelo, el descuento del concesionario (lo pone el
+// comercial), el de marca (lo pone ventas) y su suma; debajo, las condiciones. Cada uno edita
+// lo suyo; el administrador y la gente de "Sin concesionario", todo.
 
 export function OfertaLead({
   lead,
+  lineas,
+  modelos,
   editaConcesionario,
   editaVentas,
   onGuardar,
+  onGuardarLineas,
   otraEmpresa,
   otroConcesionarioNombre,
 }: {
   lead: Lead
+  /** Modelos de la oportunidad; null mientras cargan. */
+  lineas: LineaOportunidad[] | null
+  modelos: Modelo[]
   /** Puede cambiar el descuento del concesionario y las condiciones. */
   editaConcesionario: boolean
-  /** Puede cambiar el descuento de ventas. */
+  /** Puede cambiar el descuento de marca. */
   editaVentas: boolean
   onGuardar: (cambios: ActualizarLeadInput) => Promise<void>
+  onGuardarLineas: (cambios: CambioLinea[]) => Promise<void>
   /** La misma empresa (por CIF), ya contactada por otro concesionario, si la hay. */
   otraEmpresa?: Empresa | null
   otroConcesionarioNombre?: string | null
 }) {
-  const [valores, setValores] = useState<Record<Clave, string> | null>(null)
+  const [borrador, setBorrador] = useState<Borrador | null>(null)
+  const [condiciones, setCondiciones] = useState('')
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const pendiente = descuentoPendiente(lead)
+  const hayModelos = !!lineas && lineas.length > 0
+  const permisos = { cantidad: false, concesionario: editaConcesionario, ventas: editaVentas }
 
-  const iniciales = (): Record<Clave, string> => ({
-    descuentoConcesionario: texto(lead.fl_descuentoconcesionario),
-    descuentoVentas: texto(lead.fl_descuentoventas),
-    ofertaCondiciones: lead.fl_ofertacondiciones ?? '',
-  })
-  const set = (k: Clave, v: string) => setValores((x) => (x ? { ...x, [k]: v } : x))
+  const editar = () => {
+    setBorrador(borradorInicial(lineas ?? []))
+    setCondiciones(lead.fl_ofertacondiciones ?? '')
+    setError(null)
+  }
 
   const guardar = async () => {
-    if (!valores) return
-    const ini = iniciales()
-    const pct = (k: 'descuentoConcesionario' | 'descuentoVentas') => (valores[k].trim() === '' ? null : Number(valores[k]))
-    for (const k of ['descuentoConcesionario', 'descuentoVentas'] as const) {
-      const n = pct(k)
-      if (n !== null && (Number.isNaN(n) || n < 0 || n > 100)) {
-        setError('Cada descuento debe estar entre el 0 % y el 100 %.')
-        return
-      }
-    }
-    if ((pct('descuentoConcesionario') ?? 0) + (pct('descuentoVentas') ?? 0) > 100) {
-      setError('La suma de ambos descuentos no puede superar el 100 %.')
+    if (!borrador || !lineas) return
+    const { cambios, error: err } = cambiosDelBorrador(lineas, borrador, permisos)
+    if (err) {
+      setError(err)
       return
     }
-    const cambios: ActualizarLeadInput = {}
-    if (editaConcesionario && valores.descuentoConcesionario.trim() !== ini.descuentoConcesionario) cambios.descuentoConcesionario = pct('descuentoConcesionario')
-    if (editaVentas && valores.descuentoVentas.trim() !== ini.descuentoVentas) cambios.descuentoVentas = pct('descuentoVentas')
-    if (editaConcesionario && valores.ofertaCondiciones.trim() !== ini.ofertaCondiciones.trim()) cambios.ofertaCondiciones = valores.ofertaCondiciones.trim()
     setGuardando(true)
     setError(null)
     try {
-      await onGuardar(cambios)
-      setValores(null)
+      if (cambios.length) await onGuardarLineas(cambios)
+      if (editaConcesionario && condiciones.trim() !== (lead.fl_ofertacondiciones ?? '').trim()) await onGuardar({ ofertaCondiciones: condiciones.trim() })
+      setBorrador(null)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo guardar.')
     } finally {
@@ -78,25 +74,16 @@ export function OfertaLead({
 
   // Aviso al comercial: si cambia su descuento, ventas tendrá que poner el suyo de nuevo.
   const borraraVentas =
-    !!valores && !editaVentas && lead.fl_descuentoventas != null && valores.descuentoConcesionario.trim() !== texto(lead.fl_descuentoconcesionario)
+    !!borrador && !editaVentas && (lineas ?? []).some((l) => l.fl_descuentoventas != null && (borrador[l.fl_lineaoportunidadid]?.concesionario ?? '') !== String(l.fl_descuentoconcesionario ?? ''))
 
   return (
-    <section className={`bloque-datos${valores ? ' is-editando' : ''}${pendiente ? ' is-pendiente-descuento' : ''}`}>
+    <section className={`bloque-datos${borrador ? ' is-editando' : ''}${pendiente ? ' is-pendiente-descuento' : ''}`}>
       <header className="bloque-datos-cabecera">
         <h2>Oferta</h2>
         <div className="bloque-datos-cabecera-derecha">
           {pendiente && <DescuentoPendienteBadge />}
-          {(editaConcesionario || editaVentas) && !valores && (
-            <button
-              type="button"
-              className="bloque-datos-editar"
-              onClick={() => {
-                setValores(iniciales())
-                setError(null)
-              }}
-              aria-label="Editar oferta"
-              title="Editar"
-            >
+          {(editaConcesionario || editaVentas) && !borrador && hayModelos && (
+            <button type="button" className="bloque-datos-editar" onClick={editar} aria-label="Editar oferta" title="Editar">
               <Icon name="pencil" size={14} />
             </button>
           )}
@@ -120,47 +107,29 @@ export function OfertaLead({
           )}
         </div>
       )}
-      {valores ? (
+
+      {lineas === null ? (
+        <p className="flow-meta">Cargando…</p>
+      ) : !hayModelos ? (
+        <p className="flow-meta oferta-sin-modelos">
+          El descuento se pone por modelo. Añade primero los modelos de interés en «Necesidad y oportunidad» para poder preparar la oferta.
+        </p>
+      ) : (
+        <TablaModelos lineas={lineas} modelos={modelos} borrador={borrador} permisos={permisos} onChange={setBorrador} pendienteMarca="Pendiente" />
+      )}
+
+      {borrador ? (
         <div className="bloque-datos-form">
-          <div className="datos-form-grid">
-            <div className="field">
-              <label htmlFor="dto-concesionario">Descuento del concesionario (%)</label>
-              <input
-                id="dto-concesionario"
-                type="number"
-                min={0}
-                max={100}
-                step={0.01}
-                value={valores.descuentoConcesionario}
-                disabled={!editaConcesionario}
-                onChange={(e) => set('descuentoConcesionario', e.target.value)}
-              />
+          {editaConcesionario && (
+            <div className="field is-ancho">
+              <label htmlFor="oferta-condiciones">Condiciones de la oferta</label>
+              <textarea id="oferta-condiciones" rows={3} value={condiciones} onChange={(e) => setCondiciones(e.target.value)} />
             </div>
-            <div className="field">
-              <label htmlFor="dto-ventas">Descuento de marca (%)</label>
-              <input
-                id="dto-ventas"
-                type="number"
-                min={0}
-                max={100}
-                step={0.01}
-                value={valores.descuentoVentas}
-                disabled={!editaVentas}
-                placeholder={editaVentas ? '' : 'Pendiente de asignar por la marca'}
-                onChange={(e) => set('descuentoVentas', e.target.value)}
-              />
-            </div>
-            {editaConcesionario && (
-              <div className="field is-ancho">
-                <label htmlFor="oferta-condiciones">Condiciones de la oferta</label>
-                <textarea id="oferta-condiciones" rows={3} value={valores.ofertaCondiciones} onChange={(e) => set('ofertaCondiciones', e.target.value)} />
-              </div>
-            )}
-          </div>
-          {borraraVentas && <p className="field-ayuda oferta-aviso">Al modificar este descuento, el descuento de marca deberá revisarse de nuevo.</p>}
+          )}
+          {borraraVentas && <p className="field-ayuda oferta-aviso">Al modificar el descuento de un modelo, el descuento de marca de ese modelo deberá revisarse de nuevo.</p>}
           {error && <p className="wizard-error">{error}</p>}
           <div className="bloque-datos-acciones">
-            <button type="button" className="btn-link" onClick={() => setValores(null)} disabled={guardando}>
+            <button type="button" className="btn-link" onClick={() => setBorrador(null)} disabled={guardando}>
               Cancelar
             </button>
             <button type="button" className="btn-primary btn-sm" onClick={guardar} disabled={guardando}>
@@ -170,9 +139,6 @@ export function OfertaLead({
         </div>
       ) : (
         <dl className="datos-grid">
-          <Dato label="Descuento del concesionario" valor={formatoPorcentaje(lead.fl_descuentoconcesionario)} />
-          <Dato label="Descuento de marca" valor={pendiente ? <span className="oferta-pendiente">Pendiente</span> : formatoPorcentaje(lead.fl_descuentoventas)} />
-          <Dato label="Descuento total" valor={descuentoTotal(lead) == null ? '' : <strong>{formatoPorcentaje(descuentoTotal(lead))}</strong>} />
           <Dato label="Condiciones" valor={lead.fl_ofertacondiciones} ancho />
         </dl>
       )}

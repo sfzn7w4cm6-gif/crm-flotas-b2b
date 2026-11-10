@@ -1,17 +1,21 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Icon } from '../../components/Icon'
 import { FaseSelect } from '../../components/StatusBadge'
+import { useAuth } from '../../context/AuthContext'
 import { CAMPOS, camposDelDialogo, type CampoFase } from '../../lib/camposFase'
+import { esSinConcesionario } from '../../lib/descuento'
 import { actualizarLead, cambiarFaseLead, type ActualizarLeadInput } from '../../lib/leadsService'
-import { fetchLineas } from '../../lib/lineasService'
-import { Fase, FaseLabel, ModoFinanciacionLabel, PlazoDecisionLabel } from '../../lib/types'
-import type { Lead } from '../../lib/types'
+import { fetchLineas, guardarCambiosLineas } from '../../lib/lineasService'
+import { Fase, FaseLabel, ModoFinanciacionLabel, PlazoDecisionLabel, RolApp } from '../../lib/types'
+import type { Lead, LineaOportunidad, Modelo } from '../../lib/types'
 import { LineasOportunidad } from './LineasOportunidad'
+import { borradorInicial, cambiosDelBorrador, lineasConBorrador, TablaModelos, type Borrador } from './TablaModelos'
 
 /**
  * Ventana para cambiar de fase pidiendo los datos de la fase destino, o (sin cambiar de fase)
- * para completar lo que falta de la fase actual. Ningún campo impide guardar: si faltan los
- * necesarios para la fase, se avisa en amarillo y se puede seguir igualmente. Los modelos se guardan en cuanto se añaden, como en la ficha.
+ * para completar lo que falta de la fase actual. Para cambiar de fase hay que rellenar antes
+ * los campos obligatorios (*); al solo completar datos se puede guardar lo que se tenga.
+ * Los modelos se guardan en cuanto se añaden, como en la ficha.
  */
 export function CambioFaseDialog({
   lead,
@@ -28,49 +32,81 @@ export function CambioFaseDialog({
   onCerrar: () => void
   onHecho: () => void
 }) {
+  const { effectiveRol, isAdmin, viewAsRole } = useAuth()
+  // Descuento de marca: ventas, el administrador y la gente de "Sin concesionario".
+  const editaVentas = effectiveRol === RolApp.EquipoVentas || (isAdmin && viewAsRole === null) || esSinConcesionario(lead._fl_concesionario_value)
+
   const [fase, setFase] = useState<Fase | ''>(soloCompletar ? lead.fl_faseactual : (faseInicial ?? ''))
   const [valores, setValores] = useState<Partial<Record<CampoFase, string>>>(() => valoresIniciales(lead))
   const [motivoPerdida, setMotivoPerdida] = useState('')
   // Las líneas al abrir deciden qué campos se muestran; las actuales, si se cumple el obligatorio.
-  const [lineasIniciales, setLineasIniciales] = useState<number | null>(null)
-  const [numLineas, setNumLineas] = useState(0)
+  const [lineasIniciales, setLineasIniciales] = useState<LineaOportunidad[] | null>(null)
+  const [lineas, setLineas] = useState<LineaOportunidad[]>([])
+  const [modelos, setModelos] = useState<Modelo[]>([])
+  const [borrador, setBorrador] = useState<Borrador>({})
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     fetchLineas(lead.fl_leadid)
       .then((l) => {
-        setLineasIniciales(l.length)
-        setNumLineas(l.length)
+        setLineasIniciales(l)
+        setLineas(l)
+        setBorrador(borradorInicial(l))
       })
-      .catch(() => setLineasIniciales(0))
+      .catch(() => setLineasIniciales([]))
   }, [lead.fl_leadid])
 
+  // Al añadir o quitar modelos, el borrador de descuentos sigue a las líneas sin perder lo escrito.
+  const alCambiarLineas = (nuevas: LineaOportunidad[], m: Modelo[]) => {
+    setLineas(nuevas)
+    if (m.length) setModelos(m)
+    setBorrador((b) => ({ ...borradorInicial(nuevas), ...Object.fromEntries(Object.entries(b).filter(([id]) => nuevas.some((l) => l.fl_lineaoportunidadid === id))) }))
+  }
+
   const campos = useMemo(
-    () => (fase === '' || lineasIniciales === null ? [] : camposDelDialogo(fase, { lead, numLineas: lineasIniciales })),
+    () => (fase === '' || lineasIniciales === null ? [] : camposDelDialogo(fase, { lead, numLineas: lineasIniciales.length, lineas: lineasIniciales })),
     [fase, lead, lineasIniciales],
   )
+  const conCierre = campos.some((c) => c.campo === 'cierre')
+  const permisosTabla = { cantidad: conCierre, concesionario: true, ventas: editaVentas }
 
-  const relleno = (campo: CampoFase) =>
-    campo === 'modelos' ? numLineas > 0 || !!lead.fl_modelosinteres : (valores[campo] ?? '').trim() !== ''
+  const relleno = (campo: CampoFase) => {
+    if (campo === 'modelos') return lineas.length > 0 || !!lead.fl_modelosinteres
+    if (campo === 'descuentos' || campo === 'cierre') {
+      const vistas = lineasConBorrador(lineas, borrador)
+      return vistas.length > 0 && vistas.every((l) => l.fl_descuentoconcesionario != null && !Number.isNaN(l.fl_descuentoconcesionario))
+    }
+    return (valores[campo] ?? '').trim() !== ''
+  }
   const faltan = campos.filter((c) => c.obligatorio && !relleno(c.campo))
   const faltaMotivo = fase === Fase.Perdido && motivoPerdida.trim() === ''
-  const puedeGuardar = fase !== '' && !guardando
+  const cambiaFase = !soloCompletar && fase !== '' && fase !== lead.fl_faseactual
+  // Para cambiar de fase, todo lo obligatorio tiene que estar relleno.
+  const bloqueado = cambiaFase && (faltan.length > 0 || faltaMotivo)
+  const puedeGuardar = fase !== '' && !guardando && lineasIniciales !== null && !bloqueado
 
   const set = (campo: CampoFase, v: string) => setValores((x) => ({ ...x, [campo]: v }))
 
   const guardar = async () => {
     if (fase === '' || !puedeGuardar) return
+    const hayTabla = campos.some((c) => c.campo === 'descuentos' || c.campo === 'cierre')
+    const tabla = hayTabla ? cambiosDelBorrador(lineas, borrador, permisosTabla) : { cambios: [] }
+    if (tabla.error) {
+      setError(tabla.error)
+      return
+    }
     setGuardando(true)
     setError(null)
     try {
+      if (tabla.cambios.length) await guardarCambiosLineas(lead.fl_leadid, tabla.cambios, modelos, { borrarMarcaSiCambia: !editaVentas })
       const iniciales = valoresIniciales(lead)
       const cambios: Record<string, unknown> = {}
       for (const { campo } of campos) {
-        if (campo === 'modelos') continue
+        const tipo = CAMPOS[campo]?.tipo
+        if (tipo === 'modelos' || tipo === 'descuentos' || tipo === 'cierre') continue
         const v = (valores[campo] ?? '').trim()
         if (v === '' || v === iniciales[campo]) continue
-        const tipo = CAMPOS[campo]?.tipo
         cambios[campo] = tipo === 'numero' || tipo === 'euros' || tipo === 'porcentaje' || tipo === 'financiacion' || tipo === 'plazo' ? Number(v) : v
       }
       await actualizarLead(lead.fl_leadid, cambios as ActualizarLeadInput, lead._fl_empresa_value)
@@ -93,6 +129,16 @@ export function CambioFaseDialog({
     if (s) s.campos.push(c)
     else secciones.push({ titulo, campos: [c] })
   }
+
+  const tablaModelos = (
+    <>
+      {lineas.length === 0 ? (
+        <p className="flow-meta">Añade primero los modelos de interés: el descuento se pone por modelo.</p>
+      ) : (
+        <TablaModelos lineas={lineas} modelos={modelos} borrador={borrador} permisos={permisosTabla} onChange={setBorrador} />
+      )}
+    </>
+  )
 
   return (
     <div className="table-modal-backdrop" onClick={onCerrar}>
@@ -123,24 +169,38 @@ export function CambioFaseDialog({
 
           {secciones.length > 0 && (
             <p className="flow-meta">
-              Los campos con * son necesarios para {soloCompletar ? 'esta fase' : 'pasar a esta fase'}. El resto puedes dejarlo para más tarde.
+              {soloCompletar
+                ? 'Los campos con * son necesarios para esta fase. El resto puedes dejarlo para más tarde.'
+                : 'Rellena los campos con * para poder pasar a esta fase. El resto puedes dejarlo para más tarde.'}
             </p>
           )}
 
           {secciones.map((s) => {
-            const esOferta = s.titulo === 'Oferta'
+            const ancha = s.titulo === 'Oferta' || s.titulo === 'Cierre de la operación'
             return (
-              <div key={s.titulo} className={esOferta ? 'fase-dialog-seccion fase-dialog-seccion-oferta' : 'fase-dialog-seccion'}>
+              <div key={s.titulo} className={ancha ? 'fase-dialog-seccion fase-dialog-seccion-oferta' : 'fase-dialog-seccion'}>
                 <h3>{s.titulo}</h3>
-                <div className={esOferta ? 'datos-form-grid' : 'wizard-form'}>
+                <div className={ancha ? 'datos-form-grid' : 'wizard-form'}>
                   {s.campos.map(({ campo, obligatorio }) => {
                     const def = CAMPOS[campo]!
+                    const vacio = obligatorio && !relleno(campo)
                     return (
-                      <div key={campo} className={esOferta && def.tipo === 'textoLargo' ? 'field is-ancho' : 'field'}>
+                      <div key={campo} className={`field${ancha ? ' is-ancho' : ''}${vacio && cambiaFase ? ' is-falta' : ''}`}>
                         <label>
                           {def.label} {obligatorio ? '*' : ''}
                         </label>
-                        <CampoInput campo={campo} tipo={def.tipo} valor={valores[campo] ?? ''} onChange={(v) => set(campo, v)} lead={lead} onLineas={setNumLineas} />
+                        {def.tipo === 'modelos' ? (
+                          <LineasOportunidad leadId={lead.fl_leadid} textoAnterior={lead.fl_modelosinteres} soloLectura={false} onLineas={alCambiarLineas} />
+                        ) : def.tipo === 'descuentos' ? (
+                          tablaModelos
+                        ) : def.tipo === 'cierre' ? (
+                          <>
+                            <LineasOportunidad leadId={lead.fl_leadid} textoAnterior={lead.fl_modelosinteres} soloLectura={false} onLineas={alCambiarLineas} />
+                            {tablaModelos}
+                          </>
+                        ) : (
+                          <CampoInput campo={campo} tipo={def.tipo} valor={valores[campo] ?? ''} onChange={(v) => set(campo, v)} />
+                        )}
                       </div>
                     )
                   })}
@@ -153,11 +213,11 @@ export function CambioFaseDialog({
         </div>
 
         {(faltan.length > 0 || faltaMotivo) && (
-          <div className="fase-dialog-aviso" role="status">
+          <div className={`fase-dialog-aviso${bloqueado ? ' is-bloqueo' : ''}`} role="status">
             <Icon name="warning" size={15} />
             <span>
-              Debes rellenar {faltaMotivo && faltan.length === 0 ? 'el motivo de la pérdida' : `los datos marcados con * (faltan ${faltan.length + (faltaMotivo ? 1 : 0)})`}. Puedes
-              guardar igualmente y completarlos más tarde.
+              {faltaMotivo && faltan.length === 0 ? 'Falta el motivo de la pérdida' : `Faltan ${faltan.length + (faltaMotivo ? 1 : 0)} datos obligatorios (*)`}.{' '}
+              {bloqueado ? 'Complétalos para poder cambiar de fase.' : 'Puedes guardar igualmente y completarlos más tarde.'}
             </span>
           </div>
         )}
@@ -166,8 +226,8 @@ export function CambioFaseDialog({
           <button type="button" className="btn-secondary" onClick={onCerrar}>
             Cancelar
           </button>
-          <button type="button" className="btn-primary" disabled={!puedeGuardar} onClick={guardar}>
-            {guardando ? 'Guardando…' : soloCompletar || fase === lead.fl_faseactual ? 'Guardar' : 'Guardar y cambiar fase'}
+          <button type="button" className="btn-primary" disabled={!puedeGuardar} onClick={guardar} title={bloqueado ? 'Rellena los campos obligatorios (*)' : undefined}>
+            {guardando ? 'Guardando…' : cambiaFase ? 'Guardar y cambiar fase' : 'Guardar'}
           </button>
         </div>
       </div>
@@ -175,24 +235,8 @@ export function CambioFaseDialog({
   )
 }
 
-function CampoInput({
-  campo,
-  tipo,
-  valor,
-  onChange,
-  lead,
-  onLineas,
-}: {
-  campo: CampoFase
-  tipo: string
-  valor: string
-  onChange: (v: string) => void
-  lead: Lead
-  onLineas: (n: number) => void
-}) {
+function CampoInput({ campo, tipo, valor, onChange }: { campo: CampoFase; tipo: string; valor: string; onChange: (v: string) => void }) {
   switch (tipo) {
-    case 'modelos':
-      return <LineasOportunidad leadId={lead.fl_leadid} textoAnterior={lead.fl_modelosinteres} soloLectura={false} onLineas={onLineas} />
     case 'textoLargo':
       return <textarea rows={2} value={valor} onChange={(e) => onChange(e.target.value)} />
     case 'numero':

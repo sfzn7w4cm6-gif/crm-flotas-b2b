@@ -13,6 +13,15 @@ $script:DvClientId = "9cee029c-6210-4654-90bb-17e6e9d36617"
 $script:DvOrgUrl = "https://org642a1b00.crm4.dynamics.com"
 $script:DvTokenCache = "$env:TEMP\dv-token-cache.json"
 
+# Por defecto todo va contra DESARROLLO. Para lanzar un script contra PRODUCCION:
+#   $env:DV_ENTORNO = "prod"; .\scripts\dataverse\NN-script.ps1; Remove-Item Env:\DV_ENTORNO
+# Produccion usa otra cache de token (es otro org: el token de uno no sirve para el otro).
+if ($env:DV_ENTORNO -eq "prod") {
+    $script:DvOrgUrl = "https://org9d11094c.crm4.dynamics.com"
+    $script:DvTokenCache = "$env:TEMP\dv-token-cache-prod.json"
+    Write-Host ">>> ENTORNO: PRODUCCION ($script:DvOrgUrl)" -ForegroundColor Yellow
+}
+
 function Request-DataverseDeviceCode {
     $body = @{ client_id = $script:DvClientId; scope = "$script:DvOrgUrl/.default offline_access" }
     $dc = Invoke-RestMethod -Method Post -Uri "https://login.microsoftonline.com/$script:DvTenantId/oauth2/v2.0/devicecode" -Body $body

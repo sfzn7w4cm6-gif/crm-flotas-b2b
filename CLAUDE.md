@@ -1,537 +1,632 @@
-# CRM Flotas B2B
+# CRM Flotas B2B — "Ebro Business"
 
-CRM interno para la red de concesionarios EBRO. Sustituye el seguimiento manual
-en Excel (`Plantilla Cliente - FORMS.xlsx`) de oportunidades de venta de flotas
-a empresas. Es un **Power Apps Code App** (React + TypeScript + Vite), no un
-Canvas App ni un Model-Driven App — toda la interfaz es código propio, y solo
-se apoya en Dataverse como base de datos.
+> **Para cualquier persona o IA que abra este proyecto: lee este archivo entero antes de
+> cambiar nada.** Explica cómo está montada la app, a qué Dataverse se conecta cada entorno,
+> cómo se publica y los errores que ya costaron días resolver. Si cambias algo importante,
+> actualiza también este archivo en el mismo commit.
+>
+> Última revisión completa: 11/11/2026.
 
-**Nombre visible: "Ebro Business"** (desde el 01/11/2026; en la barra lateral, logo
-EBRO + "Business"). El código, el repositorio, la solución y los roles siguen
-llamándose CRM Flotas B2B. **En pantalla no se dice "lead" sino "oportunidad"**
-(Mis oportunidades, Nueva oportunidad, Seguimiento de oportunidades); las tablas,
-rutas (`/mis-leads`, `/nuevo-lead`) y nombres en el código siguen con `lead`.
+## Índice
 
-## Repositorio y despliegue
+1. Qué es
+2. Reglas que no se deben romper (resumen)
+3. Entornos: desarrollo y producción
+4. Cómo trabajar en local
+5. Cómo publicar la app
+6. Cómo cambiar el esquema de Dataverse (scripts)
+7. Arquitectura del código
+8. Conexión a Dataverse: orígenes nativos frente al conector
+9. Inicio de sesión, roles y "Ver como rol"
+10. Modelo de datos
+11. Seguridad (roles de Dataverse)
+12. Pantallas
+13. Reglas de negocio
+14. Usuarios: alta, licencias e invitados externos
+15. Problemas ya resueltos (no repetirlos)
+16. Diseño
+17. Pendientes conocidos
 
-- **GitHub**: https://github.com/sfzn7w4cm6-gif/crm-flotas-b2b (privado). Rama
-  única `main` — publicar solo desde `main` actualizado (`pac code push`
-  reemplaza la app entera; si dos personas publican desde ramas distintas, el
-  último que publique pisa al otro).
-- **Entorno actual de Power Platform**: `Ariadna Llanos` (Developer),
-  `https://org642a1b00.crm4.dynamics.com`, environment id
-  `192d0a93-f34e-e64a-a9c3-6558e2f66156`. **Se prevé mover este proyecto a
-  otro entorno** — ver la sección "Migrar a otro entorno" más abajo antes de
-  tocar nada de eso.
-- **App id** (en `power.config.json`): `033039d0-63b6-4df9-91a1-14fec80dffba`.
-- **Despliegue**:
-  ```powershell
-  npm run build
-  $env:NODE_EXTRA_CA_CERTS = "C:\Users\allanos\.pac-certs\corporate-ca-bundle.pem"
-  $pac = "C:\Users\allanos\AppData\Local\Microsoft\PowerAppsCLI\Microsoft.PowerApps.CLI.2.11.2\tools\pac.exe"
-  & $pac code push
-  ```
+---
 
-## Este mismo entorno también aloja otras apps — no tocarlas
+## 1. Qué es
 
-El entorno `Ariadna Llanos` también contiene **PeopleFlow** (RRHH, prefijo de
-tabla `hr_`) y **Tracking Vehículos** (seguimiento de logística conectado a
-otro CRM externo, `ebro360.crm16.dynamics.com`). Son proyectos totalmente
-aparte, en sus propias carpetas y sin ninguna relación de datos con CRM Flotas
-B2B. **Nunca editar sus tablas (`hr_*`) ni su código desde este proyecto.**
+App interna de EBRO para la red de concesionarios. Sustituye el Excel `Plantilla Cliente -
+FORMS.xlsx` con el que se seguían las oportunidades de venta de **flotas a empresas (B2B)**.
 
-## Arquitectura
+- Los **concesionarios** (usuarios externos, invitados B2B) dan de alta oportunidades y las
+  llevan por las fases del pipeline.
+- El **Equipo de Ventas** de EBRO ve toda la red, pone el descuento de marca, gestiona
+  usuarios y objetivos, y tiene paneles de KPIs.
 
-- `src/lib/dataverseClient.ts` — único punto de acceso a Dataverse. Expone
-  `listRecords`/`getRecord`/`createRecord`/`updateRecord` genéricos sobre el
-  conector `commondataserviceforapps` (una sola conexión multi-tabla; la tabla
-  se indica por parámetro en cada llamada vía `Tables.X`). No usa el código
-  autogenerado por tabla de Power Apps.
-- `src/context/AuthContext.tsx` — al cargar, resuelve
-  `getContext().user.userPrincipalName` → busca la fila en `fl_usuarioapp` con
-  ese correo → de ahí saca `fl_rol`, sus asignaciones (`fl_asignacion`) y con ellas
-  `sedes` y `concesionarios` (todo lo que lleva), además de la sede principal
-  (`ubicacion`, de `fl_usuarioapp.fl_ubicacion`) y su `concesionario`. Si el
-  usuario no está dado de alta en `fl_usuarioapp`, la app no le deja entrar
-  (mensaje de error, no un crash). Los administradores pueden simular otro rol
-  con "Ver como rol" (`viewAsRole`, guardado en `sessionStorage`,
-  `effectiveRol` es el que de verdad usa el resto de la app).
-- `src/components/layout/AppShell.tsx` + `navConfig.ts` — sidebar negra fija,
-  colapsable, con los enlaces visibles según `effectiveRol` (ver tabla de
-  pantallas más abajo).
-- Sin librería de componentes — CSS propio con variables en
-  `src/styles/common.css` (paleta EBRO: blanco dominante, negro pizarra
-  `#1d1d1b` como color primario, marrón tierra como acento puntual, nunca
-  azul).
-- `scripts/dataverse/` — scripts PowerShell idempotentes que crean/actualizan
-  el esquema (no existe comando `pac` para esto). `lib.ps1` tiene los helpers
-  genéricos (`New-DvTable`, `Add-DvChoiceColumn`, `Grant-DvTablePrivileges`,
-  etc.), `auth.ps1` el login por device-code (comparte caché de token en
-  `$env:TEMP\dv-token-cache.json` con otros proyectos del mismo tenant).
-  Numerados en orden de ejecución (`00-solution.ps1` → `01-tables.ps1` →
-  ... → el último, `14-dar-roles-entorno.ps1`, es de otro proyecto que
-  reutilizó el mismo `lib.ps1`, ignorar).
+Es un **Power Apps Code App**: una web propia en React 19 + TypeScript + Vite que se publica
+dentro de Power Apps con `pac code push` y usa **Dataverse** como base de datos. No es una
+Canvas App ni una Model-Driven App: toda la interfaz es código de este repositorio.
 
-## Modelo de datos (Dataverse, prefijo de publisher `fl`, solución `CRMFlotasB2B`)
+**Nombres.** En pantalla la app se llama **"Ebro Business"** (en producción, "Ebro Business
+App"). El repositorio, la solución de Dataverse (`CRMFlotasB2B`), los roles y el código siguen
+llamándose CRM Flotas B2B. **En pantalla se dice "oportunidad", nunca "lead"**, pero en el
+código, las tablas y las rutas sigue siendo `lead` (`fl_lead`, `/mis-leads`, `/nuevo-lead`).
 
-Auditado directamente contra el entorno real, no solo contra los scripts de
-creación — última vez el 03/11/2026 (`scripts/dataverse/27-auditoria-migracion.ps1`,
-de solo lectura, se puede relanzar cuando haga falta): la solución contiene
-**13 tablas `fl_*` + 3 roles de seguridad + la propia app** (19 componentes en
-total; los otros 2 componentes de tipo Entidad son `systemuser`/`team`, que
-entraron solos por los lookups que apuntan a ellos). Las 13 tablas son
-`fl_concesionario`, `fl_ubicacion`, `fl_usuarioapp`, `fl_lead`,
-`fl_fasehistorico`, `fl_tarea`, `fl_objetivo`, `fl_zona`, `fl_modelo`,
-`fl_empresa`, `fl_lineaoportunidad`, `fl_nota` y `fl_asignacion` — **todas**
-confirmadas dentro de la solución. Las relaciones (lookups) no aparecen como
-componentes aparte porque en Dataverse viajan automáticamente con la tabla
-que las contiene — no hay que añadirlas a mano.
+- **GitHub**: https://github.com/sfzn7w4cm6-gif/crm-flotas-b2b (privado), rama única `main`.
+- **Idioma**: todo en español (interfaz, comentarios, commits, documentación).
 
-Esto se mantiene así sin esfuerzo extra porque `lib.ps1` pasa
-`-WithSolution` en cada creación (tabla, columna, rol, relación): todo lo que
-se crea con estos scripts entra solo en `CRMFlotasB2B`. La única vez que algo
-quedó fuera fue el registro de la app (`canvasapp`, nombre interno
-`crda2_crmflotasb2b_19a41`, id `033039d0-63b6-4df9-91a1-14fec80dffba`, el
-mismo que el "App id" de `power.config.json`), porque se creó con `pac code
-push` antes de que existiera este flujo — se corrigió una vez con
-`AddSolutionComponent` (`ComponentType=300`) y la auditoría del 03/11/2026
-confirma que sigue ahí tras las publicaciones posteriores.
+## 2. Reglas que no se deben romper (resumen)
 
-### `fl_concesionario` — el grupo/marca del dealer (padre)
+1. **`power.config.json` apunta siempre a DESARROLLO** en el repositorio. Para publicar en
+   producción usa `scripts/publicar.ps1 -Entorno prod`, que lo cambia y lo restaura solo.
+   Nunca hagas commit con los valores de producción.
+2. **Primero desarrollo, después producción.** Todo cambio (código o esquema) se publica y se
+   prueba en desarrollo. A producción solo con el visto bueno explícito de la responsable
+   (Ariadna).
+3. **Toda tabla que use la app debe ser un origen nativo de Dataverse**
+   (`pac code add-data-source -a dataverse -t <tabla>`). Si se lee por el conector, los
+   **invitados externos (todos los concesionarios) no pueden entrar** (error `0x80072560`).
+   Ver sección 15.1.
+4. **Los cambios de esquema se hacen con scripts** en `scripts/dataverse/`, numerados,
+   idempotentes y dentro de la solución `CRMFlotasB2B`. Nunca a mano en make.powerapps.com
+   sin dejar el script.
+5. **No tocar otras apps del entorno de desarrollo**: PeopleFlow (tablas `hr_*`) y Tracking
+   Vehículos son proyectos aparte.
+6. **No se borran oportunidades**: se marcan como "Perdido".
+7. **Nada de `enum` de TypeScript** (`erasableSyntaxOnly`): usa `const X = {...} as const`.
+8. **No subir datos personales reales** (Excel de usuarios, correos de concesionarios) al
+   repositorio. Los datos de `demo/` son ficticios.
+9. **`pac code push` reemplaza la app entera.** Si dos personas publican desde versiones
+   distintas, la última pisa a la otra. Haz siempre `git pull` antes de publicar.
 
-| Campo | Tipo | Notas |
+## 3. Entornos: desarrollo y producción
+
+Los dos están en el mismo tenant de EBRO (`030a22ff-38fa-4ef1-8820-3d5e0ff18dcb`,
+`ebroauto.onmicrosoft.com`).
+
+| | **Desarrollo** | **Producción** |
 |---|---|---|
-| `fl_nombre` | Texto | Nombre comercial |
-| `fl_cif` | Texto | |
-| `fl_activo` | Sí/No | |
+| Entorno Power Platform | "Ariadna Llanos" (tipo Developer) | "Entorno - Equipo de Ventas" |
+| `environmentId` | `192d0a93-f34e-e64a-a9c3-6558e2f66156` | `6adf3534-66c7-e4a1-95c7-045d1b228f44` |
+| Dataverse (org URL) | `https://org642a1b00.crm4.dynamics.com` | `https://org9d11094c.crm4.dynamics.com` |
+| App (`appDisplayName`) | "Ebro Business" | "Ebro Business App" |
+| `appId` | `033039d0-63b6-4df9-91a1-14fec80dffba` | `b9bfcd40-fbb7-4e29-88a8-7275312e769f` |
+| Business Unit raíz | `23eb3196-6334-f111-88b4-7ced8d74baf1` | `7851e1e5-78d5-f111-a05b-7ced8d5944d2` |
+| Solución `CRMFlotasB2B` | No administrada (aquí se desarrolla) | Importada como administrada el 03/11/2026; los cambios posteriores se aplican con los scripts (sección 6) |
+| Datos | Datos de demo + red real | Solo datos reales (sin demo) |
+| Enlace | `https://apps.powerapps.com/play/e/192d0a93-f34e-e64a-a9c3-6558e2f66156/app/033039d0-63b6-4df9-91a1-14fec80dffba` | `https://apps.powerapps.com/play/e/6adf3534-66c7-e4a1-95c7-045d1b228f44/app/b9bfcd40-fbb7-4e29-88a8-7275312e769f` |
 
-### `fl_ubicacion` — una sede/sucursal concreta de un concesionario (hijo)
+**¿Cómo sabe la app a qué Dataverse ir?**
 
-| Campo | Tipo | Notas |
-|---|---|---|
-| `fl_nombre` | Texto | Ej. "M Automoción Barcelona" |
-| `fl_ciudad`, `fl_direccion` | Texto | |
-| `fl_activo` | Sí/No | |
-| `fl_concesionario` | Lookup → `fl_concesionario` | Requerido |
+- Las tablas de la app son **orígenes nativos** (`databaseReferences."default.cds"` en
+  `power.config.json`): van siempre al Dataverse **del entorno donde está publicada la app**.
+  Por eso la misma compilación sirve para los dos entornos.
+- Las pocas llamadas que siguen por el **conector** (pantalla Usuarios y accesos: cuentas,
+  equipos y roles) necesitan la URL del org. `src/lib/dataverseClient.ts` la saca de
+  `getContext().app.dataverseOrgUrl` y, si viene vacía, de `ORGANIZACION_POR_ENTORNO` (tabla
+  `environmentId → org URL`). **Si se crea un entorno nuevo hay que añadirlo a esa tabla.**
 
-### `fl_usuarioapp` — perfil de la app para cada usuario conectado
+**Por qué la app de producción tiene otro nombre y otro `appId`.** Un `appId` queda atado a
+su entorno: `pac code push` con el `appId` de desarrollo contra producción falla con
+`InvalidEnvironmentName`. Además, al importar la solución en producción viajó una "ficha vacía"
+de la app con el nombre "Ebro Business", que impide crear otra con el mismo nombre
+(`ApplicationDisplayNameIsInUse`). Por eso la de producción se llama "Ebro Business App".
 
-Es la tabla que resuelve "quién eres y qué ves" — no se usa el rol de
-seguridad de Dataverse del usuario para eso, se usa esta fila.
+**Otras apps del entorno de desarrollo (no tocar):** PeopleFlow (RRHH, tablas `hr_*`, carpeta
+`Nueva carpeta` del escritorio) y Tracking Vehículos (logística, conectado a
+`ebro360.crm16.dynamics.com`). Comparten entorno pero no datos.
 
-| Campo | Tipo | Notas |
-|---|---|---|
-| `fl_nombre` | Texto | |
-| `fl_correo` | Texto | Debe coincidir con `userPrincipalName` de quien entra |
-| `fl_rol` | Choice | `Concesionario` (101000000) / `Equipo de Ventas` (101000001) / `Administrador` (101000002) |
-| `fl_ubicacion` | Lookup → `fl_ubicacion` | Obligatorio solo si `fl_rol = Concesionario` |
-| `fl_telefono` | Texto | |
-| `fl_activo` | Sí/No | |
-| `fl_systemuserid` | Lookup → `systemuser` | Enlaza con el usuario real de Entra/Dynamics |
+## 4. Cómo trabajar en local
 
-### `fl_lead` — la Ficha de Cliente (autonumérico `L{SEQNUM:5}`, antes `LEAD-{SEQNUM:5}` — ver `20-numero-lead-L.ps1`; UserOwned)
+Requisitos: Node 20+, Power Platform CLI (`pac`), acceso al entorno de desarrollo con rol de
+personalizador (System Customizer o superior).
 
-Secciones calcadas de la plantilla Excel original, más los campos
-estructurales:
+```powershell
+git clone https://github.com/sfzn7w4cm6-gif/crm-flotas-b2b.git
+cd crm-flotas-b2b
+npm install
+pac auth create --environment 192d0a93-f34e-e64a-a9c3-6558e2f66156
+```
 
-| Sección | Campos |
+- **Red corporativa de EBRO**: el proxy intercepta TLS. Antes de usar `pac` o `npm` contra
+  Power Platform:
+  `$env:NODE_EXTRA_CA_CERTS = "$env:USERPROFILE\.pac-certs\corporate-ca-bundle.pem"`.
+  Sin esto `pac code push` y `pac code run` fallan con errores de certificado.
+- `pac` está instalado en
+  `%LOCALAPPDATA%\Microsoft\PowerAppsCLI\Microsoft.PowerApps.CLI.2.11.2\tools\pac.exe` (no
+  siempre está en el PATH).
+
+| Comando | Qué hace |
 |---|---|
-| Estructural | `fl_ubicacion`, `fl_concesionario` (se copia del padre de la ubicación al crear, no la edita el usuario), `fl_creadopor` (→ `fl_usuarioapp`), `ownerid` (nativo, filtra "Mis Leads") |
-| 1. Datos empresa | `fl_razonsocial`, `fl_cif` |
-| 2. Contactos | `fl_nombreresponsable`, `fl_telefonocorporativo`, `fl_emailcorporativo` |
-| 3. Situación flota | `fl_numvehiculosactuales`, `fl_marcasactuales`, `fl_actividadeconomica`, `fl_modofinanciacionactual` (choice), `fl_vencimientocontratosactuales` (fecha) |
-| 4. Necesidad | `fl_cuotasobjetivo` (money), `fl_modelosinteres`, `fl_numvehiculosrenovarampliar`, `fl_plazoestimadodecision` (choice), `fl_competidoresdetectados`, `fl_requisitos`, `fl_kmtiempo` |
-| 5. Histórico | `fl_fechaprimercontacto`, `fl_faseactual` (choice, no editable directamente — ver más abajo), `fl_ofertacondiciones` (texto largo, añadido cuando se actualizó la plantilla Excel; en pantalla "Condiciones de la oferta"), `fl_descuentoconcesionario` y `fl_descuentoventas` (decimal %, `26-descuentos-oferta.ps1`, 02/11/2026; ver "Descuento en dos partes"), `fl_ultimaaccionrealizada`, `fl_proximaaccion`, `fl_fechaproximaaccion`, `fl_comercialresponsable`, `fl_observaciones`, `fl_motivoperdida` (solo si fase = Perdido) |
+| `npm run dev` + `pac code run` | App en `http://localhost:3000` conectada a los **datos reales de desarrollo** (no es un sandbox: lo que guardes queda guardado). |
+| `npm run demo` | App en `http://localhost:3100` con un usuario y datos **ficticios en memoria** (`demo/`), sin Power Apps ni Dataverse. Sirve para enseñar la app o grabar vídeos. |
+| `npm run build` | Compila (`tsc -b && vite build`) a `dist/`. Debe acabar sin errores antes de publicar. |
+| `npm run lint` | oxlint. |
 
-`fl_faseactual` / `fl_fasehistorico.fl_fase` comparten el mismo choice: **1.
-Prospección → 2. Primer Contacto → 3. Cualificación → 4. Propuesta → 5.
-Negociación → 6. Cierre → 7. Entrega**, más **Perdido**
-(estado terminal alcanzable desde cualquier fase, excluido del embudo/gráficos
-ordinales, exige rellenar `fl_motivoperdida`). "8. Fidelización" (101000007) se
-quitó el 28/10/2026 (`19-quitar-fase-fidelizacion.ps1`): la opción sigue en
-Dataverse pero la app ya no la tiene. El KPI "Renovaciones gestionadas" pasó a
-ser ventas cerradas a empresas que ya tenían otra venta en el periodo.
+## 5. Cómo publicar la app
 
-### `fl_fasehistorico` — registro de cuánto tiempo pasa un lead en cada fase
+```powershell
+.\scripts\publicar.ps1 -Entorno dev     # compila y publica en desarrollo
+.\scripts\publicar.ps1 -Entorno prod    # compila y publica en producción (pide escribir SI)
+```
 
-| Campo | Tipo | Notas |
+El script compila, cambia temporalmente `appId`, `appDisplayName` y `environmentId` en
+`power.config.json` si es producción, ejecuta `pac code push --environment <id>` y **restaura
+el archivo siempre**, aunque falle. Comprueba después con `git status` que
+`power.config.json` no aparece modificado.
+
+Orden obligatorio: commit en `main` → publicar en dev → probar → publicar en prod con el visto
+bueno → comprobar en prod.
+
+> El procedimiento antiguo (compilar con `VITE_DATAVERSE_ORG` en una carpeta aparte con otro
+> `pac code init`) **ya no se usa**. Desde el 06/11/2026 la app resuelve el Dataverse sola.
+
+## 6. Cómo cambiar el esquema de Dataverse (scripts)
+
+No existe un comando `pac` para crear tablas o columnas. Se hace con scripts PowerShell que
+llaman a la Web API de Dataverse: `scripts/dataverse/NN-descripcion.ps1`. Ver
+`scripts/dataverse/README.md` para la lista completa.
+
+- `auth.ps1`: login por *device code* (la primera vez pide abrir una URL e introducir un
+  código) y caché de token en `%TEMP%`.
+- `lib.ps1`: helpers idempotentes (`New-DvTable`, `Add-DvTextColumn`, `Add-DvChoiceColumn`,
+  `Add-DvLookup`, `New-DvRole`, `Grant-DvTablePrivileges`, `Ensure-DvRecord`...). Todos
+  crean dentro de la solución `CRMFlotasB2B` (cabecera `MSCRM.SolutionUniqueName`).
+- **Por defecto los scripts van contra DESARROLLO.** Para producción:
+
+```powershell
+$env:DV_ENTORNO = "prod"
+.\scripts\dataverse\32-descuento-por-modelo.ps1
+Remove-Item Env:\DV_ENTORNO      # no dejarlo puesto
+```
+
+  Con `DV_ENTORNO=prod`, `auth.ps1` usa el org de producción y otra caché de token, y
+  `lib.ps1` la Business Unit raíz de producción. El script avisa en amarillo
+  `>>> ENTORNO: PRODUCCION`.
+
+Reglas para scripts nuevos:
+
+1. Siguiente número libre (el último es `33`).
+2. Idempotente: se puede ejecutar dos veces sin romper nada (comprobar si existe antes de
+   crear). Si falla a mitad (p. ej. "conexión cerrada por el host"), se vuelve a lanzar.
+3. Solo añadir. No borrar columnas ni bajar privilegios sin acordarlo.
+4. Cabecera `<# ... #>` explicando qué hace y por qué.
+5. Las opciones de choice usan el prefijo `101000000`, `101000001`...
+6. **Si crea una tabla nueva que la app va a leer**: registrar la tabla como origen nativo
+   (`pac code add-data-source -a dataverse -t fl_nuevatabla`), añadirla a `Tables` en
+   `dataverseClient.ts` y hacer commit de los cambios en `power.config.json`,
+   `.power/schemas/` y `src/generated/`.
+7. **Columnas nuevas en tablas existentes no necesitan regenerar nada**: el código pide
+   columnas por nombre (`$select`) y los archivos de `.power/schemas/dataverse` y
+   `src/generated/` solo se usan para generar código.
+8. Ejecutar en dev → probar la app → ejecutar en prod con `DV_ENTORNO=prod`.
+
+**Datos reales que se cargan con scripts** (las soluciones solo llevan esquema, nunca filas):
+`16-red-ebro-y-modelos.ps1` (zonas, concesionarios, sedes y modelos desde
+`scripts/dataverse/datos/red-ebro.json`), `30-sin-concesionario.ps1`,
+`31-cargar-usuarios.ps1` (usuarios desde el Excel de responsables) y
+`33-importar-objetivos.ps1` (objetivos del mes desde la plantilla). Los scripts de demo
+(`05`, `07`, `10`) **nunca** se ejecutan en producción.
+
+## 7. Arquitectura del código
+
+```
+src/
+  App.tsx                    rutas (HashRouter) y guardas por rol
+  context/AuthContext.tsx    quién es el usuario, su rol, sus sedes; "Ver como rol"
+  lib/
+    dataverseClient.ts       ÚNICO punto de acceso a Dataverse (list/get/create/update/delete/relate)
+    types.ts                 tipos de cada tabla y constantes de choices (Fase, RolApp...)
+    leadsService.ts          oportunidades: alta, cambio de fase, edición, condiciones
+    lineasService.ts         modelos de cada oportunidad (líneas) y su resumen en el lead
+    descuento.ts             reglas del descuento (pendiente, medias, Sin concesionario)
+    camposFase.ts            qué campos pide cada fase y cuáles son obligatorios (REQUISITOS)
+    empresasService.ts       empresas (una por CIF y concesionario), duplicados
+    asignacionesService.ts   qué sedes lleva cada usuario; compañeros de sede
+    usuariosService.ts       guardar usuario: perfil, asignaciones, equipos y rol
+    notificacionesService.ts campanita de ventas
+    kpiService.ts, actividadService.ts   cálculos de los paneles
+    objetivosExcel.ts        exportar/importar la plantilla de objetivos (exceljs)
+    excelExport.ts           descargas de tablas a Excel (tabla HTML)
+    filtrosLeads.ts, validators.ts, formato.ts, catalogosService.ts, tareasService.ts,
+    notasService.ts, adjuntosService.ts
+  components/                AppShell (barra lateral), Campanita, filtros, gráficos SVG, tareas, notas
+  pages/                     una carpeta por pantalla (ver sección 12)
+  styles/common.css          variables de color y tipografía
+  generated/                 código generado por pac (no se usa directamente; no editar)
+.power/schemas/              esquemas generados por pac (dataSourcesInfo.ts SÍ se usa)
+demo/                        sustitutos de @microsoft/power-apps para "npm run demo"
+scripts/publicar.ps1         publicar en dev/prod
+scripts/dataverse/           esquema y cargas de datos
+```
+
+- Sin librería de componentes: CSS propio por pantalla.
+- Gráficos hechos a mano en SVG (`components/charts/`), sin dependencias.
+- Rutas con `HashRouter` (`#/lead/:id`), porque el reproductor de Power Apps sirve la app en
+  un iframe.
+- Imágenes incrustadas en base64 (`assetsInlineLimit` en `vite.config.ts`): el hosting de Code
+  Apps no servía bien los binarios sueltos de `dist/assets`.
+- `exceljs` para leer y escribir .xlsx. La librería `xlsx` (SheetJS) está **descartada** por
+  vulnerabilidades sin parchear.
+
+## 8. Conexión a Dataverse: orígenes nativos frente al conector
+
+`dataverseClient.ts` tiene dos caminos, y elige solo según la tabla:
+
+1. **Origen nativo de Dataverse** (`dataSourceType: 'Dataverse'` en
+   `.power/schemas/appschemas/dataSourcesInfo.ts`): usa `dv.retrieveMultipleRecordsAsync`,
+   `createRecordAsync`, etc. Va directo al Dataverse del entorno con la **sesión del
+   reproductor de Power Apps**. **Es el que funciona con invitados B2B.** Están dadas de alta
+   así todas las tablas `fl_*` y `annotation` (lista en `databaseReferences` de
+   `power.config.json`).
+2. **Conector `commondataserviceforapps`** (`...WithOrganization`): solo para `systemusers`,
+   `teams`, `roles`, para relacionar o desrelacionar (equipos, roles) y para cualquier consulta
+   con `$expand`. Lo usa la pantalla **Usuarios y accesos**, que solo usan personas internas de
+   EBRO. Necesita el parámetro `organization` (sección 3); sin él falla con
+   `Invalid organization URL 'null' provided`.
+
+Detalles:
+
+- `Tables` en `dataverseClient.ts` son los nombres de **colección** OData (`fl_leads`,
+  `fl_ubicacions`, `fl_lineaoportunidads`...), no los nombres lógicos.
+- Los lookups se escriben con `'fl_campo@odata.bind': '/fl_tablas(<id>)'` y se leen como
+  `_fl_campo_value`. El nombre del registro relacionado sale de la anotación
+  `_fl_campo_value@OData.Community.Display.V1.FormattedValue`.
+- No hay transacciones: las operaciones de varios pasos (alta, cambio de fase) son llamadas
+  secuenciales.
+- Si añades una tabla y te olvidas del paso 6 de la sección 6, la app irá por el conector y
+  **los concesionarios dejarán de poder usar esa parte**, sin que tú lo notes con tu cuenta
+  interna.
+
+## 9. Inicio de sesión, roles y "Ver como rol"
+
+`AuthContext.tsx`, al arrancar:
+
+1. `getContext()` da `userPrincipalName` y `systemUserId` del usuario conectado.
+2. Busca su perfil en `fl_usuarioapp`, por orden:
+   1. por `_fl_systemuserid_value = systemUserId` (la cuenta vinculada; es lo único fiable
+      con invitados);
+   2. por `fl_correo = userPrincipalName`;
+   3. si el UPN es de invitado (`nombre_dominio.com#EXT#@ebroauto.onmicrosoft.com`), por el
+      correo real deducido (`nombre@dominio.com`).
+3. Si no lo encuentra: mensaje "Tu usuario no está registrado en Ebro Business". Si falla la
+   conexión: mensaje de error **con un diagnóstico** (entorno, org, usuario, tenant), que
+   ayuda mucho a ver problemas de invitados.
+4. Carga sus asignaciones (`fl_asignacion`) → `sedes` y `concesionarios` que lleva; la sede
+   principal es `fl_usuarioapp.fl_ubicacion`.
+
+**Rol de la app** = `fl_usuarioapp.fl_rol`: Concesionario (101000000), Equipo de Ventas
+(101000001) o Administrador (101000002). Lo que se ve en pantalla depende de este campo, no del
+rol de seguridad de Dataverse. Lo que el usuario **puede leer o escribir de verdad** lo decide
+el rol de seguridad (sección 11). Los dos tienen que cuadrar.
+
+**"Ver como rol"** (solo administradores): selector al pie de la barra lateral que simula
+Concesionario o Equipo de Ventas (`viewAsRole`, en `sessionStorage`). El resto de la app usa
+`effectiveRol`. Ojo: los **permisos de Dataverse siguen siendo los de administrador**, así que
+"Ver como rol" sirve para ver la interfaz, no para probar la seguridad. Para eso hace falta una
+cuenta real con ese rol.
+
+- `isAdmin && viewAsRole === null` = administrador viendo todo (en el código, `veComoVentas`
+  incluye este caso).
+
+## 10. Modelo de datos
+
+Solución `CRMFlotasB2B`, prefijo `fl_`. 14 tablas propias más `annotation` (adjuntos). Valores
+de choices en `src/lib/types.ts`.
+
+### Red comercial y catálogo
+
+- **`fl_zona`**: 7 zonas (`fl_nombre` "Zona N", `fl_numero`, `fl_areamanager`).
+- **`fl_concesionario`**: grupo dealer (`fl_nombre`, `fl_cif`, `fl_activo`, `fl_equipo` →
+  `team` propietario de sus empresas). 42 reales más "Sin concesionario".
+- **`fl_ubicacion`** (sede): `fl_nombre` (p. ej. "Syrsa-Huelva", ya lleva el grupo),
+  `fl_concesionario` (obligatorio), `fl_zona` (**la zona va en la sede**: un concesionario
+  puede tener sedes en varias zonas), `fl_areamanager`, `fl_ciudad`, `fl_direccion`,
+  `fl_activo`. 108 reales más "Sin sede".
+- **`fl_modelo`**: catálogo (`fl_nombre` "S700 HEV LUXURY", `fl_familia`, `fl_motorizacion`,
+  `fl_acabado`, `fl_orden`, `fl_activo`).
+- **"Sin concesionario" / "Sin sede"** (`30-sin-concesionario.ps1`): comodín para la gente de
+  EBRO que genera oportunidades sin ser de ningún concesionario. Se reconoce **por el nombre**
+  "Sin concesionario" (`asegurarSinConcesionario` en `leadsService.ts`).
+
+### Usuarios
+
+- **`fl_usuarioapp`**: perfil. `fl_nombre`, `fl_correo`, `fl_rol`, `fl_ubicacion` (sede
+  principal), `fl_telefono`, `fl_activo`, `fl_systemuserid` (→ `systemuser`, la cuenta real
+  del entorno; se rellena cuando la cuenta existe).
+- **`fl_asignacion`**: qué lleva cada usuario. Una fila por (usuario, concesionario, sede);
+  **sede vacía = el concesionario entero**, incluidas las sedes futuras.
+  `fl_objetivoleadsmes` existe pero no se usa.
+- **Equipo por concesionario**: `team` "CRM Flotas - <nombre>" con el rol Concesionario. Es
+  dueño de las empresas del concesionario. Sus miembros son los usuarios con alguna sede en él.
+  Lo mantiene `guardarUsuario` (pantalla Usuarios y accesos) y `31-cargar-usuarios.ps1`.
+
+### Empresa y oportunidad
+
+- **`fl_empresa`**: el cliente, **una por CIF dentro de cada concesionario** (el mismo CIF
+  puede existir en dos concesionarios como dos filas). `fl_razonsocial`, `fl_cif` (normalizado:
+  sin espacios, guiones ni puntos, en mayúsculas), contactos (`fl_nombreresponsable`,
+  `fl_telefonocorporativo`, `fl_emailcorporativo`), `fl_estado` (Cliente potencial / Cliente),
+  `fl_oportunidadabierta` (→ la oportunidad en curso), `fl_concesionario`.
+- **`fl_lead`** = la **oportunidad**. Número autonumérico `L{SEQNUM:5}`. Campos:
+  - Estructura: `fl_empresa`, `fl_concesionario`, `fl_ubicacion`, `fl_comercial` (→
+    `fl_usuarioapp`), `fl_comercialresponsable` (texto con el nombre, para listas),
+    `fl_creadopor`, `ownerid` (el comercial: decide quién la ve).
+  - Copiados de la empresa para filtrar y ordenar: `fl_razonsocial`, `fl_cif`, contactos.
+  - Situación de flota: `fl_numvehiculosactuales`, `fl_marcasactuales`,
+    `fl_actividadeconomica`, `fl_modofinanciacionactual` (choice),
+    `fl_vencimientocontratosactuales`.
+  - Necesidad: `fl_modelosinteres` y `fl_numvehiculosrenovarampliar` (**resumen automático
+    de las líneas**), `fl_plazoestimadodecision` (choice), `fl_competidoresdetectados`,
+    `fl_requisitos`.
+  - Oferta: `fl_ofertacondiciones`, `fl_descuentoconcesionario` y `fl_descuentoventas`
+    (**resumen**: media ponderada por unidades de las líneas), `fl_fechacondiciones` (cuándo
+    cambió las condiciones el concesionario), `fl_condicionesrevisadas` (ventas ya las vio).
+  - Seguimiento: `fl_fechaprimercontacto` (se pone sola al crear y no se edita),
+    `fl_faseactual`, `fl_ultimaaccionrealizada`, `fl_proximaaccion`, `fl_fechaproximaaccion`,
+    `fl_observaciones`, `fl_motivoperdida`, `fl_importeventa` (antiguo, ya no se pide).
+  - **Eliminados de la app** (las columnas siguen en Dataverse, no usarlas):
+    `fl_cuotasobjetivo`, `fl_kmtiempo`.
+- **`fl_lineaoportunidad`**: un modelo de la oportunidad. `fl_lead`, `fl_modelo`,
+  `fl_cantidad`, `fl_descuentoconcesionario`, `fl_descuentoventas` (% por modelo). Tras cada
+  cambio, `guardarResumenLineas` / `guardarCambiosLineas` recalculan el resumen del lead.
+- **`fl_fasehistorico`**: cuánto tiempo pasa cada oportunidad en cada fase. `fl_lead`,
+  `fl_fase`, `fl_fechainicio`, `fl_fechafin` (vacío = abierta), `fl_esactual` (como mucho una
+  `true` por oportunidad), `fl_diasenfase` (se calcula en el cliente al cerrar).
+
+**Fases** (`fl_faseactual` / `fl_fase`): 1. Prospección (101000000) → 2. Primer Contacto → 3.
+Cualificación → 4. Propuesta → 5. Negociación → 6. Cierre (101000005) → 7. Entrega
+(101000006), y **Perdido** (101000008), al que se llega desde cualquier fase y que exige
+motivo. La opción 101000007 "8. Fidelización" sigue en Dataverse pero la app no la usa.
+
+### Actividad
+
+- **`fl_tarea`**: tareas de una oportunidad (`fl_titulo`, `fl_tipo`, `fl_fecha`,
+  `fl_estado`, `fl_notas`, `fl_enlace`, `fl_lead`; `fl_resultado` es antiguo).
+- **`fl_nota`**: notas (`fl_texto`, `fl_lead`, `fl_tarea` opcional, `fl_autor`).
+- **`annotation`**: adjuntos de tareas y notas (`documentbody`, máx. 5 MB). Al listar no se
+  pide el contenido, solo al descargar.
+
+### Objetivos y notificaciones
+
+- **`fl_objetivo`**: oportunidades al mes (`fl_leadsmes`). Prioridad: **fila de la sede**
+  (`fl_ubicacion`) → fila del concesionario → fila general (sin concesionario ni sede). Se
+  editan en Configuración o se importan con la plantilla. `fl_nombre` = nombre de la sede.
+- **`fl_notificacion`**: campanita de ventas. `fl_titulo`, `fl_tipo` (Descuento pendiente
+  101000000 / Empresa duplicada 101000001 / Condiciones por revisar 101000002), `fl_lead`,
+  `fl_empresa`, `fl_cif`. Ver sección 13.
+
+## 11. Seguridad (roles de Dataverse)
+
+Todos en la Business Unit raíz. El aislamiento entre concesionarios se hace con
+**propiedad + profundidad Basic**, no con unidades de negocio.
+
+| Tabla | CRM Flotas B2B - Concesionario | CRM Flotas B2B - Equipo de Ventas | CRM Flotas B2B - Administrador |
+|---|---|---|---|
+| `fl_lead`, `fl_fasehistorico`, `fl_tarea`, `fl_lineaoportunidad`, `fl_nota` | Crear/Leer/Escribir/Asignar **Basic** (solo lo suyo); borrar solo notas propias | Leer Global; **Escribir Global en `fl_lead` y `fl_lineaoportunidad`** (para el descuento de marca; la app solo le deja tocar eso) | Todo Global |
+| `fl_empresa` | Crear/Leer/Escribir/Asignar **Basic**: las suyas y las del equipo de su concesionario. **No puede leer empresas de otros concesionarios** | Leer Global | Todo Global |
+| `fl_concesionario`, `fl_ubicacion`, `fl_zona`, `fl_modelo`, `fl_usuarioapp`, `fl_asignacion`, `fl_objetivo` | Leer Global | Leer Global; Crear/Escribir `fl_usuarioapp`; CRUD `fl_asignacion` y `fl_objetivo` | Todo Global |
+| `fl_notificacion` | **Ninguno** (las crea el navegador de ventas) | CRUD Global | Todo Global |
+| `annotation` | CRUD Basic | Leer Global | Todo Global |
+
+Además: Append/AppendTo Global en las tablas de la app (imprescindible para `@odata.bind`);
+Concesionario lee `team`; Equipo de Ventas puede leer cuentas, equipos y roles, cambiar
+miembros de equipos y asignar roles (`25-ventas-gestiona-usuarios.ps1`). Dataverse no deja dar
+un rol con permisos que no tiene quien lo da, por eso Ventas tiene también los permisos Basic
+del rol Concesionario.
+
+**Consecuencias prácticas:**
+
+- Cada comercial ve **solo sus oportunidades** (Basic sobre `ownerid`), aunque comparta sede.
+  Al reasignar una oportunidad a otro comercial, las tareas, el histórico y las líneas se
+  reasignan en cascada.
+- Un concesionario **nunca** ve datos de otro concesionario, ni siquiera pidiéndolos a la API.
+  La app añade además sus propias comprobaciones (p. ej. el aviso de empresa duplicada solo se
+  calcula para ventas y administración).
+- Por eso la regla "una oportunidad abierta por empresa" se apoya en
+  `fl_empresa.fl_oportunidadabierta` y no en buscar oportunidades: el comercial no puede ver
+  las de sus compañeros.
+
+**Además del rol de la app, todo usuario necesita el rol de sistema "Usuario Basic"** (Basic
+User). Ver sección 14.
+
+## 12. Pantallas
+
+Rutas en `src/App.tsx`; menú por rol en `src/components/layout/navConfig.ts`. `/` redirige a
+`/panel-kpi` (ventas) o `/mi-actividad` (resto). El administrador ve todos los menús a la vez.
+
+| Ruta | Rol | Qué hace |
 |---|---|---|
-| `fl_titulo` | Texto | `"{numero} — {fase}"` |
-| `fl_lead` | Lookup → `fl_lead` | |
-| `fl_fase` | Choice | mismo choice que `fl_faseactual` |
-| `fl_fechainicio` / `fl_fechafin` | Fecha | `fl_fechafin` vacío = fila abierta |
-| `fl_esactual` | Sí/No | `true` = la fila abierta de ese lead (debe haber como mucho una) |
-| `fl_diasenfase` | Entero | se calcula en el cliente al cerrar la fila, no hay plugin servidor |
+| `/mi-actividad` (Inicio) | Concesionario | Cifras del mes o año (activadas, ventas, objetivo, conversión), últimas ventas, tareas con calendario y oportunidades por fase. Filtro de sede si lleva varias. |
+| `/mis-leads` (Mis oportunidades) | Concesionario | Tabla o pipeline (arrastrar una tarjeta abre el cambio de fase). Filtros múltiples, buscador en todos los campos, tareas y notas. Acepta `?fase=`. |
+| `/nuevo-lead` (Nueva oportunidad) | Concesionario | Alta en 2 pasos. Primero el CIF: si la empresa tiene una oportunidad abierta, no deja crear otra. Se elige la sede (si lleva varias) y el comercial (si la sede la llevan varios). Empieza en Prospección. |
+| `/lead/:id` (ficha) | Todos | Datos en bloques editables con el lápiz; Oferta por modelo; Cierre de la operación (en Cierre y Entrega); historial de fases con sus tareas; notas y adjuntos; cambio de fase con diálogo. Ventas solo edita el descuento de marca. |
+| `/empresas`, `/empresa/:id` | Concesionario (las suyas), Ventas (todas) | Empresas con estado y oportunidad en curso. La ficha de empresa, para ventas, muestra también las oportunidades del otro concesionario si hay duplicado. |
+| `/panel-kpi` (Inicio de ventas) | Equipo de Ventas | Cifras de toda la red, tabla por fase agrupable (zona → concesionario → sede, ranking de modelos), vistas propias guardadas en el navegador, análisis del pipeline. Filtros en cascada Zona → Concesionario → Sede. Aviso de descuentos pendientes. |
+| `/seguimiento` (Oportunidades) | Equipo de Ventas | Todas las oportunidades en tabla o pipeline (solo lectura), filtros, columnas configurables, `?descuento=pendiente`. |
+| `/info` | Equipo de Ventas | Directorio: concesionario → sedes → usuarios. |
+| `/configuracion` | Equipo de Ventas | Objetivo mensual por sede (el del concesionario es la suma). Filtros en cascada **Zona, Concesionario, Sede y Comercial** (bidireccionales). Exportar e importar Excel con el formato de la plantilla (hoja `PLANTILLA`, columnas `DEALER` y `OBJETIVO`). |
+| `/usuarios` (Usuarios y accesos) | Equipo de Ventas y Administrador (no con "Ver como") | Alta y edición de usuarios: tipo, activo y "lo que lleva" (árbol concesionario → sedes). Al guardar sincroniza asignaciones, equipos y rol de seguridad. Ventas no ve ni crea administradores. |
 
-**Mecanismo de cambio de fase** (`cambiarFaseLead` en `leadsService.ts`, 2-3
-llamadas secuenciales porque no hay endpoint de transacción): cierra la fila
-abierta (`fl_fechafin=ahora`, `fl_esactual=false`,
-`fl_diasenfase=diffDays(...)`) → crea una fila nueva abierta para la fase
-destino → actualiza `fl_lead.fl_faseactual` (y `fl_motivoperdida` si aplica).
-Al crear un lead (`crearLeadBase`) pasa lo mismo: crea el lead en fase
-Prospección y su primera fila de histórico.
+La **campanita** (`Campanita.tsx`, en la barra superior) solo aparece para ventas y
+administración.
 
-### `fl_tarea` — tareas de seguimiento de un lead (UserOwned)
+## 13. Reglas de negocio
 
-Creada con `scripts/dataverse/15-tareas-objetivos.ps1`. Se crean desde la ficha
-del lead y se ven en la pantalla de inicio del concesionario (lista + calendario).
+### Oportunidades y empresas
 
-| Campo | Tipo | Notas |
-|---|---|---|
-| `fl_titulo` | Texto | Qué hay que hacer |
-| `fl_tipo` | Choice | Llamada / Correo / Reunión / Visita / Otro |
-| `fl_fecha` | Fecha y hora | |
-| `fl_estado` | Choice | Pendiente / En curso / Completada / Cancelada |
-| `fl_notas` | Texto largo | |
-| `fl_lead` | Lookup → `fl_lead` | Requerido |
+- **Una sola oportunidad abierta por empresa y concesionario.** Abierta = de Prospección a
+  Negociación (`esFaseAbierta`). Al pasar a Cierre, Entrega o Perdido, la empresa queda libre y
+  se puede abrir otra. Lo controla `fl_empresa.fl_oportunidadabierta`, que mantiene
+  `cambiarFaseLead` → `sincronizarEmpresaConFase`. Otro concesionario sí puede tener su propia
+  oportunidad para el mismo CIF.
+- Al llegar a Cierre o Entrega la empresa pasa a "Cliente" automáticamente.
+- **Cambio de fase** (`cambiarFaseLead`): cierra la fila abierta de `fl_fasehistorico`
+  calculando los días, crea la nueva y actualiza `fl_faseactual` (y el motivo si es Perdido).
+- **Campos por fase** (`src/lib/camposFase.ts`, objeto `REQUISITOS`). Son acumulativos:
+  - Primer Contacto: siguiente paso (opcional).
+  - Cualificación: obligatorios nº vehículos actuales, modo de financiación, vencimiento de
+    contratos, **modelos**, plazo de decisión, próxima acción y su fecha.
+  - Propuesta: obligatorio el **descuento del concesionario en cada modelo**; condiciones
+    opcionales.
+  - Cierre: obligatoria la tabla de **cierre** (unidades y descuentos finales por modelo).
+- **El diálogo de cambio de fase NO deja guardar si faltan obligatorios** (o el motivo de
+  pérdida): el botón se desactiva y los campos que faltan se marcan en rojo. "Completar datos"
+  de la fase actual sí deja guardar parcialmente.
+- Para cambiar qué pide cada fase basta con tocar `REQUISITOS`.
 
-### `fl_nota` y `fl_tarea.fl_resultado` — notas y resultado de tareas
+### Descuentos (por modelo)
 
-Creados con `scripts/dataverse/21-notas-y-resultado-tareas.ps1`.
+- Cada modelo de la oportunidad tiene **descuento del concesionario** (lo pone el comercial)
+  y **descuento de marca** (lo pone Equipo de Ventas). El total es la suma.
+- **Sin modelos no hay oferta**: el bloque Oferta pide añadir antes los modelos.
+- El lead guarda un resumen: media de cada descuento ponderada por unidades
+  (`resumenDescuentos`). El de marca queda vacío mientras algún modelo no lo tenga.
+- **Pendiente de marca** (`descuentoPendiente`): hay descuento del concesionario, falta el de
+  marca y la fase no es Cierre, Entrega ni Perdido. Se marca en naranja y genera notificación.
+- Si el comercial cambia su descuento de un modelo, el de marca de ese modelo se borra para que
+  ventas lo revise.
+- **Excepción "Sin concesionario"**: esas oportunidades las lleva gente de EBRO, que rellena
+  **los dos** descuentos. Nunca están pendientes ni generan aviso.
+- Validación: cada % entre 0 y 100, la suma de los dos ≤ 100, unidades enteras.
 
-- `fl_nota`: nota libre sobre una oportunidad (`fl_texto`, `fl_lead`, `fl_autor` →
-  `fl_usuarioapp`; la fecha es `createdon`). UserOwned, cascada de asignación desde
-  `fl_lead`. Concesionario CRUD Basic (solo borra las suyas), Equipo de Ventas Read
-  Global. Se muestran en la ficha del lead (`NotasLead.tsx`); el nombre del autor sale
-  de la anotación `FormattedValue` del lookup.
-- `fl_tarea.fl_resultado`: cómo fue la tarea. Al marcarla Completada (`FilaTarea` con
-  `onGuardarResultado`) se pregunta según el tipo ("¿Cómo fue la visita?"); se puede
-  saltar y añadir o editar después.
+### Condiciones y notificaciones a ventas
 
-### Adjuntos, enlace de llamada y notas de tarea (29/10/2026)
+- Cuando el concesionario cambia las condiciones de la oferta, `actualizarLead` pone
+  `fl_fechacondiciones = ahora` y `fl_condicionesrevisadas = false`.
+- La campanita de ventas crea una notificación "Condiciones pendientes de revisar" (una por
+  cambio) que enlaza a la oportunidad. Cuando alguien de ventas abre la oportunidad, se marca
+  como revisada.
+- **Las notificaciones las crea el navegador de ventas o administración**
+  (`sincronizarNotificaciones`, al cargar la campanita), no el del concesionario, que no tiene
+  permiso sobre `fl_notificacion`. Consecuencia: aparecen cuando alguien de ventas abre la app.
+- Tipos: descuento de marca pendiente, condiciones por revisar y empresa duplicada (mismo CIF
+  en dos concesionarios). No se borran solas; ventas las puede quitar.
+- El aviso "Esta empresa ya está siendo trabajada por otro concesionario" en la Oferta y en la
+  ficha de empresa **solo lo ven ventas y administración**.
 
-Creados con `scripts/dataverse/22-adjuntos-enlace-notas-tarea.ps1`.
+### Objetivos
 
-- **Adjuntos**: notas nativas de Dataverse (`annotation`, archivo en `documentbody`)
-  colgadas de `fl_tarea` (los que se suben al crear la tarea) o de `fl_nota` (los de
-  cada nota). Se activó `HasNotes` en las dos tablas (irreversible). Código en
-  `src/lib/adjuntosService.ts`: al listar no se pide el contenido, solo al descargar.
-  Límite de 5 MB por archivo (el de subida por defecto de Dataverse). Privilegios sobre
-  `Note`: Concesionario Create/Read/Write/Delete/Assign Basic, Ventas Read Global,
-  Append/AppendTo Global para los dos, Administrador todo Global.
-- **`fl_tarea.fl_enlace`**: enlace de la llamada o reunión (solo se pide en esos dos tipos).
-- **`fl_nota.fl_tarea`**: una nota con tarea es una nota de esa tarea; sin tarea, nota
-  general de la oportunidad. Al completar o cancelar una tarea se pregunta cómo fue y se
-  guarda como nota de la tarea. `fl_tarea.fl_resultado` ya no se escribe; si tiene texto
-  antiguo se muestra como "Resultado" dentro de la tarea.
-- La fase de cada tarea no se guarda: es la fase en la que estaba la oportunidad cuando
-  se creó (`createdon` frente a `fl_fasehistorico`), ver `HistorialTareas.tsx`.
+- Objetivo de oportunidades al mes por sede; el del concesionario y el de la red son sumas.
+- Plantilla Excel (`archivos/Plantilla para importar objetivos.xlsx` en la carpeta de trabajo,
+  no en el repo): hoja `PLANTILLA` (la del archivo original tiene un espacio al final del
+  nombre; el código lo tolera), columnas `DEALER` (sede, p. ej. "Syrsa-Huelva") y `OBJETIVO`.
+  Las filas TOTAL se ignoran. La importación compara nombres sin acentos ni signos.
+- Las sedes de "Sin concesionario" no tienen objetivo.
 
-### `fl_objetivo` — objetivo de leads al mes por concesionario
+### KPIs
 
-Una fila sin `fl_concesionario` = objetivo general; una fila con concesionario lo
-sustituye solo para ese. `fl_leadsmes` (entero). Lo edita el equipo de ventas en
-`/configuracion` (`guardarObjetivo`). El objetivo de un Inicio es la suma del de
-cada concesionario que mira (`objetivoDeRed`): toda la red, los concesionarios del
-comercial, o solo los de las sedes que haya filtrado.
+- Se calculan en el cliente a partir de `fl_lead` y `fl_fasehistorico` (`kpiService.ts`,
+  `actividadService.ts`).
+- Los periodos se filtran por **fecha de negocio** (`fl_fechaprimercontacto` o fechas del
+  histórico), nunca por `createdon`.
+- "Activada" = llegó a Primer Contacto o más. "Venta" = llegó a Cierre y no está Perdido.
 
-### `fl_asignacion` — qué sedes lleva cada usuario (30/10/2026)
+## 14. Usuarios: alta, licencias e invitados externos
 
-Creada con `scripts/dataverse/24-asignaciones-y-equipos.ps1`. Una fila por
-(usuario, concesionario, sede): `fl_usuarioapp`, `fl_concesionario` (obligatorios),
-`fl_ubicacion` (vacío = **el concesionario entero**, incluidas las sedes que se abran
-después). La columna `fl_objetivoleadsmes` existe pero **no se usa** (el objetivo va
-por concesionario, ver `fl_objetivo`). Se gestiona en
-`/usuarios`; `src/lib/asignacionesService.ts` tiene la lógica.
+Para que una persona pueda usar la app tienen que cumplirse **todas** estas condiciones:
 
-- `fl_usuarioapp.fl_ubicacion` sigue existiendo como **sede principal** (la que sale
-  por defecto en el alta); al guardar en `/usuarios` se corrige si deja de ser suya.
-- **Compañeros de una sede** (`fetchComercialesDeSede`): usuarios activos con una
-  asignación a esa sede o a su concesionario entero. Se usa en el alta y al cambiar
-  el comercial de una oportunidad.
-- **Equipo por concesionario**: cada `fl_concesionario` tiene un equipo propietario
-  (`fl_concesionario.fl_equipo` → `team`, "CRM Flotas - <nombre>", con el rol
-  Concesionario). Es el **dueño de las empresas** de ese concesionario; sus miembros son
-  los usuarios con alguna sede en él. `/usuarios` los mete y saca del equipo
-  (`teammembership_association`, vía `relateRecords`/`unrelateRecords` de
-  `dataverseClient.ts`) y les pone el rol de seguridad de su tipo
-  (`systemuserroles_association`), salvo a los administradores, que se gestionan a mano.
-  Solo funciona si el usuario ya tiene cuenta en el entorno (`fl_systemuserid`); si no,
-  se avisa y se completa al volver a guardarlo cuando la tenga.
+1. **Cuenta en el tenant de EBRO.** Internos: su cuenta `@ebroauto.com`. Concesionarios: se
+   invitan como **invitados B2B** en Entra ID. Su UPN queda como
+   `nombre_dominio.com#EXT#@ebroauto.onmicrosoft.com`.
+2. **Licencia de Power Apps** que cubra apps con Dataverse (Premium): **Power Apps per app**
+   (EBRO tiene cupo, se asigna al usuario desde el Centro de administración de Microsoft 365)
+   o Premium. Sin licencia sale "necesitas una licencia".
+3. **Usuario en el entorno de Dataverse** (aparece en `systemuser` cuando se le asigna un rol
+   o entra por primera vez).
+4. **Roles de seguridad**: **"Usuario Basic"** (Basic User, rol del sistema) **y** el de la
+   app (CRM Flotas B2B - Concesionario / Equipo de Ventas / Administrador).
+5. **App compartida** con el usuario (make.powerapps.com → app → Compartir) o con un grupo
+   del que forme parte.
+6. **Perfil en `fl_usuarioapp`** con su correo, tipo y sedes. Se hace en **Usuarios y
+   accesos** (o en bloque con `31-cargar-usuarios.ps1`). Al guardar, si la cuenta ya existe
+   en el entorno, se vincula (`fl_systemuserid`), se añade al equipo de su concesionario y se
+   le pone el rol de la app. Si todavía no existe, queda el perfil y hay que **volver a
+   guardarlo** (o relanzar el script 31) cuando la tenga.
 
-`fl_lead.fl_importeventa` (moneda): precio final de la venta; se pide al pasar
-a Cierre y suma en "Facturado". Se lee aparte de `LEAD_SELECT`
-(`fetchImportesVenta`) para que nada falle en un entorno sin esa columna.
+**Carga masiva** (`31-cargar-usuarios.ps1 -Excel <Excel de responsables> [-SinConcesionario
+correo1,correo2] [-Simular]`): lee la hoja "RESPONSABLE EBRO BUSINESS". Si un usuario aparece
+en todas las sedes de su concesionario, lleva el concesionario entero. No quita accesos ni
+cambia roles existentes. **El Excel tiene datos personales: no se sube al repositorio.**
 
-### `fl_zona` y `fl_modelo` — red comercial real y catálogo
+## 15. Problemas ya resueltos (no repetirlos)
 
-Cargados con `scripts/dataverse/16-red-ebro-y-modelos.ps1` desde
-`scripts/dataverse/datos/red-ebro.json` (exportado del Excel "BBDD FLOTAS",
-pestañas RESPONSABLE EBRO BUSINESS y MODELOS DE INTERES). Lectura vía
-`src/lib/catalogosService.ts` (`fetchZonas`, `fetchModelos`).
+### 15.1 Invitados externos: "The user is not a member of the organization" (0x80072560)
 
-- **7 zonas** (`fl_nombre` "Zona N", `fl_numero`, `fl_areamanager` texto), 42
-  concesionarios, 108 sedes.
-- **La zona va en la sede** (`fl_ubicacion.fl_zona`), no en el concesionario:
-  M AUTOMOCION tiene sedes en la Zona 2 (Barcelona) y en la Zona 4 (Madrid).
-  `fl_ubicacion.fl_areamanager` se rellena también como "Nombre (Zona N)".
-- Las sedes de demo "M Automocion Barcelona/Madrid" se reutilizaron (renombradas
-  a las del Excel), así que sus leads y usuarios de demo siguen enlazados. Los
-  concesionarios de demo **Norte Motor** y **Auto Zaragoza** no están en el
-  Excel: siguen ahí, sin zona.
-- `fl_modelo`: 13 modelos (`fl_nombre` "S700 HEV LUXURY", `fl_familia` S700,
-  `fl_motorizacion`, `fl_acabado`, `fl_orden`, `fl_activo`). Son los que deben
-  salir en los desplegables; `fl_lead.fl_modelosinteres` sigue siendo texto
-  libre hasta la reestructuración de abajo.
+- **Síntoma**: los usuarios `@ebroauto.com` entraban bien, pero **cualquier invitado B2B**
+  (los concesionarios) recibía al abrir la app un error 403
+  `0x80072560 The user is not a member of the organization`. Licencia, roles, usuario de
+  Dataverse y app compartida estaban bien, y una consulta directa a la Web API con el token
+  del invitado devolvía 200.
+- **Causa**: la app hablaba con Dataverse a través del **conector**
+  `commondataserviceforapps`. Para un invitado, el conector se presentaba con la identidad de
+  **su propio tenant de origen** (p. ej. HUB TECH FACTORY) y el Dataverse de EBRO no lo
+  reconocía.
+- **Solución** (06/11/2026, commit `d9fe9ef`): todas las tablas de la app pasaron a ser
+  **orígenes nativos de Dataverse** (`pac code add-data-source -a dataverse -t <tabla>`), que
+  usan la sesión del reproductor de Power Apps. Solo las tablas de sistema de la pantalla de
+  administración siguen por el conector.
+- **Qué NO era** (ya se descartó, no volver a investigarlo): licencias, consentimiento en
+  Entra ID, roles, el correo del perfil.
+- **Prevención**: toda tabla nueva → origen nativo (sección 6, paso 6). Para probarlo de
+  verdad hace falta una **cuenta de invitado real** (p. ej. `ext.allanos@ebrofactory.com`),
+  porque con una cuenta interna nunca se reproduce.
 
-## Empresa / Oportunidad (implantado el 28/10/2026)
+### 15.2 Login de invitados: el UPN no coincide con el correo
 
-Esquema en `scripts/dataverse/17-empresa-oportunidad.ps1`; los 46 leads que
-había se pasaron con `18-migrar-empresas.ps1` (46 empresas, ningún CIF
-repetido dentro de un concesionario).
+El UPN de un invitado es `nombre_dominio.com#EXT#@ebroauto.onmicrosoft.com`, que nunca
+coincide con `fl_correo`. `AuthContext` busca primero por la cuenta vinculada
+(`fl_systemuserid`) y después por el correo real deducido del UPN (sección 9).
 
-- **`fl_empresa`** — el cliente, **una por CIF dentro de cada concesionario**
-  (`fl_cif` normalizado sin espacios/guiones/puntos y en mayúsculas,
-  `fl_concesionario`). Guarda las secciones 1 y 2 de la ficha: razón social,
-  CIF y contactos. Las secciones 3-5 (flota, necesidad, seguimiento) son de
-  cada oportunidad. Sus columnas de flota y sector existen pero no se usan
-  (la migración las rellenó; se pueden borrar). Además guarda
-  `fl_estado` (Cliente potencial / Cliente / Fidelización) y
-  `fl_oportunidadabierta` (lookup a la oportunidad en curso).
-- **`fl_lead` es la Oportunidad**: nuevos lookups `fl_empresa` y
-  `fl_comercial` (→ `fl_usuarioapp`). `fl_comercialresponsable` (texto) se
-  sigue rellenando con el nombre para las listas. Razón social y CIF se copian
-  en el lead porque las listas filtran por ellos; los contactos se leen de
-  la empresa: `conDatosDeEmpresa` (leadsService.ts)
-  los copia sobre cada lead al leerlo, así listas, KPIs y Excel no cambian.
-  Al editar el detalle, los contactos se guardan en la empresa
-  (`CAMPOS_EMPRESA`).
-- **`fl_lineaoportunidad`** — modelo de `fl_modelo` + cantidad. Tras cada
-  cambio, `fl_modelosinteres` y `fl_numvehiculosrenovarampliar` del lead se
-  recalculan como resumen (`guardarResumenLineas`). Los leads migrados
-  conservan su texto libre (eran familias, "S700", sin modelo exacto).
-- **Duplicados**: una oportunidad está abierta de Prospección a Negociación
-  (`esFaseAbierta`). Solo una abierta por empresa: el alta pide primero el CIF
-  y, si la empresa tiene `fl_oportunidadabierta`, no deja continuar. Se usa
-  el lookup de la empresa y no una consulta de leads porque con seguridad
-  Basic no se ven los de los compañeros; su número sale de la anotación
-  `FormattedValue` del lookup. `cambiarFaseLead` lo mantiene
-  (`sincronizarEmpresaConFase`) y pasa la empresa a Cliente al llegar a
-  Cierre/Entrega.
-- **Sede**: quien lleva varias elige primero en cuál da de alta (por defecto su sede
-  principal); el CIF se busca en el concesionario de esa sede y la empresa nueva se crea
-  a nombre del equipo de ese concesionario (si no se puede, a nombre de quien la crea).
-- **Comercial**: en el alta, si la sede tiene varios usuarios activos sale un
-  desplegable (por defecto el conectado). Si se elige a otro y tiene
-  `fl_systemuserid`, la oportunidad se le reasigna (`ownerid`) al final del
-  alta; las relaciones de `fl_lead` con `fl_fasehistorico`, `fl_tarea` y
-  `fl_lineaoportunidad` cascadean la asignación. Si no tiene usuario
-  vinculado, queda a nombre de quien la crea.
-- Ficha de empresa en `/empresa/:id` con todas sus oportunidades visibles.
+### 15.3 La app de producción leía los datos de desarrollo
 
-Decisiones tomadas sin validar aún con Ventas:
+El 03/11/2026 la app de producción mostraba los datos de demo de desarrollo **sin dar
+ningún error**: la URL del org estaba fija en el código. Hoy no puede pasar: las tablas
+nativas van al Dataverse del entorno de la app y el conector resuelve el org en tiempo real.
+**Si añades un entorno, añádelo a `ORGANIZACION_POR_ENTORNO`**. Tras publicar en producción,
+comprueba que no aparecen datos de demo.
 
-- Empresa por concesionario, no global de la red: cada concesionario tiene su
-  propia ficha del cliente y no se avisa si otro concesionario trabaja el
-  mismo CIF (sería revelar clientes entre concesionarios).
-- Importe facturado como total (`fl_importeventa`, se pide al pasar a
-  Cierre); las líneas llevan modelo y cantidad, sin precio.
-- Estado de la empresa automático, solo Cliente potencial / Cliente (la
-  opción Fidelización sigue en Dataverse sin usarse).
+### 15.4 Otros
 
-## Seguridad (roles reales, auditados en el entorno — no solo lo que dicen los scripts)
+- `ListRecords` sin organización falla con `Invalid organization URL 'null' provided`: en el
+  conector hay que usar siempre las operaciones `...WithOrganization`.
+- `pac code add-data-source` para el conector: `--apiId shared_commondataserviceforapps`
+  (nombre corto, nunca la ruta `/providers/...`) y `--connectionId` explícito (sacarlo con
+  `pac connection list --environment <id>`). En Git Bash las rutas con `/` se corrompen: usar
+  PowerShell.
+- Mover la app a otro entorno: el `appId` no se reutiliza (`InvalidEnvironmentName`) y el
+  nombre puede chocar con la ficha vacía importada (`ApplicationDisplayNameIsInUse`). En un
+  entorno nuevo hay que activar "Power Apps code apps" (Centro de administración → entorno →
+  Configuración → Producto → Características), crear la app con `pac code init` y añadir los
+  orígenes de datos.
+- Las soluciones llevan esquema, no datos: en un entorno nuevo hay que cargar la red real
+  (`16`), "Sin concesionario" (`30`), usuarios (`31`) y objetivos (`33`).
+- `enum` de TypeScript no compila (`erasableSyntaxOnly`).
+- Un `<select>` nativo con opciones de colores se ve mal: por eso `FaseSelect` es un
+  componente propio.
+- Logo roto al publicar: se incrusta en base64.
+- La descarga "CSV" abría mal en Excel: se exporta como tabla HTML (`excelExport.ts`) y la
+  plantilla de objetivos como .xlsx real (`objetivosExcel.ts`).
+- Los archivos del proyecto usan **CRLF**. Al editarlos con scripts, respétalo.
+- Si un script de Dataverse falla con "conexión cerrada por el host remoto", se relanza (son
+  idempotentes).
 
-Todo en la Business Unit raíz (no hay BU por dealer; el aislamiento entre
-concesionarios es por `Basic`/ownership, no por BU).
+## 16. Diseño
 
-| Rol | `fl_lead` / `fl_fasehistorico` | `fl_concesionario`/`fl_ubicacion`/`fl_usuarioapp` |
-|---|---|---|
-| **CRM Flotas B2B - Concesionario** | Create/Read/Write, **Basic** (solo lo suyo) | Read, Global |
-| **CRM Flotas B2B - Equipo de Ventas** | **Read-only**, Global (ve todo, no edita) | Read, Global |
-| **CRM Flotas B2B - Administrador** | CRUD completo, Global, en las 5 tablas | — |
+- Paleta EBRO en `src/styles/common.css`: blanco dominante, negro pizarra `#1d1d1b` como
+  primario, marrón tierra como acento. **Nada de azul** (decisión del negocio).
+- Fases con rampa ordinal de gris a negro (`FASE_COLORS` en `StatusBadge.tsx`). Perdido en rojo
+  aparte. Pendiente de descuento en naranja (`--color-naranja*`).
+- Tipografía Segoe UI. Barra lateral negra colapsable con la foto de la trasera de un EBRO.
+- Textos formales y en español de España.
 
-`fl_tarea`: Concesionario CRUD Basic, Equipo de Ventas Read Global, Administrador
-todo Global. `fl_empresa`: Concesionario Create/Read/Write/Assign **Basic** desde el
-30/10/2026 (antes Global): ve las suyas y las de los equipos de sus concesionarios,
-y ninguna de otros concesionarios aunque las pida directamente (protección real, no
-solo un filtro de la app). Equipo de Ventas Read Global. `fl_asignacion`: Read Global
-para Concesionario, Administrador todo Global. Concesionario tiene además Read Global
-en `Team`. **Equipo de Ventas gestiona usuarios** (`25-ventas-gestiona-usuarios.ps1`,
-01/11/2026): `fl_usuarioapp` Create/Write Global, `fl_asignacion` CRUD Global, leer
-cuentas/equipos/roles, escribir y enlazar equipos, `Assign Role`, y los mismos permisos
-Basic que el rol Concesionario (Dataverse no deja dar un rol con permisos que no tiene
-quien lo da; sin ellos no podría poner el rol Concesionario). Desde el 02/11/2026 (`26-descuentos-oferta.ps1`) Equipo de Ventas tiene
-Write Global en `fl_lead` para guardar su descuento; la app solo le deja tocar ese campo. `fl_lineaoportunidad`: Concesionario CRUD Basic, Equipo de Ventas
-Read Global. Concesionario tiene además `Assign` Basic en `fl_lead`,
-`fl_fasehistorico`, `fl_tarea` y `fl_lineaoportunidad` para reasignar al
-comercial elegido. `fl_objetivo`: Read Global para Concesionario, Equipo de Ventas
-Create/Read/Write/Delete Global (`23-editar-objetivos-ventas.ps1`, para
-`/configuracion`), Administrador todo Global.
+## 17. Pendientes conocidos (11/11/2026)
 
-`Append`/`AppendTo` concedido Global en las 5 tablas a los roles no-admin
-(imprescindible para los `@odata.bind` al crear/vincular registros). Sin
-`Delete` salvo para Administrador — un lead no se borra nunca, se marca
-Perdido.
-
-El admin real (`allanos@ebroauto.com`) tiene asignado el rol Administrador y
-su propia fila en `fl_usuarioapp`, lo que le permite usar "Ver como rol" para
-probar la vista de Concesionario/Equipo de Ventas sin otra cuenta.
-
-## Pantallas
-
-| Ruta | Para quién | Qué hace |
-|---|---|---|
-| `/nuevo-lead` | Concesionario | Alta en 2 pasos (secciones 1 y 2 del Excel). Pide primero el CIF y comprueba empresa existente / oportunidad en curso. Quien lleva varias sedes elige la instalación (agrupadas por concesionario si lleva varios); concesionario y area manager salen de esa sede; comercial con desplegable si la sede la llevan varios. Fase inicial fija en "1. Prospección". |
-| `/mis-leads` | Concesionario | Lista filtrada por `ownerid` vía seguridad Basic (no hace falta filtrar en la query): cada comercial ve **solo las suyas**, aunque comparta sede. Quien lleva varias sedes tiene además filtro de Sede y la columna Concesionario (con la sede). Vista Tabla o Pipeline. Filtros de varias opciones (fase, modelo del catálogo, empresa) y buscador que busca en todos los campos, tareas y notas (`src/lib/filtrosLeads.ts`). En el pipeline las tarjetas se arrastran a otra fase y se abre `CambioFaseDialog` con esa fase; los campos de las tarjetas los elige cada usuario ("Campos de tarjeta", guardado en su navegador, `camposTarjeta.ts`). Acepta `?fase=` en el enlace (lo usa el gráfico de Inicio). |
-| `/lead/:id` (`DetalleLead`) | Concesionario (edición) / Equipo de Ventas (solo lectura) | Izquierda: datos en bloques compactos (`DatosLead.tsx`), todos editables en cualquier fase con el lápiz, salvo la fecha de primer contacto y lo que viene de la sede; razón social, CIF y contactos se guardan en `fl_empresa` (el CIF se comprueba contra las otras empresas del concesionario); el comercial se cambia entre los usuarios de la sede y la oportunidad se le reasigna. Derecha: historial de fases con las tareas de cada fase debajo (cada tarea se despliega con descripción, enlace, adjuntos y notas) y notas generales con adjuntos. Cambio de fase con ventana (`CambioFaseDialog`) que pide los datos de la fase destino (desde el 01/11/2026 nada impide guardar: si faltan los marcados con * o el motivo de pérdida, sale un aviso amarillo y se puede cambiar de fase igualmente), y aviso arriba de lo que falta en la fase actual con botón "Completar". Qué pide cada fase y qué es obligatorio está en `src/lib/camposFase.ts` (`REQUISITOS`). |
-| `/empresas` (`Empresas`) | Concesionario (las de sus concesionarios, con filtro y columna de concesionario si lleva varios) / Equipo de Ventas (toda la red) | Lista de empresas con estado, oportunidad en curso, nº de oportunidades y ventas; filtros por texto, estado, concesionario y "con oportunidad en curso". |
-| `/empresa/:id` (`DetalleEmpresa`) | Todos | Datos de la empresa, estado (automático, solo lectura) y sus oportunidades; "Nueva oportunidad" si no tiene una en curso. |
-| `/mi-actividad` ("Inicio") | Concesionario | Pantalla de entrada del dealer. Tarjetas con filtro mes/año: leads activados (llegaron a Primer Contacto o más), ventas cerradas (llegaron a Cierre y no están Perdido), objetivo de leads (creados frente a la suma del objetivo de sus concesionarios, ver `fl_objetivo`) y tasa de conversión (la misma tarjeta que en el Inicio de ventas). Quien lleva varias sedes tiene filtro de Sede (filtra todas las cifras, el objetivo y las tareas). Últimas ventas (con el número de vehículos, no el importe), Tareas (cambio de estado, número de oportunidad y botón para abrirla; al cerrarla se pide una nota que no se muestra aquí; "Ver todas" con desplazamiento; calendario) y oportunidades por fase en columnas (`FaseColumnas`, cada columna abre Mis leads filtrado). Es `InicioPanel` en modo `concesionario`. Fechas de hito sacadas de `fl_fasehistorico` (`actividadService.ts`). |
-| `/seguimiento` (`SeguimientoLeads`) | Equipo de Ventas | Todos los leads en Tabla o Pipeline (de solo lectura, sin arrastrar). Filtros de varias opciones: concesionario, sede, fase, modelo, empresa; buscador en todo. Columnas reordenables y configurables, ordenable. |
-| `/panel-kpi` ("Inicio" del equipo de ventas) | Equipo de Ventas | Pantalla de entrada de ventas: `InicioPanel` en modo `red`, siempre de toda la red. Tarjetas: oportunidades activadas, ventas, objetivo (suma del de todos los concesionarios) y tasa de conversión (contactados que acaban en venta). Tabla de oportunidades por fase con dos niveles y subtotal (Vista: zona → concesionario, concesionario → sede, etc., o ranking de modelos) y periodo propio. "+ Nueva vista…" deja armar una vista propia (agrupar por, segundo nivel, solo unas zonas o concesionarios, qué columnas de fase); se guarda en el navegador de cada usuario (`vistasPersonales.ts`), no en Dataverse. Debajo, "Análisis del pipeline": indicadores del Excel "KPI Dashboard" (`kpiService.ts`), tiempo medio por fase, conversión y oportunidades por concesionario. |
-| `/info` | Equipo de Ventas | Árbol Concesionario → Ubicaciones → usuarios que la llevan (cada usuario sale en todas sus sedes; directorio de solo lectura). |
-| `/usuarios` ("Usuarios y accesos") | Equipo de Ventas y Administrador (no con "Ver como" otro rol) | Ventas no ve las cuentas de administración ni puede dar ese tipo. Lista de usuarios y editor: datos, tipo, activo, y "Lo que lleva" — árbol concesionario → sedes con casilla de concesionario entero, buscador y filtro de zona. Al guardar sincroniza equipos y rol de seguridad (`guardarUsuario`). Los objetivos no van aquí, sino en `/configuracion`. |
-| `/configuracion` ("Configuración") | Equipo de Ventas | Objetivo de oportunidades al mes por concesionario (o el general), buscable y filtrable por zona, con el trimestre y el año calculados. |
-
-## Diseño
-
-Paleta en `src/styles/common.css` (`--color-primary: #1d1d1b`, blanco
-dominante, nada de azul — decisión explícita del negocio). Fases con rampa
-ordinal gris frío → negro (`FASE_COLORS` en `src/components/StatusBadge.tsx`),
-"Perdido" con token crítico rojo aparte, nunca dentro de la rampa. El
-desplegable de fase (`FaseSelect`, mismo archivo) es un componente propio con
-punto de color por opción — un `<select>` nativo con `<option>` de fondo
-coloreado se renderiza mal en el navegador, por eso no se usa.
-
-## Migrar a otro entorno
-
-Dos cosas viajan por caminos **distintos** — no asumir que una trae la otra:
-
-1. **Esquema (tablas, columnas, relaciones, roles de seguridad, y el registro
-   de la app)**: exportar la solución `CRMFlotasB2B` como solución no
-   administrada e importarla en el entorno nuevo. Ya está completa (13 tablas +
-   3 roles + la app, confirmado contra el entorno real el 03/11/2026 con
-   `27-auditoria-migracion.ps1`; las relaciones viajan solas). Tras importar,
-   hay que volver a asignar los roles a los usuarios reales del entorno nuevo
-   (los scripts `04-assign-admin.ps1`/`05-seed-data.ps1` sirven de referencia,
-   pero los IDs de usuario son distintos en cada entorno).
-2. **La app en sí NO se puede reutilizar tal cual, aunque viaje con la
-   solución** — esto costó varios intentos fallidos averiguarlo: el `appId`
-   de `power.config.json` queda atado al entorno de origen a nivel de la
-   plataforma Power Apps (no solo en Dataverse), así que `pac code push`
-   contra el entorno nuevo usando el `appId` de este proyecto (`033039d0-...`)
-   falla con `InvalidEnvironmentName`. El registro `canvasapp` que sí viaja
-   con la solución importada queda como una "ficha vacía" (nombre y metadatos,
-   sin código real desplegado) con ese mismo nombre de app, lo que además
-   bloquea crear una app nueva con el mismo `appDisplayName`
-   (`ApplicationDisplayNameIsInUse`). El procedimiento que sí funciona:
-   1. Habilitar la función de entorno **"Power Apps code apps"** en el
-      entorno nuevo (Centro de administración → entorno → Configuración →
-      Producto → Características → "Power Apps code apps" → activar →
-      Guardar; puede tardar unos minutos en propagarse).
-   2. En una carpeta aparte (nunca sobre el `power.config.json` de este
-      repo, que debe seguir apuntando siempre al entorno de desarrollo),
-      ejecutar `pac code init --displayName "<nombre>" --environment <id
-      del entorno nuevo> --buildPath ./dist --fileEntryPoint index.html`
-      apuntando `--buildPath` a una copia del `dist/` ya compilado de este
-      proyecto. Si el nombre choca con la ficha vacía importada
-      (`ApplicationDisplayNameIsInUse`), lo más simple es usar un nombre
-      ligeramente distinto (ej. "Ebro Business App" en vez de "Ebro
-      Business") en vez de borrar la ficha vacía.
-   3. `pac code add-data-source --apiId shared_commondataserviceforapps
-      --connectionId <id de la conexión Dataverse del entorno nuevo>
-      --environment <id del entorno nuevo>` (usar el nombre corto del
-      conector como `--apiId`, nunca la ruta completa `/providers/...` —
-      en Git Bash además esa ruta se corrompe por el "path mangling" de
-      MSYS; usar PowerShell para este comando).
-   4. `pac code push --environment <id o URL del entorno nuevo>` desde esa
-      misma carpeta aparte. Esto genera un `appId` nuevo, **distinto** del
-      de desarrollo — apuntarlo en la sección "Entorno de producción" más
-      abajo, nunca copiarlo al `power.config.json` de este repo.
-3. **Los datos — ojo, esto incluye la red comercial real, no solo la demo**:
-   una solución lleva esquema, no filas, así que el entorno nuevo arranca con
-   las 13 tablas **vacías**. Eso incluye tanto los datos de demo
-   (concesionarios/ubicaciones de ejemplo, los ~42 leads de prueba de
-   `07-seed-leads-demo.ps1`, que no se deben llevar) como **las 7 zonas, 42
-   concesionarios, 108 sedes y 13 modelos reales** cargados con
-   `16-red-ebro-y-modelos.ps1` — esos sí hacen falta en el entorno nuevo desde
-   el primer día, o la app arranca sin ningún concesionario. Para llevarlos,
-   re-ejecutar `16-red-ebro-y-modelos.ps1` en el entorno nuevo (es idempotente),
-   dejando fuera los scripts de datos de demo.
-4. **Usuarios reales de los concesionarios — esto no es parte de la migración
-   técnica, pero bloquea igual el ir a producción de verdad**: los dealers son
-   externos, así que cada uno necesita una invitación como invitado Entra ID
-   B2B al tenant antes de poder entrar, y después su fila en `fl_usuarioapp`
-   (correo + rol + sede) para que la app lo reconozca. Ya se habló de esto,
-   solo falta hacerlo.
-5. **El org de Dataverse al que la app pide los datos NO viaja solo — hay que
-   construir la build pensando en ello, o la app de producción pide los datos
-   a desarrollo sin dar ningún error** (bug real, detectado el 03/11/2026:
-   "Ebro Business App" en producción mostraba los ~45 leads/tareas de demo
-   porque `src/lib/dataverseClient.ts` tenía el org de **desarrollo** fijo en
-   el código, sin relación con en qué entorno estuviera alojada la app —
-   el fallo es silencioso, la app carga bien y parece funcionar, solo que
-   contra la base de datos equivocada). Ahora ese valor sale de
-   `import.meta.env.VITE_DATAVERSE_ORG` (con el org de desarrollo como
-   valor por defecto si no se define, para no romper `npm run build`/
-   `pac code run` normales). Para publicar en producción:
-   ```powershell
-   # 1. Build especial apuntando al org de produccion, en una carpeta aparte
-   #    (nunca sobrescribir el dist/ de este repo, que debe seguir compilado
-   #    contra desarrollo):
-   $env:VITE_DATAVERSE_ORG = "https://org9d11094c.crm4.dynamics.com"
-   npm run build -- --outDir <carpeta-aparte>/dist-prod
-   Remove-Item Env:\VITE_DATAVERSE_ORG   # no dejarlo puesto para el resto de la sesion
-
-   # 2. Copiar ese dist-prod/ sobre el dist/ de la carpeta de pac code init
-   #    de produccion (la del punto 2 de arriba), y desde ahi:
-   pac code push --environment <id o URL del entorno de produccion>
-   ```
-   Repetir esto cada vez que se vuelva a publicar en producción — construir
-   normal con `npm run build` y copiar ese `dist/` sin más, como se hizo al
-   principio, vuelve a desplegar la app contra el org de desarrollo.
-
-### Entorno de producción ya desplegado (03/11/2026)
-
-- **Entorno**: "Entorno - Equipo de Ventas",
-  `environmentId = 6adf3534-66c7-e4a1-95c7-045d1b228f44`,
-  org URL `https://org9d11094c.crm4.dynamics.com`.
-- **App**: `appDisplayName = "Ebro Business App"` (nombre distinto al de
-  desarrollo por el choque explicado en el punto 2 de arriba),
-  `appId = b9bfcd40-fbb7-4e29-88a8-7275312e769f`.
-  Enlace: `https://apps.powerapps.com/play/e/6adf3534-66c7-e4a1-95c7-045d1b228f44/app/b9bfcd40-fbb7-4e29-88a8-7275312e769f`.
-- Solución `CRMFlotasB2B` importada como **administrada**; red comercial real
-  (7 zonas, 42 concesionarios, 108 sedes, 13 modelos) ya cargada con
-  `16-red-ebro-y-modelos.ps1`, sin datos de demo.
-- Queda pendiente: invitar a los usuarios reales de los concesionarios
-  (punto 4 arriba) y la verificación funcional final con un usuario real.
-- **03/11/2026, corregido**: la build publicada hasta ahora pedía los datos
-  al org de desarrollo (ver punto 5 arriba) — se repitió el `pac code push`
-  con `VITE_DATAVERSE_ORG` apuntando a `org9d11094c.crm4.dynamics.com`.
-  Confirmado contando filas en vivo en producción tras la correccion: 0 en
-  `fl_lead`/`fl_tarea`/`fl_fasehistorico`/`fl_empresa`/`fl_lineaoportunidad`/
-  `fl_objetivo`/`fl_asignacion` (nada de demo), 42/108/7/13 en
-  `fl_concesionario`/`fl_ubicacion`/`fl_zona`/`fl_modelo` (red real).
-- Primer usuario concesionario real dado de alta: `ext.allanos@ebrofactory.com`
-  (invitada B2B, UPN `ext.allanos_ebrofactory.com#EXT#@ebroauto.onmicrosoft.com`),
-  rol Concesionario, sede M Automoción-Barcelona. Pendiente de verificar que
-  consigue entrar (hubo un error "user is not a member of the organization"
-  al intentarlo, antes de esta corrección — probar de nuevo ahora).
-- El `power.config.json` de este repo sigue apuntando siempre al entorno de
-  desarrollo (`192d0a93-...`) — para volver a publicar en producción, repetir
-  el procedimiento del punto 2 desde una carpeta aparte, no editar este
-  archivo.
-
-## Errores ya resueltos (para no repetirlos)
-
-- TypeScript real `enum` no compila (`tsconfig.app.json` tiene
-  `erasableSyntaxOnly`) — usar el patrón `const X = {...} as const` +
-  `type X = (typeof X)[keyof typeof X]`, ver `RolApp`/`Fase`/etc. en `types.ts`.
-- Filtrar KPIs/periodos por `fl_fechaprimercontacto` (fecha de negocio), nunca
-  por `createdon` (fecha técnica del registro — con datos de demo creados el
-  mismo día, no distingue nada entre periodos).
-- `pac code add-data-source` necesita `--connection-id` explícito; sacarlo con
-  `pac connection list --environment <id>`.
-
-## Descuento en dos partes (02/11/2026)
-
-El descuento de la oferta son dos porcentajes que se suman: `fl_descuentoconcesionario` (lo pone
-el comercial; es el obligatorio de la fase Propuesta) y `fl_descuentoventas` (lo pone el Equipo
-de Ventas). Reglas en `src/lib/descuento.ts`:
-- **Pendiente** = hay descuento del concesionario, falta el de ventas y la fase no es Cierre,
-  Entrega ni Perdido. Se marca en naranja (`--color-naranja*`) en la ficha (bloque `OfertaLead`)
-  y en las filas de Mis oportunidades / Seguimiento (columna "Descuento").
-- Si el comercial cambia su porcentaje, `actualizarLead` borra el de ventas para que lo revise.
-- Ventas ve el letrero `AvisoDescuentos` en Inicio (enlaza a `/seguimiento?descuento=pendiente`)
-  y en Seguimiento, con el filtro "Pendientes de descuento de marca". En pantalla se llama "descuento de marca"
-  (la columna de Dataverse conserva el nombre "Descuento de ventas (%)"). Solo dentro de la app, sin correo.
+- **Usuarios de producción**: hay 49 perfiles cargados; **43 aún no tienen cuenta** en el
+  entorno. Cuando la tengan, volver a guardar el usuario en Usuarios y accesos o relanzar
+  `31-cargar-usuarios.ps1` con `DV_ENTORNO=prod`.
+- **Rol "Usuario Basic"**: comprobar que todos los usuarios de producción lo tienen. Al menos
+  Julio Andia, Jesús Ferrer, Cesar Val, Jose Carlos Morion y Daniel Rodríguez no lo tenían. El
+  script 31 todavía no lo asigna.
+- **Sede "Vian-Las Rozas"**: está en la plantilla de objetivos (objetivo 5) pero no existe en
+  la app. Darla de alta si es real.
+- La pantalla de error de inicio de sesión muestra datos de diagnóstico técnicos; valorar
+  quitarlos cuando todos los concesionarios entren sin problemas.
+- `fl_empresa` tiene columnas de flota y sector sin usar, y `fl_lead` tiene `fl_cuotasobjetivo`,
+  `fl_kmtiempo` y `fl_importeventa` sin usar. Se podrían borrar.

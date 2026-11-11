@@ -239,7 +239,8 @@ function Add-DvFileColumn {
     Write-Host "    [+] $Name (archivo)"
 }
 
-$script:DvRootBusinessUnitId = "23eb3196-6334-f111-88b4-7ced8d74baf1"
+# Business Unit raiz de cada entorno (los roles de la app se crean y se buscan en ella).
+$script:DvRootBusinessUnitId = if ($env:DV_ENTORNO -eq "prod") { "7851e1e5-78d5-f111-a05b-7ced8d5944d2" } else { "23eb3196-6334-f111-88b4-7ced8d74baf1" }
 $script:DvPrivilegeIdCache = @{}
 
 function New-DvRole {
